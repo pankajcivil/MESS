@@ -68,6 +68,25 @@ for (t in 1:length(year.unique)) {
 
 # clip to only the years that overlap with the historical temperature forcing
 # (1880-2016) only clip beginning; have projection at other end.
+
+#=====================
+# function to trim temperature forcing to fit TG record unique years
+# there might be missing years in TG record, so need to match each year and not
+# just plop down an evenly spaced sequence
+trimmed_forcing <- function(year_tidegauge, year_temperature, temperature) {
+  output <- vector('list', 2); names(output) <- c('time','temperature')
+  # check the beginning
+  if(year_temperature[1] > year_tidegauge[1]) {print('ERROR - tide gauge record starts before temperature; add support for this situation')}
+  # check the end
+  if(max(year_temperature) < max(year_tidegauge)) {print('ERROR - tide gauge record ends after temperature; add support for this situation')}
+  # match the indices of year_tidegauge within year_temperature
+  imatch <- match(year_tidegauge, year_temperature)
+  output$time <- year_temperature[imatch]
+  output$temperature <- temperature[imatch]
+  return(output)
+}
+#=====================
+
 if(year.unique[1] <= time_forc[1]) {
   ind.clip <- which(year.unique < time_forc[1])
   year.unique <- year.unique[-ind.clip]
@@ -165,6 +184,7 @@ bic.gev3 <- 2*deoptim.gev3$optim$bestval + length(parnames)*log(length(data_cali
 parnames <- c('mu0','mu1','sigma','xi')
 bound.lower <- c(0, -200, 0, -3)
 bound.upper <- c(8000, 200, 4000, 3)
+auxiliary <- trimmed_forcing(year.unique, time_forc, temperature_forc)$temperature
 deoptim.gev4 <- DEoptim(neg_log_like, lower=bound.lower, upper=bound.upper,
                         DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
                         parnames=parnames, data_calib=data_calib, auxiliary=auxiliary)
@@ -175,6 +195,7 @@ bic.gev4 <- 2*deoptim.gev4$optim$bestval + length(parnames)*log(length(data_cali
 parnames <- c('mu0','mu1','sigma0','sigma1','xi')
 bound.lower <- c(0, -200, 0, -200, -3)
 bound.upper <- c(8000, 200, 4000, 200, 3)
+auxiliary <- trimmed_forcing(year.unique, time_forc, temperature_forc)$temperature
 deoptim.gev5 <- DEoptim(neg_log_like, lower=bound.lower, upper=bound.upper,
                         DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
                         parnames=parnames, data_calib=data_calib, auxiliary=auxiliary)
@@ -185,6 +206,7 @@ bic.gev5 <- 2*deoptim.gev5$optim$bestval + length(parnames)*log(length(data_cali
 parnames <- c('mu0','mu1','sigma0','sigma1','xi0','xi1')
 bound.lower <- c(0, -200, 0, -200, -3, -3)
 bound.upper <- c(8000, 200, 4000, 200, 3, 3)
+auxiliary <- trimmed_forcing(year.unique, time_forc, temperature_forc)$temperature
 deoptim.gev6 <- DEoptim(neg_log_like, lower=bound.lower, upper=bound.upper,
                         DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
                         parnames=parnames, data_calib=data_calib, auxiliary=auxiliary)

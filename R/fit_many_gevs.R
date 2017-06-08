@@ -38,47 +38,76 @@ for (dd in 1:length(data_set)) {
   }
 }
 
+# trim before 1850 (or whenever is time_forc[1]), which is when the temperature
+# forcing starts
+for (dd in 1:length(data_set)) {
+  if(data_set[[dd]]$year_unique[1] < time_forc[1]) {
+    icut <- which(data_set[[dd]]$year_unique < time_forc[1])
+    data_set[[dd]]$year_unique <- data_set[[dd]]$year_unique[-icut]
+    data_set[[dd]]$lsl_max <- data_set[[dd]]$lsl_max[-icut]
+  }
+}
 
 # fit MLE GEVs (gev3=all stationary (i.e., 3 free parameters), gev4=location
 # parameter is nonstationary, gev5=location and scale nonstationary, gev6=
 # all three nonstationary)
-
-gev.type <- 'gev3'
-
-if(gev.type=='gev3') {
-  parnames <- c('mu','sigma','xi')
-  bound_lower_set <- c(0,0,-2)
-  bound_upper_set <- c(6000,6000,2)
-} else if(gev.type=='gev4') {
-  parnames <- c('mu0','mu1','sigma','xi')
-  bound_lower_set <- c(0,0,-2)
-  bound_upper_set <- c(6000,6000,2)
-} else if(gev.type=='gev5') {
-  parnames <- c('mu0','mu1','sigma0','sigma1','xi')
-  bound_lower_set <- c(0,0,-2)
-  bound_upper_set <- c(6000,6000,2)
-} else if(gev.type=='gev6') {
-  parnames <- c('mu0','mu1','sigma0','sigma1','xi0','xi1')
-  bound_lower_set <- c(0,0,-2)
-  bound_upper_set <- c(6000,6000,2)
-} else {print('ERROR - unrecognized gev.type')}
-
-
 
 NP.deoptim <- 100
 niter.deoptim <- 100
 F.deoptim <- 0.8
 CR.deoptim <- 0.9
 
+types.of.gev <- c('gev3','gev4','gev5','gev6')
+
+# TODO - loop over all data sets and all types of gev, calc MLE parameters using
+# TODO - DEoptim and save the deoptim object as well as parameter estimates,
+# TODO - and BIC
+
 
 for (dd in 1:length(data_set)) {
-  out.deoptim <- DEoptim(neg_log_like, lower=bound_lower_set, upper=bound_upper_set,
+
+  data_set[[dd]]$bic.deoptim <- rep(NA, length(types.of.gev))
+  data_set[[dd]]$deoptim <- vector('list', length(types.of.gev))
+  names(data_set[[dd]]$deoptim) <- types.of.gev
+
+  for (gev.type in types.of.gev) {
+
+    if(gev.type=='gev3') {
+      parnames <- c('mu','sigma','xi')
+      bound_lower_set <- c(0,0,-2)
+      bound_upper_set <- c(6000,800,2)
+      auxiliary <- NULL
+    } else if(gev.type=='gev4') {
+      parnames <- c('mu0','mu1','sigma','xi')
+      bound_lower_set <- c(0,-200,0,-2)
+      bound_upper_set <- c(6000,200,800,2)
+      auxiliary <- trimmed_forcing(data_set[[dd]]$year_unique, time_forc, temperature_forc)$temperature
+    } else if(gev.type=='gev5') {
+      parnames <- c('mu0','mu1','sigma0','sigma1','xi')
+      bound_lower_set <- c(0,-200,0,-200,-2)
+      bound_upper_set <- c(6000,200,800,200,2)
+      auxiliary <- trimmed_forcing(data_set[[dd]]$year_unique, time_forc, temperature_forc)$temperature
+    } else if(gev.type=='gev6') {
+      parnames <- c('mu0','mu1','sigma0','sigma1','xi0','xi1')
+      bound_lower_set <- c(0,-200,0,-200,-2,-2)
+      bound_upper_set <- c(6000,200,800,200,2,2)
+      auxiliary <- trimmed_forcing(data_set[[dd]]$year_unique, time_forc, temperature_forc)$temperature
+    } else {print('ERROR - unrecognized gev.type')}
+
+    out.deoptim <- DEoptim(neg_log_like, lower=bound_lower_set, upper=bound_upper_set,
                          DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
-                         parnames=parnames, data_calib=data_set[[dd]]$lsl_max)
-  data_set[[dd]]$gev.deoptim <- out.deoptim$optim$bestmem
-  names(data_set[[dd]]$gev.deoptim) <- parnames
+                         parnames=parnames, data_calib=data_set[[dd]]$lsl_max, auxiliary=auxiliary)
+    data_set[[dd]]$deoptim[[gev.type]] <- out.deoptim$optim$bestmem
+    names(data_set[[dd]]$deoptim[[gev.type]]) <- parnames
+    data_set[[dd]]$bic.deoptim[gev.type] <- 2*out.deoptim$optim$bestval + length(parnames)*log(length(data_set[[dd]]$lsl_max))
+
+  }
+
 }
 
+
+# TODO - fit KDE (or something?) to the many parameter estimates
+# TODO - also include the Hook of Holland points in this fit/spread
 
 #===============================================================================
 # End

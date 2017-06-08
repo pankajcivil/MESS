@@ -27,20 +27,35 @@ data.tmp <- read.table('../data/noaa_temperature_1880-2017.csv', header = TRUE, 
 time_hist <- data.tmp$Year
 temperature_hist <- data.tmp$Value
 
-# normalize both to 1901-2000
+# extend historical back to 1850 with HadCRUT4
+data.tmp = read.table('../data/HadCRUT.4.4.0.0.annual_ns_avg.txt')
+time_hadcrut = dat[,1]
+temperature_hadcrut = dat[,2]
+
+# normalize all to 1901-2000
 ind_norm <- which(time_hist==1901):which(time_hist==2000)
 temperature_hist <- temperature_hist - mean(temperature_hist[ind_norm])
+
+ind_norm <- which(time_hadcrut==1901):which(time_hadcrut==2000)
+temperature_hadcrut <- temperature_hadcrut - mean(temperature_hadcrut[ind_norm])
 
 ind_norm <- which(time_proj==1901):which(time_proj==2000)
 temperature_proj <- temperature_proj - mean(temperature_proj[ind_norm])
 
 # set up the forcing, wherein the historical starts, then projections finish
-# 1880-2016 -- historical
-# 2017-2100 -- projection
-time_forc <- min(time_hist):max(time_proj)
+# 1850-1880 -- hadcrut4
+# 1880-2016 -- NOAA historical
+# 2017-2100 -- CRNM projection
+time_forc <- min(time_hadcrut):max(time_proj)
 temperature_forc <- rep(NA, length(time_forc))
-temperature_forc[1:length(time_hist)] <- temperature_hist
-temperature_forc[(length(time_hist)+1):length(time_forc)] <- temperature_proj[(which(time_proj==max(time_hist))+1):length(temperature_proj)]
+
+ind_hadcrut <- which(time_hadcrut==time_forc[1]):(which(time_hadcrut==time_hist[1])-1)
+ind_hist    <- 1:length(time_hist)
+ind_proj    <- which(time_proj==(max(time_hist)+1)):which(time_proj==max(time_forc))
+
+temperature_forc <- c(temperature_hadcrut[ind_hadcrut],
+                      temperature_hist[ind_hist]      ,
+                      temperature_proj[ind_proj]      )
 
 #===============================================================================
 # End
