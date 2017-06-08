@@ -39,13 +39,15 @@ for (dd in 1:length(data_set)) {
 }
 
 # trim before 1850 (or whenever is time_forc[1]), which is when the temperature
-# forcing starts
+# forcing starts. also make a note of how long each record is
+nyear <- rep(NA, length(data_set))
 for (dd in 1:length(data_set)) {
   if(data_set[[dd]]$year_unique[1] < time_forc[1]) {
     icut <- which(data_set[[dd]]$year_unique < time_forc[1])
     data_set[[dd]]$year_unique <- data_set[[dd]]$year_unique[-icut]
     data_set[[dd]]$lsl_max <- data_set[[dd]]$lsl_max[-icut]
   }
+  nyear[dd] <- length(data_set[[dd]]$year_unique)
 }
 
 # fit MLE GEVs (gev3=all stationary (i.e., 3 free parameters), gev4=location
@@ -59,10 +61,13 @@ CR.deoptim <- 0.9
 
 types.of.gev <- c('gev3','gev4','gev5','gev6')
 
-# TODO - loop over all data sets and all types of gev, calc MLE parameters using
-# TODO - DEoptim and save the deoptim object as well as parameter estimates,
-# TODO - and BIC
-
+deoptim.eur <- vector('list', 4); names(deoptim.eur) <- types.of.gev
+deoptim.eur$gev3 <- mat.or.vec(length(data_set), 3); rownames(deoptim.eur$gev3) <- files.tg
+deoptim.eur$gev4 <- mat.or.vec(length(data_set), 4); rownames(deoptim.eur$gev4) <- files.tg
+deoptim.eur$gev5 <- mat.or.vec(length(data_set), 5); rownames(deoptim.eur$gev5) <- files.tg
+deoptim.eur$gev6 <- mat.or.vec(length(data_set), 6); rownames(deoptim.eur$gev6) <- files.tg
+bic.eur <- mat.or.vec(length(data_set), 4)
+colnames(bic.eur) <- types.of.gev; rownames(bic.eur) <- files.tg
 
 for (dd in 1:length(data_set)) {
 
@@ -94,12 +99,12 @@ for (dd in 1:length(data_set)) {
       auxiliary <- trimmed_forcing(data_set[[dd]]$year_unique, time_forc, temperature_forc)$temperature
     } else {print('ERROR - unrecognized gev.type')}
 
-    out.deoptim <- DEoptim(neg_log_like, lower=bound_lower_set, upper=bound_upper_set,
+    out.deoptim <- DEoptim(neg_log_like_gev, lower=bound_lower_set, upper=bound_upper_set,
                          DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
                          parnames=parnames, data_calib=data_set[[dd]]$lsl_max, auxiliary=auxiliary)
-    data_set[[dd]]$deoptim[[gev.type]] <- out.deoptim$optim$bestmem
-    names(data_set[[dd]]$deoptim[[gev.type]]) <- parnames
-    data_set[[dd]]$bic.deoptim[gev.type] <- 2*out.deoptim$optim$bestval + length(parnames)*log(length(data_set[[dd]]$lsl_max))
+    deoptim.eur[[gev.type]][dd,] <- out.deoptim$optim$bestmem
+    colnames(deoptim.eur[[gev.type]]) <- parnames
+    bic.eur[dd, gev.type] <- 2*out.deoptim$optim$bestval + length(parnames)*log(length(data_set[[dd]]$lsl_max))
 
   }
 

@@ -5,24 +5,24 @@
 
 
 #===============================================================================
-# set up parameters
-lnonstat <- vector('list',3); names(lnonstat) <- c('mu','sigma','xi')
-lnonstat$mu    <- FALSE
+# set up parameters - parametric family (i) from Naveau et al (2016)
+lnonstat <- vector('list',3); names(lnonstat) <- c('kappa','sigma','xi')
+lnonstat$kappa <- FALSE
 lnonstat$sigma <- FALSE
 lnonstat$xi    <- FALSE
 
 # set parameter names, with an error check, that the nonstationary parameter
 # combinations are supported
 if(length(which(unlist(lnonstat)==TRUE))==0) {
-  parnames <- c('mu','sigma','xi')
+  parnames <- c('kappa','sigma','xi')
 } else if(length(which(unlist(lnonstat)==TRUE))==1) {
-  if(lnonstat$mu) {parnames <- c('mu0','mu1','sigma','xi')}
-  else {print('ERROR - if only one nonstationary parameter, it must be location')}
+  if(lnonstat$kappa) {parnames <- c('kappa0','kappa1','sigma','xi')}
+  else {print('ERROR - if only one nonstationary parameter, it must be kappa')}
 } else if(length(which(unlist(lnonstat)==TRUE))==2) {
-  if(lnonstat$mu & lnonstat$sigma) {parnames <- c('mu0','mu1','sigma0','sigma1','xi')}
-  else {print('ERROR - if only two nonstationary parameters, they must be location and scale')}
+  if(lnonstat$kappa & lnonstat$sigma) {parnames <- c('kappa0','kappa1','sigma0','sigma1','xi')}
+  else {print('ERROR - if only two nonstationary parameters, they must be kappa and scale')}
 } else if(length(which(unlist(lnonstat)==TRUE))==3) {
-  parnames <- c('mu0','mu1','sigma0','sigma1','xi0','xi1')
+  parnames <- c('kapp0','mu1','sigma0','sigma1','xi0','xi1')
 } else {print('ERROR - unknown number of non-stationary parameters')}
 #===============================================================================
 
@@ -58,25 +58,40 @@ for (p in 1:length(parnames)) {
 
 
 #===============================================================================
-# fit MLE GEV forms
 
-library(extRemes)
-library(zoo)
+# TODO
+# TODO -- check these
+# TODO
+
+naveau_level <- function(p, kappa, sigma, xi){
+  level <- NULL
+  level <- (sigma/xi)*( (1-(p^(1/kappa)))^(-xi) -1)
+  return(level)
+}
+
+naveau_pdf <- function(x, kappa, sigma, xi){
+  prob <- NULL
+  prob <- (1- (1+xi*x/sigma)^xi)^kappa
+  return(prob)
+}
+#===============================================================================
+
+
+#===============================================================================
+# fit MLE Naveau-(i) forms
+
 library(adaptMCMC)
 library(lhs)
 library(DEoptim)
 
-source('likelihood_gev.R')
+source('likelihood_naveau.R')
 
-# get initial parameter estimates from MLE
-gev.mle <- fevd(x=coredata(lsl.max))
 
-##  Estimated parameters:
-##     location        scale        shape
-## 285.48705758  44.34765239  -0.03758258
-##  Standard Error Estimates:
-##   location      scale      shape
-## 4.33903000 3.16084770 0.06990618
+# TODO
+# TODO -- have log likelihood (check it?), try a latin hypercube
+# TODO -- ... and figure out the return levels, probabilities to recreate his FIgure 1
+# TODO
+
 
 # preliminary latin hypercube
 bound.lower <- c(0, 0, -2)
@@ -93,7 +108,7 @@ for (p in 1:nparam.lhs) {
 llik.lhs <- rep(NA, niter.lhs)
 pb <- txtProgressBar(min=0,max=niter.lhs,initial=0,style=3)
 for (i in 1:niter.lhs) {
-  llik.lhs[i] <- log_like_gev(parameters=parameters.lhs[i,], parnames=parnames, data_calib=data_calib)
+  llik.lhs[i] <- log_like_naveau(parameters=parameters.lhs[i,], parnames=parnames, data_calib=data_calib)
   setTxtProgressBar(pb, i)
 }
 close(pb)
@@ -115,43 +130,43 @@ F.deoptim <- 0.8
 CR.deoptim <- 0.9
 
 # all stationary
-parnames <- c('mu','sigma','xi')
+parnames <- c('kappa','sigma','xi')
 bound.lower <- c(0, 0, -3)
 bound.upper <- c(8000, 4000, 3)
-deoptim.gev3 <- DEoptim(neg_log_like_gev, lower=bound.lower, upper=bound.upper,
+deoptim.gev3 <- DEoptim(neg_log_like, lower=bound.lower, upper=bound.upper,
                         DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
                         parnames=parnames, data_calib=data_calib)
 names(deoptim.gev3$optim$bestmem) <- parnames
 bic.gev3 <- 2*deoptim.gev3$optim$bestval + length(parnames)*log(length(data_calib))
 
 # location nonstationary
-parnames <- c('mu0','mu1','sigma','xi')
+parnames <- c('kappa0','kappa1','sigma','xi')
 bound.lower <- c(0, -200, 0, -3)
 bound.upper <- c(8000, 200, 4000, 3)
 auxiliary <- trimmed_forcing(year.unique, time_forc, temperature_forc)$temperature
-deoptim.gev4 <- DEoptim(neg_log_like_gev, lower=bound.lower, upper=bound.upper,
+deoptim.gev4 <- DEoptim(neg_log_like, lower=bound.lower, upper=bound.upper,
                         DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
                         parnames=parnames, data_calib=data_calib, auxiliary=auxiliary)
 names(deoptim.gev4$optim$bestmem) <- parnames
 bic.gev4 <- 2*deoptim.gev4$optim$bestval + length(parnames)*log(length(data_calib))
 
 # location and scale nonstationary
-parnames <- c('mu0','mu1','sigma0','sigma1','xi')
+parnames <- c('kappa0','kappa1','sigma0','sigma1','xi')
 bound.lower <- c(0, -200, 0, -200, -3)
 bound.upper <- c(8000, 200, 4000, 200, 3)
 auxiliary <- trimmed_forcing(year.unique, time_forc, temperature_forc)$temperature
-deoptim.gev5 <- DEoptim(neg_log_like_gev, lower=bound.lower, upper=bound.upper,
+deoptim.gev5 <- DEoptim(neg_log_like, lower=bound.lower, upper=bound.upper,
                         DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
                         parnames=parnames, data_calib=data_calib, auxiliary=auxiliary)
 names(deoptim.gev5$optim$bestmem) <- parnames
 bic.gev5 <- 2*deoptim.gev5$optim$bestval + length(parnames)*log(length(data_calib))
 
 # location, scale and shape all nonstationary
-parnames <- c('mu0','mu1','sigma0','sigma1','xi0','xi1')
+parnames <- c('kappa0','kappa1','sigma0','sigma1','xi0','xi1')
 bound.lower <- c(0, -200, 0, -200, -3, -3)
 bound.upper <- c(8000, 200, 4000, 200, 3, 3)
 auxiliary <- trimmed_forcing(year.unique, time_forc, temperature_forc)$temperature
-deoptim.gev6 <- DEoptim(neg_log_like_gev, lower=bound.lower, upper=bound.upper,
+deoptim.gev6 <- DEoptim(neg_log_like, lower=bound.lower, upper=bound.upper,
                         DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
                         parnames=parnames, data_calib=data_calib, auxiliary=auxiliary)
 names(deoptim.gev6$optim$bestmem) <- parnames
