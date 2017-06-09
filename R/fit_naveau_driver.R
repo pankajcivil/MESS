@@ -71,15 +71,31 @@ naveau_level <- function(p, kappa, sigma, xi){
 
 naveau_pdf <- function(x, kappa, sigma, xi){
   prob <- NULL
-  prob <- (1- (1+xi*x/sigma)^xi)^kappa
+  prob <- kappa*((1-(1+xi*x/sigma)^(-1/xi))^(kappa-1))*((1+xi*x/sigma)^(-(1+1/xi)))/sigma
   return(prob)
 }
+
+naveau_cdf <- function(x, kappa, sigma, xi){
+  q <- NULL
+  q <- (1-(1+xi*x/sigma)^(-1/xi))^kappa
+  return(q)
+}
+
+# inverse cdf for generalized pareto distribution:
+gpinv <- function(x, mu, sigma, xi){output <- mu + (sigma/xi)*(((1-x)^(-xi))-1); return(output)}
+# verified (9 June 2017) that 'extRemes' package function qevd(..., type='GP')
+# indeed reproduces this. Need for Naveau likelihood function (their Appendix)
+
+# good testing, "calibrate" by eyeball metric to see how the parameters interact
+tmp <- naveau_pdf(x, 20000, 5, 0.3); hist(lsl.max, xlim=c(0,1000)); plot(x, tmp, type='l', xlim=c(0,1000))
+
 #===============================================================================
 
 
 #===============================================================================
 # fit MLE Naveau-(i) forms
 
+library(extRemes)
 library(adaptMCMC)
 library(lhs)
 library(DEoptim)
@@ -94,10 +110,17 @@ source('likelihood_naveau.R')
 
 
 # preliminary latin hypercube
-bound.lower <- c(0, 0, -2)
-bound.upper <- c(500, 100, 2)
-niter.lhs <- 1e6
+bound.lower <- c(0, 0, 0)
+bound.upper <- c(50000, 100, 10)
+
+#bound.lower <- c(0, -200, 0, -2)
+#bound.upper <- c(10000, 200, 100, 2)
+
+niter.lhs <- 1e5
 nparam.lhs <- length(bound.lower)
+
+
+
 
 parameters.lhs0 <- randomLHS(n=niter.lhs, k=nparam.lhs)
 parameters.lhs  <- parameters.lhs0
@@ -131,46 +154,51 @@ CR.deoptim <- 0.9
 
 # all stationary
 parnames <- c('kappa','sigma','xi')
-bound.lower <- c(0, 0, -3)
-bound.upper <- c(8000, 4000, 3)
-deoptim.gev3 <- DEoptim(neg_log_like, lower=bound.lower, upper=bound.upper,
+bound.lower <- c(0, 0, 0)
+bound.upper <- c(50000, 100, 10)
+deoptim.nav3 <- DEoptim(neg_log_like_naveau, lower=bound.lower, upper=bound.upper,
                         DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
                         parnames=parnames, data_calib=data_calib)
-names(deoptim.gev3$optim$bestmem) <- parnames
-bic.gev3 <- 2*deoptim.gev3$optim$bestval + length(parnames)*log(length(data_calib))
+names(deoptim.nav3$optim$bestmem) <- parnames
+bic.nav3 <- 2*deoptim.nav3$optim$bestval + length(parnames)*log(length(data_calib))
+
+
+# plot this survival function against the empirical one
+plot(esf.levels, log10(esf.values))
+
 
 # location nonstationary
 parnames <- c('kappa0','kappa1','sigma','xi')
-bound.lower <- c(0, -200, 0, -3)
-bound.upper <- c(8000, 200, 4000, 3)
+bound.lower <- c(0, -20, 0, 0)
+bound.upper <- c(50000, 20, 40, 10)
 auxiliary <- trimmed_forcing(year.unique, time_forc, temperature_forc)$temperature
-deoptim.gev4 <- DEoptim(neg_log_like, lower=bound.lower, upper=bound.upper,
+deoptim.nav4 <- DEoptim(neg_log_like_naveau, lower=bound.lower, upper=bound.upper,
                         DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
                         parnames=parnames, data_calib=data_calib, auxiliary=auxiliary)
-names(deoptim.gev4$optim$bestmem) <- parnames
-bic.gev4 <- 2*deoptim.gev4$optim$bestval + length(parnames)*log(length(data_calib))
+names(deoptim.nav4$optim$bestmem) <- parnames
+bic.nav4 <- 2*deoptim.nav4$optim$bestval + length(parnames)*log(length(data_calib))
 
 # location and scale nonstationary
 parnames <- c('kappa0','kappa1','sigma0','sigma1','xi')
 bound.lower <- c(0, -200, 0, -200, -3)
 bound.upper <- c(8000, 200, 4000, 200, 3)
 auxiliary <- trimmed_forcing(year.unique, time_forc, temperature_forc)$temperature
-deoptim.gev5 <- DEoptim(neg_log_like, lower=bound.lower, upper=bound.upper,
+deoptim.nav5 <- DEoptim(neg_log_like_naveau, lower=bound.lower, upper=bound.upper,
                         DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
                         parnames=parnames, data_calib=data_calib, auxiliary=auxiliary)
-names(deoptim.gev5$optim$bestmem) <- parnames
-bic.gev5 <- 2*deoptim.gev5$optim$bestval + length(parnames)*log(length(data_calib))
+names(deoptim.nav5$optim$bestmem) <- parnames
+bic.nav5 <- 2*deoptim.nav5$optim$bestval + length(parnames)*log(length(data_calib))
 
 # location, scale and shape all nonstationary
 parnames <- c('kappa0','kappa1','sigma0','sigma1','xi0','xi1')
 bound.lower <- c(0, -200, 0, -200, -3, -3)
 bound.upper <- c(8000, 200, 4000, 200, 3, 3)
 auxiliary <- trimmed_forcing(year.unique, time_forc, temperature_forc)$temperature
-deoptim.gev6 <- DEoptim(neg_log_like, lower=bound.lower, upper=bound.upper,
+deoptim.nav6 <- DEoptim(neg_log_like_naveau, lower=bound.lower, upper=bound.upper,
                         DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
                         parnames=parnames, data_calib=data_calib, auxiliary=auxiliary)
-names(deoptim.gev6$optim$bestmem) <- parnames
-bic.gev6 <- 2*deoptim.gev6$optim$bestval + length(parnames)*log(length(data_calib))
+names(deoptim.nav6$optim$bestmem) <- parnames
+bic.nav6 <- 2*deoptim.nav6$optim$bestval + length(parnames)*log(length(data_calib))
 
 
 

@@ -29,7 +29,7 @@ neg_log_like_gev <- function(parameters,
                              data_calib,
                              auxiliary=NULL
 ){
-  nll <- -1 * log_like(parameters, parnames, data_calib, auxiliary)
+  nll <- -1 * log_like_gev(parameters, parnames, data_calib, auxiliary)
   return(nll)
 }
 

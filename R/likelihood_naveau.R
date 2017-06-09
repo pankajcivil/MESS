@@ -29,7 +29,7 @@ neg_log_like_naveau <- function(parameters,
                                 data_calib,
                                 auxiliary=NULL
 ){
-  nll <- -1 * log_like(parameters, parnames, data_calib, auxiliary)
+  nll <- -1 * log_like_naveau(parameters, parnames, data_calib, auxiliary)
   return(nll)
 }
 
@@ -76,11 +76,17 @@ log_like_naveau <- function(parameters,
     xi <- xi0 + xi1*auxiliary
   } else {print('ERROR - invalid number of parameters for Naveau-(i)')}
 
-# TODO CHECK!
-  p1 <- devd(data_calib/sigma, scale=sigma, shape=xi, threshold=0, type="GP")
-  p2 <- kappa*pevd(data_calib/sigma, scale=sigma, shape=xi, threshold=0, type="GP")^(kappa-1)
-  p3 <- sigma^(-length(data_calib))
-  llik <- sum(log(p1))+sum(log(p2))+log(p3)
+# these do not seem to work (also should do the log and sum/prod in better way)
+##  p1 <- devd(data_calib, loc=0, scale=sigma, shape=xi, threshold=0, type='GP')
+##  p2 <- kappa*pevd(data_calib, loc=0, scale=sigma, shape=xi, threshold=0, type='GP')^(kappa-1)
+##  p3 <- sigma^(-length(data_calib))
+##  llik <- sum(log(p1))+sum(log(p2))+log(p3)
+
+# this one does not seem to be worrking - check algebra?
+#llik <- log(kappa/sigma) + (kappa-1)*sum(log(1-(1+xi*data_calib/sigma)^(-1/xi)) - (1+1/xi)*log(1+xi*data_calib/sigma) )
+
+# this one works
+llik <- sum( log(naveau_pdf(x=data_calib, kappa=kappa, sigma=sigma, xi=xi)) )
 
   return(llik)
 }
