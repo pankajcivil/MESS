@@ -39,8 +39,11 @@ trimmed_forcing <- function(year_tidegauge, year_temperature, temperature) {
 #=====================
 
 
-dat.dir <- '~/codes/EVT/data/tide_gauge_Europe/Hook_of_Holland_Oddo_data/'
+dat.dir <- '~/codes/EVT/data/tide_gauge_Europe/Delfzijl_Oddo_data/'
 data <- read_data(dat.dir=dat.dir, filetype='txt', septype='\t')
+
+# convert sea levels from cm to mm, consistent with the other European data
+data$sl <- 10* data$sl
 
 year  <- as.numeric(substr(as.character(data$date), start=1, stop=4))
 month <- as.numeric(substr(as.character(data$date), start=5, stop=6))

@@ -37,7 +37,7 @@ source('read_data_temperature.R')
 
 
 #===============================================================================
-# read and process the tide gauge data from the Hook of Holland
+# read and process the tide gauge data from Delfzijl
 
 source('read_data_tidegauge.R')
 
@@ -73,14 +73,14 @@ gev.mle <- fevd(x=coredata(lsl.max))
 
 ##  Estimated parameters:
 ##     location        scale        shape
-## 285.48705758  44.34765239  -0.03758258
+## 2849.54895053  442.37014103   -0.03305154
 ##  Standard Error Estimates:
 ##   location      scale      shape
-## 4.33903000 3.16084770 0.06990618
+## 43.20220492 31.56298254  0.07052645
 
 # preliminary latin hypercube
 bound.lower <- c(0, 0, -2)
-bound.upper <- c(500, 100, 2)
+bound.upper <- c(5000, 1000, 2)
 niter.lhs <- 1e6
 nparam.lhs <- length(bound.lower)
 
@@ -126,8 +126,8 @@ bic.gev3 <- 2*deoptim.gev3$optim$bestval + length(parnames)*log(length(data_cali
 
 # location nonstationary
 parnames <- c('mu0','mu1','sigma','xi')
-bound.lower <- c(0, -200, 0, -3)
-bound.upper <- c(8000, 200, 4000, 3)
+bound.lower <- c(0, -1000, 0, -3)
+bound.upper <- c(8000, 1000, 4000, 3)
 auxiliary <- trimmed_forcing(year.unique, time_forc, temperature_forc)$temperature
 deoptim.gev4 <- DEoptim(neg_log_like_gev, lower=bound.lower, upper=bound.upper,
                         DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
@@ -137,8 +137,8 @@ bic.gev4 <- 2*deoptim.gev4$optim$bestval + length(parnames)*log(length(data_cali
 
 # location and scale nonstationary
 parnames <- c('mu0','mu1','sigma0','sigma1','xi')
-bound.lower <- c(0, -200, 0, -200, -3)
-bound.upper <- c(8000, 200, 4000, 200, 3)
+bound.lower <- c(0, -1000, 0, -200, -3)
+bound.upper <- c(8000, 1000, 4000, 200, 3)
 auxiliary <- trimmed_forcing(year.unique, time_forc, temperature_forc)$temperature
 deoptim.gev5 <- DEoptim(neg_log_like_gev, lower=bound.lower, upper=bound.upper,
                         DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
@@ -148,8 +148,8 @@ bic.gev5 <- 2*deoptim.gev5$optim$bestval + length(parnames)*log(length(data_cali
 
 # location, scale and shape all nonstationary
 parnames <- c('mu0','mu1','sigma0','sigma1','xi0','xi1')
-bound.lower <- c(0, -200, 0, -200, -3, -3)
-bound.upper <- c(8000, 200, 4000, 200, 3, 3)
+bound.lower <- c(0, -1000, 0, -200, -3, -3)
+bound.upper <- c(8000, 1000, 4000, 200, 3, 3)
 auxiliary <- trimmed_forcing(year.unique, time_forc, temperature_forc)$temperature
 deoptim.gev6 <- DEoptim(neg_log_like_gev, lower=bound.lower, upper=bound.upper,
                         DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),

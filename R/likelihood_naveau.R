@@ -51,8 +51,10 @@ log_like_naveau <- function(parameters,
     # lower-tail parameter nonstationary
     kappa0 <- parameters[match('kappa0',parnames)]
     kappa1 <- parameters[match('kappa1',parnames)]
-    sigma <- parameters[match('sigma',parnames)]
-    xi <- parameters[match('xi',parnames)]
+#    sigma <- parameters[match('sigma',parnames)]
+#    xi <- parameters[match('xi',parnames)]
+    sigma <- rep(parameters[match('sigma',parnames)], length(auxiliary))
+    xi <- rep(parameters[match('xi',parnames)], length(auxiliary))
     kappa <- kappa0 + kappa1*auxiliary
   } else if(n.param==5) {
     # lower-tail and scale parameters nonstationary
@@ -87,6 +89,7 @@ log_like_naveau <- function(parameters,
 
 # this one works
 llik <- sum( log(naveau_pdf(x=data_calib, kappa=kappa, sigma=sigma, xi=xi)) )
+if(is.na(llik)) {llik <- -9e9}
 
   return(llik)
 }
