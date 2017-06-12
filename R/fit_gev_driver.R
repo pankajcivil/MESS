@@ -1,4 +1,6 @@
 #===============================================================================
+# Preliminary testing fitting GEV models.
+# Note: this is antiquated by the "fit_many_gev_and_naveau_model.R" script.
 #
 # Questions? Tony Wong (twong@psu.edu)
 #===============================================================================
@@ -91,17 +93,20 @@ for (p in 1:nparam.lhs) {
 }
 
 llik.lhs <- rep(NA, niter.lhs)
+lpost.lhs <- rep(NA, niter.lhs)
 pb <- txtProgressBar(min=0,max=niter.lhs,initial=0,style=3)
 for (i in 1:niter.lhs) {
-  llik.lhs[i] <- log_like_gev(parameters=parameters.lhs[i,], parnames=parnames, data_calib=data_calib)
+  llik.lhs[i] <- log_like_gev(parameters=parameters.lhs[i,], parnames=parnames$gev3, data_calib=data_calib$lsl_max)
+  lpost.lhs[i] <- log_post_gev(parameters=parameters.lhs[i,], parnames=parnames$gev3, data_calib=data_calib$lsl_max, model='gev3', priors=priors)
   setTxtProgressBar(pb, i)
 }
 close(pb)
-lhs.sample <- data.frame(cbind(parameters.lhs, llik.lhs))
-colnames(lhs.sample) <- c(parnames,'llike')
+lhs.sample <- data.frame(cbind(parameters.lhs, llik.lhs, lpost.lhs))
+colnames(lhs.sample) <- c(parnames$gev3,'llike','lpost')
 
 # sort lhs results from highest likelihood to lowest
-lhs.sample <- lhs.sample[rev(order(llik.lhs)),]
+lhs.llike <- lhs.sample[rev(order(llik.lhs)),]
+lhs.lpost <- lhs.sample[rev(order(lpost.lhs)),]
 
 # Differential evolution optimization
 # (can only minimize, so use negative log-likelihood function)
@@ -156,36 +161,6 @@ deoptim.gev6 <- DEoptim(neg_log_like_gev, lower=bound.lower, upper=bound.upper,
                         parnames=parnames, data_calib=data_calib, auxiliary=auxiliary)
 names(deoptim.gev6$optim$bestmem) <- parnames
 bic.gev6 <- 2*deoptim.gev6$optim$bestval + length(parnames)*log(length(data_calib))
-
-
-
-
-
-
-
-step_mcmc <-
-parameters0 <-
-
-# set up and run the actual calibration
-# interpolate between lots of parameters and one parameter.
-# this functional form yields an acceptance rate of about 25% for as few as 10
-# parameters, 44% for a single parameter (or Metropolis-within-Gibbs sampler),
-# and 0.234 for infinite number of parameters, using accept_mcmc_few=0.44 and
-# accept_mcmc_many=0.234.
-accept_mcmc_few <- 0.44         # optimal for only one parameter
-accept_mcmc_many <- 0.234       # optimal for many parameters
-accept_mcmc <- accept_mcmc_many + (accept_mcmc_few - accept_mcmc_many)/length(parnames)
-niter_mcmc <- 1e3
-gamma_mcmc <- 0.5
-stopadapt_mcmc <- round(niter_mcmc*1.0)# stop adapting after ?? iterations? (niter*1 => don't stop)
-
-# actually run the calibration
-tbeg=proc.time()
-amcmc_out1 = MCMC(log_post, niter_mcmc, parameters0, adapt=TRUE, acc.rate=accept_mcmc,
-                  scale=step_mcmc, gamma=gamma_mcmc, list=TRUE, n.start=max(500,round(0.05*niter_mcmc)),
-                  parnames=parnames, data_calib=data_calib, priors=priors, auxiliary=NULL)
-tend=proc.time()
-chain1 = amcmc_out1$samples
 
 
 #===============================================================================

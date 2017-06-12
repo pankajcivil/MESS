@@ -1,4 +1,7 @@
 #===============================================================================
+# Preliminary testing with the Naveau (i) model.
+# AKA, Papastathopoulos and Tawn (2013) model (iii)
+# Note: this is antiquated by the "fit_many_gev_and_naveau_model.R" script.
 #
 # Questions? Tony Wong (twong@psu.edu)
 #===============================================================================
@@ -153,16 +156,17 @@ lhs.sample <- lhs.sample[rev(order(llik.lhs)),]
 # calculate BIC with each of the maximum likelihood sets (not that 'bestval' is
 # from the negative log-likelihood, cancelling out the - in BIC)
 
-NP.deoptim <- 100
-niter.deoptim <- 100
+NP.deoptim <- 200
+niter.deoptim <- 200
 F.deoptim <- 0.8
 CR.deoptim <- 0.9
+
 
 #========================
 # all stationary
 parnames <- c('kappa','sigma','xi')
 bound.lower <- c(0, 0, -10)
-bound.upper <- c(50000, 100, 10)
+bound.upper <- c(2e7, 1000, 10)
 deoptim.nav3 <- DEoptim(neg_log_like_naveau, lower=bound.lower, upper=bound.upper,
                         DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
                         parnames=parnames, data_calib=data_calib)
@@ -172,12 +176,15 @@ bic.nav3 <- 2*deoptim.nav3$optim$bestval + length(parnames)*log(length(data_cali
 
 # plot this survival function against the empirical one
 parameters <- deoptim.nav3$optim$bestmem
-cdf.tmp <- naveau_cdf(x=x, kappa=parameters[1], sigma=parameters[2], xi=parameters[3])
-plot(esf.levels, log10(esf.values))
-lines(x, log10(1-cdf.tmp), col='red')
+x <- seq(0, 10000, 10)
+nav.cdf <- naveau_cdf(x=x, kappa=parameters[1], sigma=parameters[2], xi=parameters[3])
+plot(esf.levels, log10(esf.values), ylim=c(-2.5,0), xlim=c(0,6000), xlab='Level [cm]', ylab='Survival function [1-cdf]', yaxt='n')
+axis(2, at=seq(-3, 0, by=1), label=parse(text=paste("10^", seq(-3,0), sep="")))
+lines(x, log10(1-nav.cdf), col='red')
 
 # plot with the fitted GEV
-plot(x, log10(1-gev.cdf), type='l', ylim=c(-2.5,0), xlim=c(0,600), xlab='Level [cm]', ylab='Survival function [1-cdf]', yaxt='n')
+gev.cdf <- pevd(q=x, loc=deoptim.gev3$optim$bestmem[1], scale=deoptim.gev3$optim$bestmem[2], shape=deoptim.gev3$optim$bestmem[3])
+plot(x, log10(1-gev.cdf), type='l', ylim=c(-2.5,0), xlim=c(0,6000), xlab='Level [cm]', ylab='Survival function [1-cdf]', yaxt='n')
 axis(2, at=seq(-3, 0, by=1), label=parse(text=paste("10^", seq(-3,0), sep="")))
 lines(x, log10(1-nav.cdf), col='red')
 points(esf.levels, log10(esf.values))
@@ -187,8 +194,8 @@ points(esf.levels, log10(esf.values))
 #========================
 # lower tail parameter nonstationary
 parnames <- c('kappa0','kappa1','sigma','xi')
-bound.lower <- c(0, -40, 0, -10)
-bound.upper <- c(50000, 40, 100, 10)
+bound.lower <- c(0, -100, 0, -10)
+bound.upper <- c(2e7, 100, 1000, 10)
 auxiliary <- trimmed_forcing(year.unique, time_forc, temperature_forc)$temperature
 deoptim.nav4 <- DEoptim(neg_log_like_naveau, lower=bound.lower, upper=bound.upper,
                         DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
@@ -210,8 +217,8 @@ points(lsl.max, log10(1-cdf.tmp), pch=16, col='blue')
 #========================
 # lower tail and scale nonstationary
 parnames <- c('kappa0','kappa1','sigma0','sigma1','xi')
-bound.lower <- c(0, -40, -100, -100, -10)
-bound.upper <- c(50000, 40, 100, 100, 10)
+bound.lower <- c(0, -100, 0, -100, -10)
+bound.upper <- c(2e7, 100, 100, 100, 10)
 auxiliary <- trimmed_forcing(year.unique, time_forc, temperature_forc)$temperature
 deoptim.nav5 <- DEoptim(neg_log_like_naveau, lower=bound.lower, upper=bound.upper,
                         DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
@@ -235,8 +242,8 @@ points(lsl.max, log10(1-cdf.tmp), pch=16, col='blue')
 #========================
 # location, scale and shape all nonstationary
 parnames <- c('kappa0','kappa1','sigma0','sigma1','xi0','xi1')
-bound.lower <- c(0, -40, -100, -100, -10, -10)
-bound.upper <- c(50000, 40, 100, 100, 10, 10)
+bound.lower <- c(0, -100, 0, -100, -10, -10)
+bound.upper <- c(2e7, 100, 100, 100, 10, 10)
 auxiliary <- trimmed_forcing(year.unique, time_forc, temperature_forc)$temperature
 deoptim.nav6 <- DEoptim(neg_log_like_naveau, lower=bound.lower, upper=bound.upper,
                         DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
@@ -258,30 +265,6 @@ points(lsl.max, log10(1-cdf.tmp), pch=16, col='blue')
 
 
 
-
-step_mcmc <-
-parameters0 <-
-
-# set up and run the actual calibration
-# interpolate between lots of parameters and one parameter.
-# this functional form yields an acceptance rate of about 25% for as few as 10
-# parameters, 44% for a single parameter (or Metropolis-within-Gibbs sampler),
-# and 0.234 for infinite number of parameters, using accept_mcmc_few=0.44 and
-# accept_mcmc_many=0.234.
-accept_mcmc_few <- 0.44         # optimal for only one parameter
-accept_mcmc_many <- 0.234       # optimal for many parameters
-accept_mcmc <- accept_mcmc_many + (accept_mcmc_few - accept_mcmc_many)/length(parnames)
-niter_mcmc <- 1e3
-gamma_mcmc <- 0.5
-stopadapt_mcmc <- round(niter_mcmc*1.0)# stop adapting after ?? iterations? (niter*1 => don't stop)
-
-# actually run the calibration
-tbeg=proc.time()
-amcmc_out1 = MCMC(log_post, niter_mcmc, parameters0, adapt=TRUE, acc.rate=accept_mcmc,
-                  scale=step_mcmc, gamma=gamma_mcmc, list=TRUE, n.start=max(500,round(0.05*niter_mcmc)),
-                  parnames=parnames, data_calib=data_calib, priors=priors, auxiliary=NULL)
-tend=proc.time()
-chain1 = amcmc_out1$samples
 
 
 #===============================================================================

@@ -20,25 +20,6 @@ read_data <- function(dat.dir, filetype, septype){
 #=====================
 
 
-#=====================
-# function to trim temperature forcing to fit TG record unique years
-# there might be missing years in TG record, so need to match each year and not
-# just plop down an evenly spaced sequence
-trimmed_forcing <- function(year_tidegauge, year_temperature, temperature) {
-  output <- vector('list', 2); names(output) <- c('time','temperature')
-  # check the beginning
-  if(year_temperature[1] > year_tidegauge[1]) {print('ERROR - tide gauge record starts before temperature; add support for this situation')}
-  # check the end
-  if(max(year_temperature) < max(year_tidegauge)) {print('ERROR - tide gauge record ends after temperature; add support for this situation')}
-  # match the indices of year_tidegauge within year_temperature
-  imatch <- match(year_tidegauge, year_temperature)
-  output$time <- year_temperature[imatch]
-  output$temperature <- temperature[imatch]
-  return(output)
-}
-#=====================
-
-
 dat.dir <- '~/codes/EVT/data/tide_gauge_Europe/Delfzijl_Oddo_data/'
 data <- read_data(dat.dir=dat.dir, filetype='txt', septype='\t')
 
@@ -71,6 +52,9 @@ for (t in 1:length(year.unique)) {
   lsl.max[t] <- max(data$sl.norm[ind.this.year])
 }
 
+# skip for now
+print('skipping subtracting off average annual cycle for now - can refine later if you want to do anything finer than annual block maxima')
+if(FALSE) {
 # get an monthyl average annual cycle, for removing annual cycle (by division?)
 avg.ann.cycle <- rep(NA, 12)
 for (m in 1:12) {
@@ -88,8 +72,7 @@ for (t in 1:length(year.unique)) {
     lsl.mon.max[itmp] <- max(data$sl.norm[ind.this.year.and.month]-avg.ann.cycle[m])
   }
 }
-
-
+} # end skip for now
 
 
 # clip to only the years that overlap with the historical temperature forcing

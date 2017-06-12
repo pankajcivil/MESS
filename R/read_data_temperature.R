@@ -29,8 +29,8 @@ temperature_hist <- data.tmp$Value
 
 # extend historical back to 1850 with HadCRUT4
 data.tmp = read.table('../data/HadCRUT.4.4.0.0.annual_ns_avg.txt')
-time_hadcrut = dat[,1]
-temperature_hadcrut = dat[,2]
+time_hadcrut = data.tmp[,1]
+temperature_hadcrut = data.tmp[,2]
 
 # normalize all to 1901-2000
 ind_norm <- which(time_hist==1901):which(time_hist==2000)

@@ -5,7 +5,65 @@
 # Questions? Tony Wong (twong@psu.edu)
 #===============================================================================
 
-# read data
+rm(list=ls())
+
+#
+#===============================================================================
+# relevant libraries - do 'install.pacakges([library name])' if you do not have
+# one yet
+#===============================================================================
+#
+
+library(extRemes)
+library(zoo)
+library(adaptMCMC)
+library(lhs)
+library(DEoptim)
+library(ncdf4)
+
+#
+#===============================================================================
+# read and process data for temperature (auxiliary covariate for nonstationary
+# parameters)
+# yields: temperature_forc, time_forc
+#===============================================================================
+#
+
+source('read_data_temperature.R')
+
+# function to trim temperature forcing to fit TG record unique years
+# there might be missing years in TG record, so need to match each year and not
+# just plop down an evenly spaced sequence
+trimmed_forcing <- function(year_tidegauge, year_temperature, temperature) {
+  output <- vector('list', 2); names(output) <- c('time','temperature')
+  # check the beginning
+  if(year_temperature[1] > year_tidegauge[1]) {print('ERROR - tide gauge record starts before temperature; add support for this situation')}
+  # check the end
+  if(max(year_temperature) < max(year_tidegauge)) {print('ERROR - tide gauge record ends after temperature; add support for this situation')}
+  # match the indices of year_tidegauge within year_temperature
+  imatch <- match(year_tidegauge, year_temperature)
+  output$time <- year_temperature[imatch]
+  output$temperature <- temperature[imatch]
+  return(output)
+}
+
+#
+#===============================================================================
+# read and process data for Dutch station (Delfzijl)
+#===============================================================================
+#
+
+source('read_data_tidegauge.R')
+data_calib <- vector('list', 2); names(data_calib) <- c('year_unique','lsl_max')
+data_calib$year_unique <- year.unique
+data_calib$lsl_max <- lsl.max
+
+#
+#===============================================================================
+# read and process data for set of European stations
+#===============================================================================
+#
+
 filetype='csv'
 dat.dir <- '~/codes/EVT/data/tide_gauge_Europe/'
 files.tg <- list.files(path=dat.dir, pattern=filetype)
@@ -52,16 +110,9 @@ for (dd in 1:length(data_set)) {
 
 #
 #===============================================================================
-# fit MLE GEV and Naveau models (nav3,gev3=all stationary (i.e., 3 free parameters),
-# gev/nav4=location/lower tail parameter is nonstationary, gev/nav5=lower tail
-# and scale nonstationary, gev/nav6= all three nonstationary)
+# set up GEV and Naveau (i) model parameters
 #===============================================================================
 #
-
-NP.deoptim <- 200
-niter.deoptim <- 200
-F.deoptim <- 0.8
-CR.deoptim <- 0.9
 
 types.of.gev <- c('gev3','gev4','gev5','gev6')
 types.of.nav <- c('nav3','nav4','nav5','nav6')
@@ -86,8 +137,8 @@ bound_lower_set$gev5 <- c(0,-1000,0,-200,-2)
 bound_lower_set$gev6 <- c(0,-1000,0,-200,-2,-3)
 bound_lower_set$nav3 <- c(0,0,-10)
 bound_lower_set$nav4 <- c(0,-100,0,-10)
-bound_lower_set$nav5 <- c(0,-100,-100,-100,-10)
-bound_lower_set$nav6 <- c(0,-100,-100,-100,-10,-10)
+bound_lower_set$nav5 <- c(0,-100, 0,-100,-10)
+bound_lower_set$nav6 <- c(0,-100, 0,-100,-10,-10)
 
 bound_upper_set <- vector('list', length(types.of.model))
 bound_upper_set$gev3 <- c(6000, 800, 2)
@@ -99,6 +150,77 @@ bound_upper_set$nav4 <- c(2e7, 100, 1000, 10)
 bound_upper_set$nav5 <- c(2e7, 100, 100, 100, 10)
 bound_upper_set$nav6 <- c(2e7, 100, 100, 100, 10, 10)
 
+#
+#===============================================================================
+# parameters for DE optim (for maximum likelihood/minimum negative likelihoood)
+#===============================================================================
+#
+
+NP.deoptim <- 200
+niter.deoptim <- 200
+F.deoptim <- 0.8
+CR.deoptim <- 0.9
+
+#
+#===============================================================================
+# fit MLE GEV and Naveau models (nav3,gev3=all stationary (i.e., 3 free parameters),
+# gev/nav4=location/lower tail parameter is nonstationary, gev/nav5=lower tail
+# and scale nonstationary, gev/nav6= all three nonstationary)
+# for Dutch station
+#
+# Fun fact: This section is a bit of a catch-22: the prior distributions, which
+# are defined in the 'likelihood_xxx.R' routines below, are determined by doing
+# this initial MLE fitting. This was run once with the prior distributions left
+# empty and only the likelihood functions defined, then the prior distibutions
+# were fit as below, and built into the 'likelihood_xxx.R' routines.
+#===============================================================================
+#
+
+source('likelihood_gev.R')
+source('likelihood_naveau.R')
+
+deoptim.delfzijl <- vector('list', 8); names(deoptim.delfzijl) <- types.of.model
+for (i in 1:length(types.of.model)) {
+  deoptim.delfzijl[[types.of.model[i]]] <- mat.or.vec(1, length(parnames[[types.of.model[i]]]))
+  rownames(deoptim.delfzijl[[types.of.model[i]]]) <- 'delfzijl'
+  colnames(deoptim.delfzijl[[types.of.model[i]]]) <- parnames[[types.of.model[i]]]
+}
+bic.delfzijl <- mat.or.vec(1, 8)
+colnames(bic.delfzijl) <- types.of.model; rownames(bic.delfzijl) <- 'delfzijl'
+
+# GEV model fitting
+for (gev.type in types.of.gev) {
+  if(gev.type=='gev3') {auxiliary <- NULL
+  } else {auxiliary <- trimmed_forcing(data_calib$year_unique, time_forc, temperature_forc)$temperature}
+  out.deoptim <- DEoptim(neg_log_like_gev, lower=bound_lower_set[[gev.type]], upper=bound_upper_set[[gev.type]],
+                       DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
+                       parnames=parnames[[gev.type]], data_calib=data_calib$lsl_max, auxiliary=auxiliary)
+  deoptim.delfzijl[[gev.type]][1,] <- out.deoptim$optim$bestmem
+  colnames(deoptim.delfzijl[[gev.type]]) <- parnames[[gev.type]]
+  bic.delfzijl[1, gev.type] <- 2*out.deoptim$optim$bestval + length(parnames[[gev.type]])*log(length(data_calib$lsl_max))
+}
+
+# Naveau (i) model fitting
+for (nav.type in types.of.nav) {
+  if(nav.type=='nav3') {auxiliary <- NULL
+  } else {auxiliary <- trimmed_forcing(data_calib$year_unique, time_forc, temperature_forc)$temperature}
+  out.deoptim <- DEoptim(neg_log_like_naveau, lower=bound_lower_set[[nav.type]], upper=bound_upper_set[[nav.type]],
+                       DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
+                       parnames=parnames[[nav.type]], data_calib=data_calib$lsl_max, auxiliary=auxiliary)
+  deoptim.delfzijl[[nav.type]][1,] <- out.deoptim$optim$bestmem
+  colnames(deoptim.delfzijl[[nav.type]]) <- parnames[[nav.type]]
+  bic.delfzijl[1, nav.type] <- 2*out.deoptim$optim$bestval + length(parnames[[nav.type]])*log(length(data_calib$lsl_max))
+}
+
+#
+#===============================================================================
+# fit MLE GEV and Naveau models (nav3,gev3=all stationary (i.e., 3 free parameters),
+# gev/nav4=location/lower tail parameter is nonstationary, gev/nav5=lower tail
+# and scale nonstationary, gev/nav6= all three nonstationary)
+# for all tide gauge stations within +/-15 degrees lat/lon of the Dutch station
+#===============================================================================
+#
+
 deoptim.eur <- vector('list', 8); names(deoptim.eur) <- types.of.model
 for (i in 1:length(types.of.model)) {
   deoptim.eur[[types.of.model[i]]] <- mat.or.vec(length(data_set), length(parnames[[types.of.model[i]]]))
@@ -107,7 +229,6 @@ for (i in 1:length(types.of.model)) {
 }
 bic.eur <- mat.or.vec(length(data_set), 8)
 colnames(bic.eur) <- types.of.model; rownames(bic.eur) <- files.tg
-
 
 for (dd in 1:length(data_set)) {
 
@@ -140,6 +261,17 @@ for (dd in 1:length(data_set)) {
   }
 }
 
+# also include Delfzijl points in this fit/spread
+mle.fits <- vector('list', length(types.of.model)); names(mle.fits) <- types.of.model
+mle.fits$gev3 <- rbind(deoptim.eur$gev3, deoptim.delfzijl$gev3)
+mle.fits$gev4 <- rbind(deoptim.eur$gev4, deoptim.delfzijl$gev4)
+mle.fits$gev5 <- rbind(deoptim.eur$gev5, deoptim.delfzijl$gev5)
+mle.fits$gev6 <- rbind(deoptim.eur$gev6, deoptim.delfzijl$gev6)
+mle.fits$nav3 <- rbind(deoptim.eur$nav3, deoptim.delfzijl$nav3)
+mle.fits$nav4 <- rbind(deoptim.eur$nav4, deoptim.delfzijl$nav4)
+mle.fits$nav5 <- rbind(deoptim.eur$nav5, deoptim.delfzijl$nav5)
+mle.fits$nav6 <- rbind(deoptim.eur$nav6, deoptim.delfzijl$nav6)
+
 # plot a fit with the empirical survival function
 if(FALSE){
 dd <- 6
@@ -159,17 +291,6 @@ lines(x.eur, log10(1-cdf.gev), col='blue')
 #===============================================================================
 #
 
-# also include Delfzijl points in this fit/spread
-mle.fits <- vector('list', length(types.of.model)); names(mle.fits) <- types.of.model
-mle.fits$gev3 <- rbind(deoptim.eur$gev3, deoptim.gev3$optim$bestmem)
-mle.fits$gev4 <- rbind(deoptim.eur$gev4, deoptim.gev4$optim$bestmem)
-mle.fits$gev5 <- rbind(deoptim.eur$gev5, deoptim.gev5$optim$bestmem)
-mle.fits$gev6 <- rbind(deoptim.eur$gev6, deoptim.gev6$optim$bestmem)
-mle.fits$nav3 <- rbind(deoptim.eur$nav3, deoptim.nav3$optim$bestmem)
-mle.fits$nav4 <- rbind(deoptim.eur$nav4, deoptim.nav4$optim$bestmem)
-mle.fits$nav5 <- rbind(deoptim.eur$nav5, deoptim.nav5$optim$bestmem)
-mle.fits$nav6 <- rbind(deoptim.eur$nav6, deoptim.nav6$optim$bestmem)
-
 # see where Delfzijl parameter fits lie with respect to the rest of them
 # (make sure they are not some extreme outlier) (they are last row of each matrix)
 if(FALSE){
@@ -183,9 +304,10 @@ for (model in types.of.model) {
 }
 }
 
-# TODO - fit gamma and normal priors
+# fit gamma and normal priors
 # -> centered at the medians (or Delfzijl MLEs? no, medians, so it is general *prior* belief)
 # -> with standard deviation equal to half the max-min range
+#    (or do empirical sd? might underestimate though - take wider)
 
 # assign which parameters have which priors
 gamma.priors <- c('mu','mu0','kappa','kappa0','sigma','sigma0')
@@ -196,21 +318,82 @@ for (model in types.of.model) {
   priors[[model]] <- vector('list', length(parnames[[model]])); names(priors[[model]]) <- parnames[[model]]
   for (par in parnames[[model]]) {
     priors[[model]][[par]] <- vector('list', 3) # type, and 2 distribution parameters
-    if(!is.na(match(par, gamma.priors))) {
+    if(!is.na(match(par, gamma.priors))) { # shape=alpha, rate=beta, mean=shape/rate, var=shape/rate^2
       names(priors[[model]][[par]]) <- c('type','shape','rate'); priors[[model]][[par]]$type <- 'gamma'
-      # TODO - FIT THE PARAMETERS HERE
-      # TODO
-    } else if(~is.na(match(par, normal.priors))) {
+#      priors[[model]][[par]]$shape <- (median(mle.fits[[model]][,par])^2)/(0.5*(max(mle.fits[[model]][,par])-min(mle.fits[[model]][,par])))^2
+#      priors[[model]][[par]]$rate <- priors[[model]][[par]]$shape * median(mle.fits[[model]][,par])
+      priors[[model]][[par]]$rate <- median(mle.fits[[model]][,par]) / (0.5*(max(mle.fits[[model]][,par])-min(mle.fits[[model]][,par])))^2
+      priors[[model]][[par]]$shape <- median(mle.fits[[model]][,par]) * priors[[model]][[par]]$rate
+    } else if(!is.na(match(par, normal.priors))) {
       names(priors[[model]][[par]]) <- c('type','mean','sd'); priors[[model]][[par]]$type <- 'normal'
-      # TODO - FIT THE PARAMETERS HERE
-      # TODO
+      priors[[model]][[par]]$mean <- median(mle.fits[[model]][,par])
+      priors[[model]][[par]]$sd   <- 0.5*(max(mle.fits[[model]][,par])-min(mle.fits[[model]][,par]))
+      #priors[[model]][[par]]$sd   <- sd(mle.fits[[model]][,par])
     }
   }
+}
+
+# plot priors and MLE histograms
+if(FALSE){
+for (model in types.of.model) {
+  x11()
+  par(mfrow=c(3,2))
+  for (p in 1:length(parnames[[model]])) {
+    range <- max(mle.fits[[model]][,p]) - min(mle.fits[[model]][,p])
+    lower <- min(mle.fits[[model]][,p]) - 0.05*range
+    upper <- max(mle.fits[[model]][,p]) + 0.05*range
+    x.tmp <- seq(from=lower, to=upper, length.out=1000)
+    if(priors[[model]][[p]]$type=='normal') {
+      pdf.tmp <- dnorm(x=x.tmp, mean=priors[[model]][[p]]$mean, sd=priors[[model]][[p]]$sd)
+    } else if(priors[[model]][[p]]$type=='gamma') {
+      pdf.tmp <- dgamma(x=x.tmp, shape=priors[[model]][[p]]$shape, rate=priors[[model]][[p]]$rate)
+    }
+    hist(mle.fits[[model]][,p], xlab=parnames[[model]][p], main=model, freq=FALSE)
+    lines(c(mle.fits[[model]][length(data_set)+1,p],mle.fits[[model]][length(data_set)+1,p]), c(-1000,1000), type='l', col='red', lwd=2)
+    lines(x.tmp, pdf.tmp, lwd=2, col='blue')
+  }
+}
 }
 
 # are there any correlations among the parameters that shoudl be accounted for in the priors?
 #e.g., cor(mle.fits[[model]])
 # -> not really
+
+#
+#===============================================================================
+# set up Markov chain Monte Carlo (MCMC) calibration
+#===============================================================================
+#
+
+
+step_mcmc <-
+parameters0 <-
+
+# set up and run the actual calibration
+
+
+# interpolate between lots of parameters and one parameter.
+# this functional form yields an acceptance rate of about 25% for as few as 10
+# parameters, 44% for a single parameter (or Metropolis-within-Gibbs sampler),
+# and 0.234 for infinite number of parameters, using accept_mcmc_few=0.44 and
+# accept_mcmc_many=0.234.
+accept_mcmc_few <- 0.44         # optimal for only one parameter
+accept_mcmc_many <- 0.234       # optimal for many parameters
+accept_mcmc <- accept_mcmc_many + (accept_mcmc_few - accept_mcmc_many)/length(parnames)
+niter_mcmc <- 1e3
+gamma_mcmc <- 0.5
+stopadapt_mcmc <- round(niter_mcmc*1.0)# stop adapting after ?? iterations? (niter*1 => don't stop)
+
+# actually run the calibration
+tbeg=proc.time()
+amcmc_out1 = MCMC(log_post_gev, niter_mcmc, parameters0, adapt=TRUE, acc.rate=accept_mcmc,
+                  scale=step_mcmc, gamma=gamma_mcmc, list=TRUE, n.start=max(500,round(0.05*niter_mcmc)),
+                  parnames=parnames, data_calib=data_set[[dd]]$lsl_max, priors=priors, auxiliary=auxiliary)
+tend=proc.time()
+chain1 = amcmc_out1$samples
+
+
+
 
 #===============================================================================
 # End

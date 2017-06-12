@@ -6,24 +6,38 @@
 #===============================================================================
 
 
+#
 #===============================================================================
-
+# log(prior) for gev model
+#===============================================================================
+#
 log_prior_gev <- function(parameters,
                           parnames,
                           priors,
+                          model,
                           auxiliary=NULL
 ){
   lpri <- 0
 
-  # TODO
-
-  # take in some list object "priors" for calculating this
+  for (par in parnames) {
+    parameter.value <- as.numeric(parameters[match(par,parnames)])
+    if(priors[[model]][[par]]$type=='normal') {
+      lpri <- lpri + dnorm(x=parameter.value, mean=priors[[model]][[par]]$mean, sd=priors[[model]][[par]]$sd, log=TRUE)
+    } else if(priors[[model]][[p]]$type=='gamma') {
+      lpri <- lpri + dgamma(x=parameter.value, shape=priors[[model]][[par]]$shape, rate=priors[[model]][[par]]$rate, log=TRUE)
+    }
+  }
 
   return(lpri)
 }
-
 #===============================================================================
 
+
+#
+#===============================================================================
+# -log(likelihood) for gev model
+#===============================================================================
+#
 neg_log_like_gev <- function(parameters,
                              parnames,
                              data_calib,
@@ -32,9 +46,14 @@ neg_log_like_gev <- function(parameters,
   nll <- -1 * log_like_gev(parameters, parnames, data_calib, auxiliary)
   return(nll)
 }
-
 #===============================================================================
 
+
+#
+#===============================================================================
+# log(likelihood) for gev model
+#===============================================================================
+#
 log_like_gev <- function(parameters,
                          parnames,
                          data_calib,
@@ -78,29 +97,45 @@ log_like_gev <- function(parameters,
   llik <- sum(devd(data_calib, loc=mu, scale=sigma, shape=xi, log=TRUE, type='GEV'))
   return(llik)
 }
-
 #===============================================================================
 
+
+#
+#===============================================================================
+# log(post) for gev model
+#===============================================================================
+#
 log_post_gev <- function(parameters,
                          parnames,
                          data_calib,
                          priors,
+                         model,
                          auxiliary
 ){
   lpost <- 0
   llik <- 0
   lpri <- 0
 
-  # TODO calculate prior
+  # calculate prior
+  lpri <- log_prior_gev(parameters=parameters,
+                        parnames=parnames,
+                        priors=priors,
+                        model=model,
+                        auxiliary=auxiliary)
 
   if(is.finite(lpri)){
-    # TODO calculate likelihood
-
+    # calculate likelihood (only if parameters pass the prior test)
+    llik <- log_like_gev(parameters=parameters,
+                         parnames=parnames,
+                         data_calib=data_calib,
+                         auxiliary=auxiliary)
   }
 
   lpost <- lpri + llik
   return(lpost)
 }
+#===============================================================================
+
 
 #===============================================================================
 # End
