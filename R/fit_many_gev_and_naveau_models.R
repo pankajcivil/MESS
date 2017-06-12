@@ -119,15 +119,15 @@ types.of.nav <- c('nav3','nav4','nav5','nav6')
 types.of.model <- c(types.of.gev, types.of.nav)
 
 # set up parameter names for each model
-parnames <- vector('list', length(types.of.model))
-parnames$gev3 <- c('mu','sigma','xi')
-parnames$gev4 <- c('mu0','mu1','sigma','xi')
-parnames$gev5 <- c('mu0','mu1','sigma0','sigma1','xi')
-parnames$gev6 <- c('mu0','mu1','sigma0','sigma1','xi0','xi1')
-parnames$nav3 <- c('kappa','sigma','xi')
-parnames$nav4 <- c('kappa0','kappa1','sigma','xi')
-parnames$nav5 <- c('kappa0','kappa1','sigma0','sigma1','xi')
-parnames$nav6 <- c('kappa0','kappa1','sigma0','sigma1','xi0','xi1')
+parnames_all <- vector('list', length(types.of.model))
+parnames_all$gev3 <- c('mu','sigma','xi')
+parnames_all$gev4 <- c('mu0','mu1','sigma','xi')
+parnames_all$gev5 <- c('mu0','mu1','sigma0','sigma1','xi')
+parnames_all$gev6 <- c('mu0','mu1','sigma0','sigma1','xi0','xi1')
+parnames_all$nav3 <- c('kappa','sigma','xi')
+parnames_all$nav4 <- c('kappa0','kappa1','sigma','xi')
+parnames_all$nav5 <- c('kappa0','kappa1','sigma0','sigma1','xi')
+parnames_all$nav6 <- c('kappa0','kappa1','sigma0','sigma1','xi0','xi1')
 
 # set up parameter bounds for each model
 bound_lower_set <- vector('list', length(types.of.model))
@@ -135,20 +135,28 @@ bound_lower_set$gev3 <- c(0,0,-2)
 bound_lower_set$gev4 <- c(0,-1000,0,-2)
 bound_lower_set$gev5 <- c(0,-1000,0,-200,-2)
 bound_lower_set$gev6 <- c(0,-1000,0,-200,-2,-3)
-bound_lower_set$nav3 <- c(0,0,-10)
-bound_lower_set$nav4 <- c(0,-100,0,-10)
-bound_lower_set$nav5 <- c(0,-100, 0,-100,-10)
-bound_lower_set$nav6 <- c(0,-100, 0,-100,-10,-10)
+#bound_lower_set$nav3 <- c(0,0,-10)
+#bound_lower_set$nav4 <- c(0,-100,0,-10)
+#bound_lower_set$nav5 <- c(0,-100, 0,-100,-10)
+#bound_lower_set$nav6 <- c(0,-100, 0,-100,-10,-10)
+bound_lower_set$nav3 <- c(0,0,-2)
+bound_lower_set$nav4 <- c(0,-100,0,-2)
+bound_lower_set$nav5 <- c(0,-100, 0,-100,-2)
+bound_lower_set$nav6 <- c(0,-100, 0,-100,-2,-3)
 
 bound_upper_set <- vector('list', length(types.of.model))
 bound_upper_set$gev3 <- c(6000, 800, 2)
 bound_upper_set$gev4 <- c(6000, 1000, 800, 2)
 bound_upper_set$gev5 <- c(6000, 1000, 800, 200, 2)
 bound_upper_set$gev6 <- c(6000, 1000, 800, 200, 2, 3)
-bound_upper_set$nav3 <- c(2e7, 1000, 10)
-bound_upper_set$nav4 <- c(2e7, 100, 1000, 10)
-bound_upper_set$nav5 <- c(2e7, 100, 100, 100, 10)
-bound_upper_set$nav6 <- c(2e7, 100, 100, 100, 10, 10)
+#bound_upper_set$nav3 <- c(2e7, 1000, 10)
+#bound_upper_set$nav4 <- c(2e7, 100, 1000, 10)
+#bound_upper_set$nav5 <- c(2e7, 100, 100, 100, 10)
+#bound_upper_set$nav6 <- c(2e7, 100, 100, 100, 10, 10)
+bound_upper_set$nav3 <- c(1e5, 1000, 2)
+bound_upper_set$nav4 <- c(1e5, 100, 1000, 2)
+bound_upper_set$nav5 <- c(1e5, 100, 100, 100, 2)
+bound_upper_set$nav6 <- c(1e5, 100, 100, 100, 2, 3)
 
 #
 #===============================================================================
@@ -181,9 +189,9 @@ source('likelihood_naveau.R')
 
 deoptim.delfzijl <- vector('list', 8); names(deoptim.delfzijl) <- types.of.model
 for (i in 1:length(types.of.model)) {
-  deoptim.delfzijl[[types.of.model[i]]] <- mat.or.vec(1, length(parnames[[types.of.model[i]]]))
+  deoptim.delfzijl[[types.of.model[i]]] <- mat.or.vec(1, length(parnames_all[[types.of.model[i]]]))
   rownames(deoptim.delfzijl[[types.of.model[i]]]) <- 'delfzijl'
-  colnames(deoptim.delfzijl[[types.of.model[i]]]) <- parnames[[types.of.model[i]]]
+  colnames(deoptim.delfzijl[[types.of.model[i]]]) <- parnames_all[[types.of.model[i]]]
 }
 bic.delfzijl <- mat.or.vec(1, 8)
 colnames(bic.delfzijl) <- types.of.model; rownames(bic.delfzijl) <- 'delfzijl'
@@ -194,10 +202,10 @@ for (gev.type in types.of.gev) {
   } else {auxiliary <- trimmed_forcing(data_calib$year_unique, time_forc, temperature_forc)$temperature}
   out.deoptim <- DEoptim(neg_log_like_gev, lower=bound_lower_set[[gev.type]], upper=bound_upper_set[[gev.type]],
                        DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
-                       parnames=parnames[[gev.type]], data_calib=data_calib$lsl_max, auxiliary=auxiliary)
+                       parnames=parnames_all[[gev.type]], data_calib=data_calib$lsl_max, auxiliary=auxiliary)
   deoptim.delfzijl[[gev.type]][1,] <- out.deoptim$optim$bestmem
-  colnames(deoptim.delfzijl[[gev.type]]) <- parnames[[gev.type]]
-  bic.delfzijl[1, gev.type] <- 2*out.deoptim$optim$bestval + length(parnames[[gev.type]])*log(length(data_calib$lsl_max))
+  colnames(deoptim.delfzijl[[gev.type]]) <- parnames_all[[gev.type]]
+  bic.delfzijl[1, gev.type] <- 2*out.deoptim$optim$bestval + length(parnames_all[[gev.type]])*log(length(data_calib$lsl_max))
 }
 
 # Naveau (i) model fitting
@@ -206,10 +214,20 @@ for (nav.type in types.of.nav) {
   } else {auxiliary <- trimmed_forcing(data_calib$year_unique, time_forc, temperature_forc)$temperature}
   out.deoptim <- DEoptim(neg_log_like_naveau, lower=bound_lower_set[[nav.type]], upper=bound_upper_set[[nav.type]],
                        DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
-                       parnames=parnames[[nav.type]], data_calib=data_calib$lsl_max, auxiliary=auxiliary)
+                       parnames=parnames_all[[nav.type]], data_calib=data_calib$lsl_max, auxiliary=auxiliary)
   deoptim.delfzijl[[nav.type]][1,] <- out.deoptim$optim$bestmem
-  colnames(deoptim.delfzijl[[nav.type]]) <- parnames[[nav.type]]
-  bic.delfzijl[1, nav.type] <- 2*out.deoptim$optim$bestval + length(parnames[[nav.type]])*log(length(data_calib$lsl_max))
+  colnames(deoptim.delfzijl[[nav.type]]) <- parnames_all[[nav.type]]
+  bic.delfzijl[1, nav.type] <- 2*out.deoptim$optim$bestval + length(parnames_all[[nav.type]])*log(length(data_calib$lsl_max))
+}
+
+# plot this survival function against the empirical one
+if(FALSE) {
+parameters <- deoptim.delfzijl$nav3
+x <- seq(0, 10000, 10)
+nav.cdf <- naveau_cdf(x=x, kappa=parameters[1], sigma=parameters[2], xi=parameters[3])
+plot(esf.levels, log10(esf.values), ylim=c(-2.5,0), xlim=c(0,6000), xlab='Level [cm]', ylab='Survival function [1-cdf]', yaxt='n')
+axis(2, at=seq(-3, 0, by=1), label=parse(text=paste("10^", seq(-3,0), sep="")))
+lines(x, log10(1-nav.cdf), col='red')
 }
 
 #
@@ -223,9 +241,9 @@ for (nav.type in types.of.nav) {
 
 deoptim.eur <- vector('list', 8); names(deoptim.eur) <- types.of.model
 for (i in 1:length(types.of.model)) {
-  deoptim.eur[[types.of.model[i]]] <- mat.or.vec(length(data_set), length(parnames[[types.of.model[i]]]))
+  deoptim.eur[[types.of.model[i]]] <- mat.or.vec(length(data_set), length(parnames_all[[types.of.model[i]]]))
   rownames(deoptim.eur[[types.of.model[i]]]) <- files.tg
-  colnames(deoptim.eur[[types.of.model[i]]]) <- parnames[[types.of.model[i]]]
+  colnames(deoptim.eur[[types.of.model[i]]]) <- parnames_all[[types.of.model[i]]]
 }
 bic.eur <- mat.or.vec(length(data_set), 8)
 colnames(bic.eur) <- types.of.model; rownames(bic.eur) <- files.tg
@@ -242,10 +260,10 @@ for (dd in 1:length(data_set)) {
     } else {auxiliary <- trimmed_forcing(data_set[[dd]]$year_unique, time_forc, temperature_forc)$temperature}
     out.deoptim <- DEoptim(neg_log_like_gev, lower=bound_lower_set[[gev.type]], upper=bound_upper_set[[gev.type]],
                          DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
-                         parnames=parnames[[gev.type]], data_calib=data_set[[dd]]$lsl_max, auxiliary=auxiliary)
+                         parnames=parnames_all[[gev.type]], data_calib=data_set[[dd]]$lsl_max, auxiliary=auxiliary)
     deoptim.eur[[gev.type]][dd,] <- out.deoptim$optim$bestmem
-    colnames(deoptim.eur[[gev.type]]) <- parnames[[gev.type]]
-    bic.eur[dd, gev.type] <- 2*out.deoptim$optim$bestval + length(parnames[[gev.type]])*log(length(data_set[[dd]]$lsl_max))
+    colnames(deoptim.eur[[gev.type]]) <- parnames_all[[gev.type]]
+    bic.eur[dd, gev.type] <- 2*out.deoptim$optim$bestval + length(parnames_all[[gev.type]])*log(length(data_set[[dd]]$lsl_max))
   }
 
   # Naveau (i) model fitting
@@ -254,10 +272,10 @@ for (dd in 1:length(data_set)) {
     } else {auxiliary <- trimmed_forcing(data_set[[dd]]$year_unique, time_forc, temperature_forc)$temperature}
     out.deoptim <- DEoptim(neg_log_like_naveau, lower=bound_lower_set[[nav.type]], upper=bound_upper_set[[nav.type]],
                          DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
-                         parnames=parnames[[nav.type]], data_calib=data_set[[dd]]$lsl_max, auxiliary=auxiliary)
+                         parnames=parnames_all[[nav.type]], data_calib=data_set[[dd]]$lsl_max, auxiliary=auxiliary)
     deoptim.eur[[nav.type]][dd,] <- out.deoptim$optim$bestmem
-    colnames(deoptim.eur[[nav.type]]) <- parnames[[nav.type]]
-    bic.eur[dd, nav.type] <- 2*out.deoptim$optim$bestval + length(parnames[[nav.type]])*log(length(data_set[[dd]]$lsl_max))
+    colnames(deoptim.eur[[nav.type]]) <- parnames_all[[nav.type]]
+    bic.eur[dd, nav.type] <- 2*out.deoptim$optim$bestval + length(parnames_all[[nav.type]])*log(length(data_set[[dd]]$lsl_max))
   }
 }
 
@@ -297,8 +315,8 @@ if(FALSE){
 for (model in types.of.model) {
   x11()
   par(mfrow=c(3,2))
-  for (p in 1:length(parnames[[model]])) {
-    hist(mle.fits[[model]][,p], xlab=parnames[[model]][p], main=model)
+  for (p in 1:length(parnames_all[[model]])) {
+    hist(mle.fits[[model]][,p], xlab=parnames_all[[model]][p], main=model)
     lines(c(mle.fits[[model]][length(data_set)+1,p],mle.fits[[model]][length(data_set)+1,p]), c(-1000,1000), type='l', col='red', lwd=2)
   }
 }
@@ -310,18 +328,24 @@ for (model in types.of.model) {
 #    (or do empirical sd? might underestimate though - take wider)
 
 # assign which parameters have which priors
+rm(list=c('gamma.priors','normal.priors','uniform.priors'))
 gamma.priors <- c('mu','mu0','kappa','kappa0','sigma','sigma0')
 normal.priors <- c('xi','mu1','sigma1','xi0','xi1','kappa1')
+uniform.priors <- NULL
+# test fitting uniform priors
+#uniform.priors <- c('mu','mu0','kappa','kappa0','sigma','sigma0','xi','mu1','sigma1','xi0','xi1','kappa1')
 
 priors <- vector('list', length(types.of.model)); names(priors) <- types.of.model
 for (model in types.of.model) {
-  priors[[model]] <- vector('list', length(parnames[[model]])); names(priors[[model]]) <- parnames[[model]]
-  for (par in parnames[[model]]) {
+  priors[[model]] <- vector('list', length(parnames_all[[model]])); names(priors[[model]]) <- parnames_all[[model]]
+  for (par in parnames_all[[model]]) {
     priors[[model]][[par]] <- vector('list', 3) # type, and 2 distribution parameters
-    if(!is.na(match(par, gamma.priors))) { # shape=alpha, rate=beta, mean=shape/rate, var=shape/rate^2
+    if(!is.na(match(par, uniform.priors))) {
+       names(priors[[model]][[par]]) <- c('type','shape','rate'); priors[[model]][[par]]$type <- 'uniform'
+       priors[[model]][[par]]$lower <- bound_lower_set[[model]][match(par,parnames_all[[model]])]
+       priors[[model]][[par]]$upper <- bound_upper_set[[model]][match(par,parnames_all[[model]])]
+    } else if(!is.na(match(par, gamma.priors))) { # shape=alpha, rate=beta, mean=shape/rate, var=shape/rate^2
       names(priors[[model]][[par]]) <- c('type','shape','rate'); priors[[model]][[par]]$type <- 'gamma'
-#      priors[[model]][[par]]$shape <- (median(mle.fits[[model]][,par])^2)/(0.5*(max(mle.fits[[model]][,par])-min(mle.fits[[model]][,par])))^2
-#      priors[[model]][[par]]$rate <- priors[[model]][[par]]$shape * median(mle.fits[[model]][,par])
       priors[[model]][[par]]$rate <- median(mle.fits[[model]][,par]) / (0.5*(max(mle.fits[[model]][,par])-min(mle.fits[[model]][,par])))^2
       priors[[model]][[par]]$shape <- median(mle.fits[[model]][,par]) * priors[[model]][[par]]$rate
     } else if(!is.na(match(par, normal.priors))) {
@@ -333,12 +357,17 @@ for (model in types.of.model) {
   }
 }
 
+
+### TODO TODO TODO - make sure you're using the right priors
+### TODO TODO TODO - (uniform only for testing)
+
+
 # plot priors and MLE histograms
 if(FALSE){
 for (model in types.of.model) {
   x11()
   par(mfrow=c(3,2))
-  for (p in 1:length(parnames[[model]])) {
+  for (p in 1:length(parnames_all[[model]])) {
     range <- max(mle.fits[[model]][,p]) - min(mle.fits[[model]][,p])
     lower <- min(mle.fits[[model]][,p]) - 0.05*range
     upper <- max(mle.fits[[model]][,p]) + 0.05*range
@@ -348,7 +377,7 @@ for (model in types.of.model) {
     } else if(priors[[model]][[p]]$type=='gamma') {
       pdf.tmp <- dgamma(x=x.tmp, shape=priors[[model]][[p]]$shape, rate=priors[[model]][[p]]$rate)
     }
-    hist(mle.fits[[model]][,p], xlab=parnames[[model]][p], main=model, freq=FALSE)
+    hist(mle.fits[[model]][,p], xlab=parnames_all[[model]][p], main=model, freq=FALSE)
     lines(c(mle.fits[[model]][length(data_set)+1,p],mle.fits[[model]][length(data_set)+1,p]), c(-1000,1000), type='l', col='red', lwd=2)
     lines(x.tmp, pdf.tmp, lwd=2, col='blue')
   }
@@ -366,33 +395,65 @@ for (model in types.of.model) {
 #
 
 
-step_mcmc <-
-parameters0 <-
-
 # set up and run the actual calibration
-
-
-# interpolate between lots of parameters and one parameter.
-# this functional form yields an acceptance rate of about 25% for as few as 10
-# parameters, 44% for a single parameter (or Metropolis-within-Gibbs sampler),
-# and 0.234 for infinite number of parameters, using accept_mcmc_few=0.44 and
-# accept_mcmc_many=0.234.
-accept_mcmc_few <- 0.44         # optimal for only one parameter
-accept_mcmc_many <- 0.234       # optimal for many parameters
-accept_mcmc <- accept_mcmc_many + (accept_mcmc_few - accept_mcmc_many)/length(parnames)
-niter_mcmc <- 1e3
+niter_mcmc <- 1e4
 gamma_mcmc <- 0.5
 stopadapt_mcmc <- round(niter_mcmc*1.0)# stop adapting after ?? iterations? (niter*1 => don't stop)
 
-# actually run the calibration
-tbeg=proc.time()
-amcmc_out1 = MCMC(log_post_gev, niter_mcmc, parameters0, adapt=TRUE, acc.rate=accept_mcmc,
-                  scale=step_mcmc, gamma=gamma_mcmc, list=TRUE, n.start=max(500,round(0.05*niter_mcmc)),
-                  parnames=parnames, data_calib=data_set[[dd]]$lsl_max, priors=priors, auxiliary=auxiliary)
-tend=proc.time()
-chain1 = amcmc_out1$samples
+# interpolate between lots of parameters and one parameter. this functional form
+# yields an acceptance rate of about 25% for as few as 10 parameters, 44% for a
+# single parameter (or Metropolis-within-Gibbs sampler), and 0.234 for infinite
+# number of parameters, using accept_mcmc_few=0.44 and accept_mcmc_many=0.234.
+#accept_mcmc <- accept_mcmc_many + (accept_mcmc_few - accept_mcmc_many)/length(parnames)
+accept_mcmc_few <- 0.44         # optimal for only one parameter
+accept_mcmc_many <- 0.234       # optimal for many parameters
 
 
+
+amcmc_out <- vector('list', length(types.of.model)); names(amcmc_out) <- types.of.model
+
+for (model in types.of.gev) {
+  if(model=='gev3') {auxiliary <- NULL
+  } else {auxiliary <- trimmed_forcing(data_calib$year_unique, time_forc, temperature_forc)$temperature}
+  accept_mcmc <- accept_mcmc_many + (accept_mcmc_few - accept_mcmc_many)/length(parnames_all[[model]])
+  step_mcmc <- as.numeric(0.05*apply(X=mle.fits[[model]], MARGIN=2, FUN=sd))
+  # actually run the calibration
+  tbeg=proc.time()
+  amcmc_out[[model]] = MCMC(log_post_gev, niter_mcmc, as.numeric(deoptim.delfzijl[[model]]),
+                            adapt=TRUE, acc.rate=accept_mcmc, scale=step_mcmc,
+                            gamma=gamma_mcmc, list=TRUE, n.start=max(500,round(0.05*niter_mcmc)),
+                            parnames=parnames_all[[model]], data_calib=data_calib$lsl_max,
+                            priors=priors, auxiliary=auxiliary, model=model)
+  tend=proc.time()
+  chain1 = amcmc_out[[model]]$samples
+}
+
+for (model in types.of.nav) {
+  if(model=='nav3') {auxiliary <- NULL
+  } else {auxiliary <- trimmed_forcing(data_calib$year_unique, time_forc, temperature_forc)$temperature}
+  accept_mcmc <- accept_mcmc_many + (accept_mcmc_few - accept_mcmc_many)/length(parnames_all[[model]])
+  step_mcmc <- as.numeric(0.05*apply(X=mle.fits[[model]], MARGIN=2, FUN=sd))
+  # actually run the calibration
+  tbeg=proc.time()
+  amcmc_out[[model]] = MCMC(log_post_naveau, niter_mcmc, as.numeric(deoptim.delfzijl[[model]]),
+                            adapt=TRUE, acc.rate=accept_mcmc, scale=step_mcmc,
+                            gamma=gamma_mcmc, list=TRUE, n.start=max(500,round(0.05*niter_mcmc)),
+                            parnames=parnames_all[[model]], data_calib=data_calib$lsl_max,
+                            priors=priors, auxiliary=auxiliary, model=model)
+  tend=proc.time()
+  chain1 = amcmc_out[[model]]$samples
+}
+
+
+
+# test plot
+if (FALSE) {
+par(mfrow=c(6,2))
+for (p in 1:length(parnames_all[[model]])) {
+    plot(amcmc_out[[model]]$samples[,p], type='l', ylab=parnames_all[[model]][p])
+    hist(amcmc_out[[model]]$samples[round(0.5*niter_mcmc):niter_mcmc,p], xlab=parnames_all[[model]][p], main='')
+}
+}
 
 
 #===============================================================================

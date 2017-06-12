@@ -12,9 +12,10 @@
 # model (iii))
 #===============================================================================
 #
-naveau_pdf <- function(x, kappa, sigma, xi){
+naveau_pdf <- function(x, kappa, sigma, xi, log=FALSE){
   prob <- NULL
-  prob <- kappa*((1-(1+xi*x/sigma)^(-1/xi))^(kappa-1))*((1+xi*x/sigma)^(-(1+1/xi)))/sigma
+  if(log) {prob <- log(kappa) - log(sigma) + (kappa-1)*log(1-(1+xi*x/sigma)^(-1/xi)) - (1+1/xi)*log(1+xi*x/sigma)
+  } else  {prob <- kappa*((1-(1+xi*x/sigma)^(-1/xi))^(kappa-1))*((1+xi*x/sigma)^(-(1+1/xi)))/sigma}
   return(prob)
 }
 
@@ -32,10 +33,10 @@ naveau_cdf <- function(x, kappa, sigma, xi){
 #===============================================================================
 #
 log_prior_naveau <- function(parameters,
-                             parnames,
-                             priors,
-                             model,
-                             auxiliary=NULL
+                          parnames,
+                          priors,
+                          model,
+                          auxiliary=NULL
 ){
   lpri <- 0
 
@@ -43,8 +44,10 @@ log_prior_naveau <- function(parameters,
     parameter.value <- as.numeric(parameters[match(par,parnames)])
     if(priors[[model]][[par]]$type=='normal') {
       lpri <- lpri + dnorm(x=parameter.value, mean=priors[[model]][[par]]$mean, sd=priors[[model]][[par]]$sd, log=TRUE)
-    } else if(priors[[model]][[p]]$type=='gamma') {
+    } else if(priors[[model]][[par]]$type=='gamma') {
       lpri <- lpri + dgamma(x=parameter.value, shape=priors[[model]][[par]]$shape, rate=priors[[model]][[par]]$rate, log=TRUE)
+    } else if(priors[[model]][[par]]$type=='uniform') {
+      lpri <- lpri + dunif(x=parameter.value, min=priors[[model]][[par]]$lower, max=priors[[model]][[par]]$upper, log=TRUE)
     }
   }
 
@@ -83,42 +86,49 @@ log_like_naveau <- function(parameters,
   n.param <- length(parnames)
   if(n.param==3) {
     # fit a standard stationary Naveau-(i)
-    kappa <- parameters[match('kappa',parnames)]
-    sigma <- parameters[match('sigma',parnames)]
-    xi <- parameters[match('xi',parnames)]
+    kappa <- rep(parameters[match('kappa',parnames)], length(data_calib))
+
+
+#DEBUG
+# sample from log(kappa)
+kappa <- exp(kappa)
+
+
+    sigma <- rep(parameters[match('sigma',parnames)], length(data_calib))
+    xi <- rep(parameters[match('xi',parnames)], length(data_calib))
   } else if(n.param==4) {
     # lower-tail parameter nonstationary
-    kappa0 <- parameters[match('kappa0',parnames)]
-    kappa1 <- parameters[match('kappa1',parnames)]
-#    sigma <- parameters[match('sigma',parnames)]
-#    xi <- parameters[match('xi',parnames)]
+    kappa0 <- rep(parameters[match('kappa0',parnames)], length(auxiliary))
+    kappa1 <- rep(parameters[match('kappa1',parnames)], length(auxiliary))
     sigma <- rep(parameters[match('sigma',parnames)], length(auxiliary))
     xi <- rep(parameters[match('xi',parnames)], length(auxiliary))
     kappa <- kappa0 + kappa1*auxiliary
   } else if(n.param==5) {
     # lower-tail and scale parameters nonstationary
-    kappa0 <- parameters[match('kappa0',parnames)]
-    kappa1 <- parameters[match('kappa1',parnames)]
-    sigma0 <- parameters[match('sigma0',parnames)]
-    sigma1 <- parameters[match('sigma1',parnames)]
-    xi <- parameters[match('xi',parnames)]
+    kappa0 <- rep(parameters[match('kappa0',parnames)], length(auxiliary))
+    kappa1 <- rep(parameters[match('kappa1',parnames)], length(auxiliary))
+    sigma0 <- rep(parameters[match('sigma0',parnames)], length(auxiliary))
+    sigma1 <- rep(parameters[match('sigma1',parnames)], length(auxiliary))
+    xi <- rep(parameters[match('xi',parnames)], length(auxiliary))
     kappa <- kappa0 + kappa1*auxiliary
     sigma <- exp(sigma0 + sigma1*auxiliary)
   } else if(n.param==6) {
     # lower-tail, scale and shape all nonstationary
-    kappa0 <- parameters[match('kappa0',parnames)]
-    kappa1 <- parameters[match('kappa1',parnames)]
-    sigma0 <- parameters[match('sigma0',parnames)]
-    sigma1 <- parameters[match('sigma1',parnames)]
-    xi0 <- parameters[match('xi0',parnames)]
-    xi1 <- parameters[match('xi1',parnames)]
+    kappa0 <- rep(parameters[match('kappa0',parnames)], length(auxiliary))
+    kappa1 <- rep(parameters[match('kappa1',parnames)], length(auxiliary))
+    sigma0 <- rep(parameters[match('sigma0',parnames)], length(auxiliary))
+    sigma1 <- rep(parameters[match('sigma1',parnames)], length(auxiliary))
+    xi0 <- rep(parameters[match('xi0',parnames)], length(auxiliary))
+    xi1 <- rep(parameters[match('xi1',parnames)], length(auxiliary))
     kappa <- kappa0 + kappa1*auxiliary
     sigma <- exp(sigma0 + sigma1*auxiliary)
     xi <- xi0 + xi1*auxiliary
   } else {print('ERROR - invalid number of parameters for Naveau-(i)')}
 
-  llik <- sum( log(naveau_pdf(x=data_calib, kappa=kappa, sigma=sigma, xi=xi)) )
-  if(is.na(llik)) {llik <- -9e9}
+  # check extra conditions that would otherwise 'break' the likelihood function
+  lpri_continue <- TRUE
+  if( any(kappa < 0) | any(sigma < 0) | any((1+xi*data_calib/sigma) < 0) | any((1-(1+xi*data_calib/sigma)^(-1/xi)) < 0) ) {llik <- -Inf}
+  else {llik <- sum( naveau_pdf(x=data_calib, kappa=kappa, sigma=sigma, xi=xi, log=TRUE) )}
 
   return(llik)
 }

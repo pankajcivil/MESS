@@ -23,8 +23,10 @@ log_prior_gev <- function(parameters,
     parameter.value <- as.numeric(parameters[match(par,parnames)])
     if(priors[[model]][[par]]$type=='normal') {
       lpri <- lpri + dnorm(x=parameter.value, mean=priors[[model]][[par]]$mean, sd=priors[[model]][[par]]$sd, log=TRUE)
-    } else if(priors[[model]][[p]]$type=='gamma') {
+    } else if(priors[[model]][[par]]$type=='gamma') {
       lpri <- lpri + dgamma(x=parameter.value, shape=priors[[model]][[par]]$shape, rate=priors[[model]][[par]]$rate, log=TRUE)
+    } else if(priors[[model]][[par]]$type=='uniform') {
+      lpri <- lpri + dunif(x=parameter.value, min=priors[[model]][[par]]$lower, max=priors[[model]][[par]]$upper, log=TRUE)
     }
   }
 

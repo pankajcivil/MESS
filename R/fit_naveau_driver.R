@@ -116,19 +116,17 @@ source('likelihood_naveau.R')
 # ALL STATIONARY
 parnames <- c('kappa','sigma','xi')
 bound.lower <- c(0, 0, 0)
-bound.upper <- c(50000, 100, 10)
+bound.upper <- c(100000, 1000, 3)
 auxiliary <- NULL
 
 # KAPPA NONSTATIONARY
 parnames <- c('kappa0','kappa1','sigma','xi')
-bound.lower <- c(0, -10, 0, 0)
-bound.upper <- c(50000, 10, 40, 5)
-auxiliary <- trimmed_forcing(year.unique, time_forc, temperature_forc)$temperature
+bound.lower <- c(0, -200, 0, 0)
+bound.upper <- c(100000, 200, 1000, 3)
+auxiliary <- trimmed_forcing(data_calib$year_unique, time_forc, temperature_forc)$temperature
 
 niter.lhs <- 1e5
 nparam.lhs <- length(bound.lower)
-
-
 
 
 parameters.lhs0 <- randomLHS(n=niter.lhs, k=nparam.lhs)
@@ -140,7 +138,7 @@ for (p in 1:nparam.lhs) {
 llik.lhs <- rep(NA, niter.lhs)
 pb <- txtProgressBar(min=0,max=niter.lhs,initial=0,style=3)
 for (i in 1:niter.lhs) {
-  llik.lhs[i] <- log_like_naveau(parameters=parameters.lhs[i,], parnames=parnames, data_calib=data_calib, auxiliary=auxiliary)
+  llik.lhs[i] <- log_like_naveau(parameters=parameters.lhs[i,], parnames=parnames, data_calib=data_calib$lsl_max, auxiliary=auxiliary)
   setTxtProgressBar(pb, i)
 }
 close(pb)
@@ -265,6 +263,54 @@ points(lsl.max, log10(1-cdf.tmp), pch=16, col='blue')
 
 
 
+
+
+# mcmc testing
+
+
+
+niter_mcmc <- 5e5
+gamma_mcmc <- 0.6
+stopadapt_mcmc <- round(niter_mcmc*1.0)# stop adapting after ?? iterations? (niter*1 => don't stop)
+
+# interpolate between lots of parameters and one parameter. this functional form
+# yields an acceptance rate of about 25% for as few as 10 parameters, 44% for a
+# single parameter (or Metropolis-within-Gibbs sampler), and 0.234 for infinite
+# number of parameters, using accept_mcmc_few=0.44 and accept_mcmc_many=0.234.
+#accept_mcmc <- accept_mcmc_many + (accept_mcmc_few - accept_mcmc_many)/length(parnames)
+accept_mcmc_few <- 0.44         # optimal for only one parameter
+accept_mcmc_many <- 0.234       # optimal for many parameters
+
+amcmc_out <- vector('list', length(types.of.model)); names(amcmc_out) <- types.of.model
+
+model <- 'nav3'
+
+# sample from logkappa instead
+logkappa.rate <- median(log(mle.fits$nav3[,1])) / var(log(mle.fits$nav3[,1]))
+logkappa.shape <- median(log(mle.fits$nav3[,1])) * logkappa.rate
+priors$nav3$kappa$shape <- logkappa.shape
+priors$nav3$kappa$rate <- logkappa.rate
+
+  if(model=='nav3') {auxiliary <- NULL
+  } else {auxiliary <- trimmed_forcing(data_calib$year_unique, time_forc, temperature_forc)$temperature}
+  accept_mcmc <- accept_mcmc_many + (accept_mcmc_few - accept_mcmc_many)/length(parnames_all[[model]])
+  step_mcmc <- as.numeric(0.05*apply(X=mle.fits[[model]], MARGIN=2, FUN=sd))
+  # actually run the calibration
+  tbeg=proc.time()
+  amcmc_out[[model]] = MCMC(log_post_naveau, niter_mcmc, as.numeric(deoptim.delfzijl[[model]]),
+                            adapt=TRUE, acc.rate=accept_mcmc, scale=step_mcmc,
+                            gamma=gamma_mcmc, list=TRUE, n.start=max(500,round(0.05*niter_mcmc)),
+                            parnames=parnames_all[[model]], data_calib=data_calib$lsl_max,
+                            priors=priors, auxiliary=auxiliary, model=model)
+  tend=proc.time()
+  chain1 = amcmc_out[[model]]$samples
+
+# test plots
+par(mfrow=c(3,2))
+for (p in 1:length(parnames_all[[model]])) {
+    plot(amcmc_out[[model]]$samples[,p], type='l', ylab=parnames_all[[model]][p])
+    hist(amcmc_out[[model]]$samples[round(0.5*niter_mcmc):niter_mcmc,p], xlab=parnames_all[[model]][p], main='')
+}
 
 
 #===============================================================================
