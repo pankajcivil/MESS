@@ -8,6 +8,61 @@
 
 #
 #===============================================================================
+# project GEV parameters
+#===============================================================================
+#
+project_gev <- function(parameters,
+                        parnames,
+                        auxiliary
+){
+  parameters_project <- mat.or.vec(length(auxiliary), 3)
+  colnames(parameters_project) <- c('mu','sigma','xi')
+  n.param <- length(parnames)
+  if(n.param==3) {
+    # fit a standard stationary GEV
+    mu <- rep(parameters[match('mu',parnames)], length(auxiliary))
+    sigma <- rep(parameters[match('sigma',parnames)], length(auxiliary))
+    xi <- rep(parameters[match('xi',parnames)], length(auxiliary))
+  } else if(n.param==4) {
+    # location parameter nonstationary
+    mu0 <- parameters[match('mu0',parnames)]
+    mu1 <- parameters[match('mu1',parnames)]
+    sigma <- rep(parameters[match('sigma',parnames)], length(auxiliary))
+    xi <- rep(parameters[match('xi',parnames)], length(auxiliary))
+    mu <- mu0 + mu1*auxiliary
+  } else if(n.param==5) {
+    # location and scale parameters nonstationary
+    mu0 <- parameters[match('mu0',parnames)]
+    mu1 <- parameters[match('mu1',parnames)]
+    sigma0 <- parameters[match('sigma0',parnames)]
+    sigma1 <- parameters[match('sigma1',parnames)]
+    xi <- rep(parameters[match('xi',parnames)], length(auxiliary))
+    mu <- mu0 + mu1*auxiliary
+    sigma <- exp(sigma0 + sigma1*auxiliary)
+  } else if(n.param==6) {
+    # location, scale and shape all nonstationary
+    mu0 <- parameters[match('mu0',parnames)]
+    mu1 <- parameters[match('mu1',parnames)]
+    sigma0 <- parameters[match('sigma0',parnames)]
+    sigma1 <- parameters[match('sigma1',parnames)]
+    xi0 <- parameters[match('xi0',parnames)]
+    xi1 <- parameters[match('xi1',parnames)]
+    mu <- mu0 + mu1*auxiliary
+    sigma <- exp(sigma0 + sigma1*auxiliary)
+    xi <- xi0 + xi1*auxiliary
+  } else {print('ERROR - invalid number of parameters for GEV')}
+
+  parameters_project[,'mu'] <- mu
+  parameters_project[,'sigma'] <- sigma
+  parameters_project[,'xi'] <- xi
+
+  return(parameters_project)
+}
+#===============================================================================
+
+
+#
+#===============================================================================
 # log(prior) for gev model
 #===============================================================================
 #
