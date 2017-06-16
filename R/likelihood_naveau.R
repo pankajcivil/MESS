@@ -24,6 +24,12 @@ naveau_cdf <- function(x, kappa, sigma, xi){
   q <- (1-(1+xi*x/sigma)^(-1/xi))^kappa
   return(q)
 }
+
+naveau_invcdf <- function(q, kappa, sigma, xi){
+  x <- NULL
+  x <- sigma*((1-q^(1/kappa))^(-xi)-1)/xi
+  return(x)
+}
 #===============================================================================
 
 

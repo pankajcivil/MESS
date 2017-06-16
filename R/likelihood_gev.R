@@ -8,6 +8,36 @@
 
 #
 #===============================================================================
+# cdf for gev (that can handle arrays)
+# note that this assumes you aren't a jerk and send in different length
+# arrays. so... don't do that.
+#===============================================================================
+#
+gev_cdf <- function(q, loc, scale, shape){
+  p <- rep(NA,length(q))
+  if(all(shape==0)) {
+    p <- exp( -( exp(-(q-loc)/scale) ) )
+  } else {
+    p <- exp( -(1+shape*((q-loc)/scale))^(-1/shape) )
+    if(any(shape < 0)) {
+      i1 <- which(shape < 0); i2 <- which(q > (loc-scale/shape)); i3 <- intersect(i1,i2)
+      # if shape < 0, i3 is all the places where q > theoretical upper bound
+      # -> there ought to be 100% probability mass below here
+      p[i3] <- 1
+    } else if(any(shape > 0)) {
+      i1 <- which(shape > 0); i2 <- which(q < (loc-scale/shape)); i3 <- intersect(i1,i2)
+      # if shape > 0, i3 is all the places where q < theoretical upper bound
+      # -> there ought to be 100% probability mass above here    }
+      p[i3] <- 0
+    }
+  }
+  return(p)
+}
+#===============================================================================
+
+
+#
+#===============================================================================
 # project GEV parameters
 #===============================================================================
 #
