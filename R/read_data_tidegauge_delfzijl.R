@@ -1,5 +1,5 @@
 #===============================================================================
-# read tide gauge data
+# read tide gauge data from Delfzijl, The Netherlands
 #
 # Questions? Tony Wong (twong@psu.edu)
 #===============================================================================
@@ -91,6 +91,11 @@ if(year.unique[1] <= time_forc[1]) {
 # empirical survival function values
 esf.levels <- lsl.max[order(lsl.max)]
 esf.values <- seq(from=length(lsl.max), to=1, by=-1)/(length(lsl.max)+1)
+
+# set up object for passing through aclibration routines
+data_calib <- vector('list', 2); names(data_calib) <- c('year_unique','lsl_max')
+data_calib$year_unique <- year.unique
+data_calib$lsl_max <- lsl.max
 
 #===============================================================================
 # End

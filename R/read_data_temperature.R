@@ -57,6 +57,24 @@ temperature_forc <- c(temperature_hadcrut[ind_hadcrut],
                       temperature_hist[ind_hist]      ,
                       temperature_proj[ind_proj]      )
 
+# Useful:
+
+# function to trim temperature forcing to fit TG record unique years
+# there might be missing years in TG record, so need to match each year and not
+# just plop down an evenly spaced sequence
+trimmed_forcing <- function(year_tidegauge, year_temperature, temperature) {
+  output <- vector('list', 2); names(output) <- c('time','temperature')
+  # check the beginning
+  if(year_temperature[1] > year_tidegauge[1]) {print('ERROR - tide gauge record starts before temperature; add support for this situation')}
+  # check the end
+  if(max(year_temperature) < max(year_tidegauge)) {print('ERROR - tide gauge record ends after temperature; add support for this situation')}
+  # match the indices of year_tidegauge within year_temperature
+  imatch <- match(year_tidegauge, year_temperature)
+  output$time <- year_temperature[imatch]
+  output$temperature <- temperature[imatch]
+  return(output)
+}
+
 #===============================================================================
 # End
 #===============================================================================

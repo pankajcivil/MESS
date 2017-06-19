@@ -12,7 +12,8 @@
 # note that this assumes you aren't a jerk and send in different length
 # arrays. so... don't do that.
 #===============================================================================
-#
+# 44: In log(1 + shape * ((x - loc)/scale)) : NaNs produced
+
 gev_pdf <- function(x, loc, scale, shape, log=FALSE){
   p <- rep(NA,length(x))
   if(all(shape==0)) {
@@ -179,6 +180,7 @@ log_like_gev <- function(parameters,
                          auxiliary=NULL
 ){
   llik <- 0
+  #print(parameters)
   n.param <- length(parnames)
   if(n.param==3) {
     # fit a standard stationary GEV
@@ -213,8 +215,8 @@ log_like_gev <- function(parameters,
     sigma <- exp(sigma0 + sigma1*auxiliary)
     xi <- xi0 + xi1*auxiliary
   } else {print('ERROR - invalid number of parameters for GEV')}
-  llik <- sum(gev_pdf(data_calib, loc=mu, scale=sigma, shape=xi, log=TRUE))
-#  llik <- sum(devd(data_calib, loc=mu, scale=sigma, shape=xi, log=TRUE, type='GEV'))
+#  llik <- sum(gev_pdf(data_calib, loc=mu, scale=sigma, shape=xi, log=TRUE))
+  llik <- sum(devd(data_calib, loc=mu, scale=sigma, shape=xi, log=TRUE, type='GEV'))
   return(llik)
 }
 #===============================================================================
