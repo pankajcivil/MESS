@@ -415,7 +415,7 @@ for (model in types.of.model) {
 
 #
 #===============================================================================
-# set up Markov chain Monte Carlo (MCMC) calibration
+# set up and run PRELIMINARY Markov chain Monte Carlo (MCMC) calibration
 #===============================================================================
 #
 
@@ -463,71 +463,82 @@ for (model in types.of.nav) {
   tend=proc.time()
 }
 
+#
+#===============================================================================
+# set up and run PRODUCTION MCMC calibration
+#===============================================================================
+#
+
 # then use these initial estimates of step_mcmc to launch the parallel chains
 # (from amcmc_prelim[[model]]$cov.jump)
 
 nnode_mcmc <- 4
 gamma_mcmc <- 0.5
-niter_mcmc <- 1e5
+niter_mcmc <- 2e3
+startadapt_mcmc <- max(500,round(0.05*niter_mcmc))
 stopadapt_mcmc <- round(niter_mcmc*1.0)
 accept_mcmc_few <- 0.44         # optimal for only one parameter
 accept_mcmc_many <- 0.234       # optimal for many parameters
 amcmc_out <- vector('list', length(types.of.model)); names(amcmc_out) <- types.of.model
 
-for (model in types.of.gev) {
-  initial_parameters <- as.numeric(deoptim.delfzijl[[model]])
-  if(model=='gev3') {auxiliary <- NULL
-  } else {auxiliary <- trimmed_forcing(data_calib$year_unique, time_forc, temperature_forc)$temperature}
-  accept_mcmc <- accept_mcmc_many + (accept_mcmc_few - accept_mcmc_many)/length(parnames_all[[model]])
-  step_mcmc <- amcmc_prelim[[model]]$cov.jump
-  if(nnode_mcmc==1) {
-    # do single chain
-    tbeg=proc.time()
-    amcmc_out[[model]] = MCMC(log_post_gev, niter_mcmc, initial_parameters,
+for (model in types.of.model) {
+
+  print(paste('Starting calibration for model ',model,' (',nnode_mcmc,' cores x ',niter_mcmc,' iterations)...', sep=''))
+
+  if (model %in% types.of.gev) {
+    initial_parameters <- amcmc_prelim[[model]]$samples[amcmc_prelim[[model]]$n.sample,]
+    if(model=='gev3') {auxiliary <- NULL
+    } else {auxiliary <- trimmed_forcing(data_calib$year_unique, time_forc, temperature_forc)$temperature}
+    accept_mcmc <- accept_mcmc_many + (accept_mcmc_few - accept_mcmc_many)/length(parnames_all[[model]])
+    step_mcmc <- amcmc_prelim[[model]]$cov.jump
+    if(nnode_mcmc==1) {
+      # do single chain
+      tbeg=proc.time()
+      amcmc_out[[model]] = MCMC(log_post_gev, niter_mcmc, initial_parameters,
                             adapt=TRUE, acc.rate=accept_mcmc, scale=step_mcmc,
                             gamma=gamma_mcmc, list=TRUE, n.start=startadapt_mcmc,
                             parnames=parnames_all[[model]], data_calib=data_calib$lsl_max,
                             priors=priors, auxiliary=auxiliary, model=model)
-    tend=proc.time()
-  } else if(nnode_mcmc > 1) {
-    # do parallel chains
-    tbeg <- proc.time()
-    amcmc_out[[model]] <- MCMC.parallel(log_post_gev, niter_mcmc, initial_parameters, n.chain=4, n.cpu=4,
+      tend=proc.time()
+    } else if(nnode_mcmc > 1) {
+      # do parallel chains
+      tbeg <- proc.time()
+      amcmc_out[[model]] <- MCMC.parallel(log_post_gev, niter_mcmc, initial_parameters, n.chain=4, n.cpu=4,
 				            scale=step_mcmc, adapt=TRUE, acc.rate=accept_mcmc,
                             gamma=gamma_mcmc, list=TRUE, n.start=startadapt_mcmc,
                             parnames=parnames_all[[model]], data_calib=data_calib$lsl_max,
                             priors=priors, auxiliary=auxiliary, model=model)
-    tend <- proc.time()
-  }
-}
-
-for (model in types.of.nav) {
-  initial_parameters <- as.numeric(deoptim.delfzijl[[model]])
-  if('lkappa'  %in% parnames_all[[model]]) {initial_parameters[match('lkappa' ,parnames_all[[model]])] <- log(initial_parameters[match('lkappa' ,parnames_all[[model]])])}
-  if('lkappa0' %in% parnames_all[[model]]) {initial_parameters[match('lkappa0',parnames_all[[model]])] <- log(initial_parameters[match('lkappa0',parnames_all[[model]])])}
-  if(model=='nav3') {auxiliary <- NULL
-  } else {auxiliary <- trimmed_forcing(data_calib$year_unique, time_forc, temperature_forc)$temperature}
-  accept_mcmc <- accept_mcmc_many + (accept_mcmc_few - accept_mcmc_many)/length(parnames_all[[model]])
-  step_mcmc <- amcmc_prelim[[model]]$cov.jump
-  if(nnode_mcmc==1) {
-    # do single chain
-    tbeg=proc.time()
-    amcmc_out[[model]] = MCMC(log_post_naveau, niter_mcmc, initial_parameters,
+      tend <- proc.time()
+    }
+  } else if (model %in% types.of.nav) {
+    initial_parameters <- amcmc_prelim[[model]]$samples[amcmc_prelim[[model]]$n.sample,]
+    if('lkappa'  %in% parnames_all[[model]]) {initial_parameters[match('lkappa' ,parnames_all[[model]])] <- log(initial_parameters[match('lkappa' ,parnames_all[[model]])])}
+    if('lkappa0' %in% parnames_all[[model]]) {initial_parameters[match('lkappa0',parnames_all[[model]])] <- log(initial_parameters[match('lkappa0',parnames_all[[model]])])}
+    if(model=='nav3') {auxiliary <- NULL
+    } else {auxiliary <- trimmed_forcing(data_calib$year_unique, time_forc, temperature_forc)$temperature}
+    accept_mcmc <- accept_mcmc_many + (accept_mcmc_few - accept_mcmc_many)/length(parnames_all[[model]])
+    step_mcmc <- amcmc_prelim[[model]]$cov.jump
+    if(nnode_mcmc==1) {
+      # do single chain
+      tbeg=proc.time()
+      amcmc_out[[model]] = MCMC(log_post_naveau, niter_mcmc, initial_parameters,
                             adapt=TRUE, acc.rate=accept_mcmc, scale=step_mcmc,
                             gamma=gamma_mcmc, list=TRUE, n.start=startadapt_mcmc,
                             parnames=parnames_all[[model]], data_calib=data_calib$lsl_max,
                             priors=priors, auxiliary=auxiliary, model=model)
-    tend=proc.time()
-  } else if(nnode_mcmc > 1) {
-    # do parallel chains
-    tbeg <- proc.time()
-    amcmc_out[[model]] <- MCMC.parallel(log_post_naveau, niter_mcmc, initial_parameters, n.chain=4, n.cpu=4,
+      tend=proc.time()
+    } else if(nnode_mcmc > 1) {
+      # do parallel chains
+      tbeg <- proc.time()
+      amcmc_out[[model]] <- MCMC.parallel(log_post_naveau, niter_mcmc, initial_parameters, n.chain=4, n.cpu=4,
 				             scale=step_mcmc, adapt=TRUE, acc.rate=accept_mcmc,
                              gamma=gamma_mcmc, list=TRUE, n.start=startadapt_mcmc,
                              parnames=parnames_all[[model]], data_calib=data_calib$lsl_max,
                              priors=priors, auxiliary=auxiliary, model=model)
-    tend <- proc.time()
-  }
+      tend <- proc.time()
+    }
+  } else {print('error - unknown model type')}
+  print(paste('... done. Took ',round(as.numeric(tend-tbeg)[3]/60,2),' minutes', sep=''))
 }
 
 

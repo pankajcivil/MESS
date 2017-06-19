@@ -8,11 +8,43 @@
 
 #
 #===============================================================================
-# cdf for gev (that can handle arrays)
+# pdf and cdf for gev (that can handle arrays)
 # note that this assumes you aren't a jerk and send in different length
 # arrays. so... don't do that.
 #===============================================================================
 #
+gev_pdf <- function(x, loc, scale, shape, log=FALSE){
+  p <- rep(NA,length(x))
+  if(all(shape==0)) {
+    if(log) {
+      p <- (loc-x)/scale - exp((loc-x)/scale) - log(scale)
+    } else {
+      p <- (1/scale) * exp((loc-x)/scale) * exp( -( exp((loc-x)/scale) ) )
+    }
+  } else {
+    if(log) {
+      p <- (-1 - 1/shape)*log(1+shape*((x-loc)/scale)) - ((1+shape*((x-loc)/scale))^(-1/shape)) - log(scale)
+      if(any(shape < 0)) {
+        i1 <- which(shape < 0); i2 <- which(x > (loc-scale/shape)); i3 <- intersect(i1,i2)
+        p[i3] <- -Inf
+      } else if(any(shape > 0)) {
+        i1 <- which(shape > 0); i2 <- which(x < (loc-scale/shape)); i3 <- intersect(i1,i2)
+        p[i3] <- -Inf
+      }
+    } else {
+      p <- (1/scale) * ( (1+shape*((x-loc)/scale))^(-1 - 1/shape) ) * exp( -(1+shape*((x-loc)/scale))^(-1/shape) )
+      if(any(shape < 0)) {
+        i1 <- which(shape < 0); i2 <- which(x > (loc-scale/shape)); i3 <- intersect(i1,i2)
+        p[i3] <- 0
+      } else if(any(shape > 0)) {
+        i1 <- which(shape > 0); i2 <- which(x < (loc-scale/shape)); i3 <- intersect(i1,i2)
+        p[i3] <- 0
+      }
+    }
+  }
+  return(p)
+}
+
 gev_cdf <- function(q, loc, scale, shape){
   p <- rep(NA,length(q))
   if(all(shape==0)) {
@@ -181,7 +213,8 @@ log_like_gev <- function(parameters,
     sigma <- exp(sigma0 + sigma1*auxiliary)
     xi <- xi0 + xi1*auxiliary
   } else {print('ERROR - invalid number of parameters for GEV')}
-  llik <- sum(devd(data_calib, loc=mu, scale=sigma, shape=xi, log=TRUE, type='GEV'))
+  llik <- sum(gev_pdf(data_calib, loc=mu, scale=sigma, shape=xi, log=TRUE))
+#  llik <- sum(devd(data_calib, loc=mu, scale=sigma, shape=xi, log=TRUE, type='GEV'))
   return(llik)
 }
 #===============================================================================

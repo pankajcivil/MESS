@@ -245,16 +245,59 @@ for (model in types.of.model) {
 #===============================================================================
 #
 
+# which cost function to use?
+#cost.function <- 'exp'
+cost.function <- 'quad'
+
+
 # For each ensemble, for each ensemble member, calculate the optimal heightening
 # Call P(s,x) the performance of strategy s in SOW x, and Popt(x) the best case
+iopt <- vector('list', length(types.of.model)); names(iopt) <- types.of.model
+Hopt <- vector('list', length(types.of.model)); names(Hopt) <- types.of.model
+Popt <- vector('list', length(types.of.model)); names(Popt) <- types.of.model
 
-# TODO
+# Also calculate the ensemble median total cost at each hegihtening, and minimize
+# this, in order to develop an ensemble-optimal strategy to follow.
+loss.ens <- vector('list', length(types.of.model)); names(loss.ens) <- types.of.model
+loss.ens.med <- vector('list', length(types.of.model)); names(loss.ens.med) <- types.of.model
+iopt.ens <- rep(NA, length(types.of.model)); names(iopt.ens) <- types.of.model
+Hopt.ens <- rep(NA, length(types.of.model)); names(Hopt.ens) <- types.of.model
+Popt.ens <- rep(NA, length(types.of.model)); names(Popt.ens) <- types.of.model
+
+for (model in types.of.model) {
+  iopt[[model]] <- rep(NA, n.ensemble[[model]])
+  Hopt[[model]] <- rep(NA, n.ensemble[[model]])
+  Popt[[model]] <- rep(NA, n.ensemble[[model]])
+  loss.ens[[model]] <- mat.or.vec(n.heightening, n.ensemble[[model]])
+  loss.ens.med[[model]] <- rep(NA, n.heightening)
+  for (i in 1:n.ensemble[[model]]) {
+    loss.ens[[model]][,i] <- vandantzig.out[[model]][[i]][,paste('total_loss_',cost.function,sep='')]
+    iopt[[model]][i] <- which.min(vandantzig.out[[model]][[i]][,paste('total_loss_',cost.function,sep='')])
+    Hopt[[model]][i] <- heightening[iopt[[model]][i]]
+    Popt[[model]][i] <- vandantzig.out[[model]][[i]][iopt[[model]][i],paste('total_loss_',cost.function,sep='')]
+  }
+  loss.ens.med[[model]] <- apply(X=loss.ens[[model]], MARGIN=1, FUN=median)
+  iopt.ens[[model]] <- which.min(loss.ens.med[[model]])
+  Hopt.ens[[model]] <- heightening[iopt.ens[[model]]]
+  Popt.ens[[model]] <- loss.ens.med[[model]][iopt.ens[[model]]]
+}
 
 # Regret for strategy s in SOW x is: R(s,x) = Popt(x) - P(s,x)
 # So calculate the expected regret of each strategy (heightening) as
 # R(s) = int_x{ R(s,x) p(x) dx}
+# So following Hopt.ens, how much worse does this perform for each SOW than the
+# optimal strategy for that SOW (Hopt[[model]][i]) ?
 
-# TODO
+Reg <- vector('list', length(types.of.model)); names(Reg) <- types.of.model
+Reg.med <- rep(NA, length(types.of.model)); names(Reg.med) <- types.of.model
+for (model in types.of.model) {
+  Reg[[model]] <- rep(NA, n.ensemble[[model]])
+  for (i in 1:n.ensemble[[model]]) {
+    Reg[[model]][i] <- vandantzig.out[[model]][[i]][iopt.ens[[model]],paste('total_loss_',cost.function,sep='')] -
+                       Popt[[model]][i]
+  }
+  Reg.med[[model]] <- median(Reg[[model]])
+}
 
 # What is distribution of expected regret for each ensemble, if we heighten by
 # the ensemble mean/median optimal heightening?
