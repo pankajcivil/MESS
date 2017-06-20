@@ -13,6 +13,7 @@ niter_mcmc_prod000 <- 2e3        # number of MCMC iterations (PRODUCTION chains)
 nnode_mcmc_prod000 <- 1          # number of CPUs to use (PRODUCTION chains)
 gamma_mcmc000 <- 0.5             # speed of adaptation (0.5=faster, 1=slowest)
 filename.priors   <- 'surge_priors_gev_nav_19Jun2017.rds'  # file holding the 'priors' object
+filename.temperature <- 'temperature_forcing_19Jun2017.csv'  # temperature forcing used
 filename.initvals <- 'surge_initialvalues_gev_nav_19Jun2017.rds'  # file holding the 'deoptim.delfzijl' object
 #setwd('/storage/home/axw322/work/codes/EVT/R')
 setwd('/Users/axw322/codes/EVT/R')
@@ -30,7 +31,7 @@ library(zoo)
 library(adaptMCMC)
 library(lhs)
 library(DEoptim)
-library(ncdf4)
+#library(ncdf4)
 
 #
 #===============================================================================

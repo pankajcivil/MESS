@@ -396,14 +396,18 @@ for (model in types.of.model) {
 # rds -> save single object; the only one we need is 'priors'
 today=Sys.Date(); today=format(today,format="%d%b%Y")
 filename.priors <- paste('surge_priors_',appen,'_',today,'.rds', sep='')
+filename.mles <- paste('surge_MLEs_',appen,'_',today,'.rds', sep='')
 filename.initvals <- paste('surge_initialvalues_',appen,'_',today,'.rds', sep='')
 filename.everything <- paste('kitchen_sink_priors_',appen,'_',today,'.RData', sep='')
+filename.temperature <- paste('temperature_forcing_',today,'.csv', sep='')
 
 print(paste('saving priors and initial values as .rds files (',filename.priors,', ',filename.initvals,') to read and use later...',sep=''))
 
 save.image(file=filename.everything)
 saveRDS(priors, file=filename.priors)
+saveRDS(mle.fits, file=filename.mles)
 saveRDS(deoptim.delfzijl, file=filename.initvals)
+write.csv(x=cbind(time_forc, temperature_forc), file=filename.temperature, row.names=FALSE)
 
 print('...done.')
 
