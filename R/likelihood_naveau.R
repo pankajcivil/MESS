@@ -16,12 +16,18 @@ naveau_pdf <- function(x, kappa, sigma, xi, log=FALSE){
   prob <- NULL
   if(log) {prob <- log(kappa) - log(sigma) + (kappa-1)*log(1-(1+xi*x/sigma)^(-1/xi)) - (1+1/xi)*log(1+xi*x/sigma)
   } else  {prob <- kappa*((1-(1+xi*x/sigma)^(-1/xi))^(kappa-1))*((1+xi*x/sigma)^(-(1+1/xi)))/sigma}
+  ibad <- which( ((x > (-sigma/xi)) & (xi < 0)) |  (x < 0) | (kappa < 0) )
+  if(length(ibad)>0) {prob[ibad] <- 0; if(log) {prob[ibad] <- -Inf}}
   return(prob)
 }
 
 naveau_cdf <- function(x, kappa, sigma, xi){
   q <- NULL
   q <- (1-(1+xi*x/sigma)^(-1/xi))^kappa
+  ibad.high <- which( ((x > (-sigma/xi)) & (xi < 0)) )
+  if(length(ibad.high)>0) {q[ibad.high] <- 1}
+  ibad.low  <- which( x < 0 )
+  if(length(ibad.low )>0) {q[ibad.low]  <- 0}
   return(q)
 }
 
@@ -145,7 +151,8 @@ neg_log_like_naveau <- function(parameters,
 log_like_naveau <- function(parameters,
                             parnames,
                             data_calib,
-                            auxiliary=NULL
+                            auxiliary=NULL,
+                            Tmax
 ){
   llik <- 0
   n.param <- length(parnames)
@@ -191,6 +198,11 @@ log_like_naveau <- function(parameters,
   if( any(kappa < 0) | any(sigma < 0) | any((1+xi*data_calib/sigma) < 0) | any((1-(1+xi*data_calib/sigma)^(-1/xi)) < 0) ) {llik <- -Inf}
   else {llik <- sum( naveau_pdf(x=data_calib, kappa=kappa, sigma=sigma, xi=xi, log=TRUE) )}
 
+  # constraint on kappa0, kappa1 and Tmax
+  if( exists('kappa0') & exists('kappa1') ) {
+    if( kappa1[1] < (-kappa0[1]/Tmax) ) {llik <- -Inf}
+  }
+
   return(llik)
 }
 #===============================================================================
@@ -206,7 +218,8 @@ log_post_naveau <- function(parameters,
                             data_calib,
                             priors,
                             model,
-                            auxiliary
+                            auxiliary,
+                            Tmax
 ){
   lpost <- 0
   llik <- 0
@@ -224,7 +237,8 @@ log_post_naveau <- function(parameters,
     llik <- log_like_naveau(parameters=parameters,
                             parnames=parnames,
                             data_calib=data_calib,
-                            auxiliary=auxiliary)
+                            auxiliary=auxiliary,
+                            Tmax=Tmax)
   }
 
   lpost <- lpri + llik

@@ -1,6 +1,6 @@
 #===============================================================================
-# read tide gauge data for many locations to get a feel for what plausible
-# values for the GEV and Naveau model (i) parameters may be
+# preprocessing of tide gauge data to fit GEV, GPD, Naveau, etc. models at
+# sub-annual block maxima. need to achieve independence among samples.
 #
 # Questions? Tony Wong (twong@psu.edu)
 #===============================================================================
@@ -27,6 +27,7 @@ library(adaptMCMC)
 library(lhs)
 library(DEoptim)
 library(ncdf4)
+library(date)
 
 #
 #===============================================================================
@@ -50,7 +51,7 @@ print('...done.')
 
 print('reading Delfzijl, Netherlands, tide gauge data...')
 
-source('read_data_tidegauge_Delfzijl.R')
+source('read_data_tidegauge_delfzijl.R')
 
 print('...done.')
 
@@ -107,6 +108,159 @@ for (dd in 1:length(data_set)) {
 }
 
 print('...done.')
+
+#
+#===============================================================================
+# CAUTION - UNDER CONSTRUCTION - CAUTION - UNDER CONSTRUCTION - CAUTION
+#===============================================================================
+#
+
+# pick a single data set to work on the pre-processing. using something already
+# an hourly time series, and long record
+itmp <- which.min( abs(nyear-length(data_calib$lsl_max)))
+data.tg <- data_set[[itmp]]
+
+# convert to days since 01 January 1960
+time.days <- as.numeric(mdy.date(month=data.tg$month, day=data.tg$day, year=data.tg$year)) + data.tg$hour/24
+
+# difference between time stamps (in units of days)
+time.diff <- diff(time.days)
+
+# check that they are in the proper order, ascending
+print(paste('Are there any times out of order? ',any(time.diff < 0), sep=''))
+
+# what is an hour? in units of days
+one.hour <- 1/24
+
+# where are there gaps longer than 1 hour? (+/- 1 second, for numerical precision)
+iokay <- which( (time.diff < (one.hour+1/(24*60*60))) & (time.diff > (one.hour-1/(24*60*60))) )
+igap  <- 1:length(time.diff); igap <- igap[-iokay]
+
+
+# TODO
+# TODO -- GAP FILLING?
+# TODO
+
+
+# get series of daily averages
+days <- floor(time.days)
+days.unique <- unique(days)
+lsl.daily <- rep(NA, length(days.unique))
+for (d in 1:length(days.unique)) {
+  ind.today <- which(days == days.unique[d])
+  lsl.daily[d] <- mean(data.tg$sl[ind.today])
+}
+
+# for now, focus only on the longest stretch with no gaps
+igap2 <- igap2 <- which(diff(days.unique) > 1)
+igap.max <- which.max(diff(igap2))
+lsl.daily.tmp <- lsl.daily[(igap2[igap.max]+1):igap2[igap.max+1]]
+days.tmp <- days.unique[(igap2[igap.max]+1):igap2[igap.max+1]]
+
+# pre-processing according to Ben and Beckett:
+
+# 1. Run a Fast Fourier Transform (spectral decomposition) on your time series and then plot the periodogram
+lsl.daily.fft <- abs(fft(lsl.daily)/sqrt(length(lsl.daily)))^2
+
+f.data <- GeneCycle::periodogram(lsl.daily.tmp)
+harmonics <- 1:4500
+plot(f.data$freq[harmonics]*length(lsl.daily.tmp),
+     f.data$spec[harmonics]/sum(f.data$spec),
+     xlab="Harmonics", ylab="Amplitute Density", type="h")
+
+amplitudes <- f.data$spec[harmonics]/sum(f.data$spec)
+isort <- rev(order(amplitudes))
+
+
+# alternatively...
+
+# need to do a detrending
+trend <- lm(lsl.daily.tmp ~ days.tmp)
+lsl.daily.tmp.detrended <- trend$residuals
+
+# this one won't look like anything:
+fft.tmp = abs(fft(lsl.daily.tmp)/sqrt(length(lsl.daily.tmp)))^2
+P = (4/length(lsl.daily.tmp))*fft.tmp[1:1100] # Only need the first (n/2)+1 values of the FFT result.
+f = 1:1100 # this creates harmonic frequencies from 0 to .5 in steps of 1/128.
+plot(f, P, type="l") # This plots the periodogram;
+
+# this one (detrended) will
+fft.tmp = abs(fft(lsl.daily.tmp.detrended)/sqrt(length(lsl.daily.tmp)))^2
+P = (4/length(lsl.daily.tmp))*fft.tmp[1:1100] # Only need the first (n/2)+1 values of the FFT result.
+f = 1:1100 # this creates harmonic frequencies from 0 to .5 in steps of 1/128.
+plot(f, P, type="l") # This plots the periodogram;
+
+isort <- rev(order(P))
+
+# TODO
+# TODO - in progress here now
+# TODO
+
+
+# 2. Select the top frequencies using the periodogram.
+imodes <- which(P > P[isort[1]]*0.1)
+imodes <- as.numeric(imodes[rev(order(P[imodes]))])
+
+# 3. Run a Harmonic Regression where the predictors are sines and cosines of the chosen frequencies
+hreg.tmp <- harmonic.regression(inputts=lsl.daily.tmp.detrended, inputtime=days.tmp, Tau=f[imodes[1]])
+
+plot(days.tmp , lsl.daily.tmp.detrended, type='l')
+lines(days.tmp, tmp$fit.vals, col='blue')
+
+
+# playing around
+play.data <- 60*cos(2*pi*days.tmp/5000) + 100*sin( 2*pi*days.tmp / 5000) + rnorm(n=length(days.tmp), mean=0, sd=50)
+play.data2 <- 60*cos(2*pi*days.tmp/5000) + 100*sin( 2*pi*days.tmp / 5000) + rnorm(n=length(days.tmp), mean=0, sd=50) +
+              80*cos(2*pi*days.tmp/500) + 50*sin( 2*pi*days.tmp / 500)
+hreg.tmp <- harmonic.regression(inputts=play.data, inputtime=days.tmp, Tau=5000)
+
+# this works! the harmonic analysis is just a linear model with the appropriate
+# sin/cos predictors, at the modes of interest (imodes)
+pred1c <- cos(2*pi*days.tmp/5000); pred1s <- sin(2*pi*days.tmp/5000); pred2c <- cos(2*pi*days.tmp/500); pred2s <- sin(2*pi*days.tmp/500);
+fit <- lm(play.data2 ~ pred1c + pred1s + pred2c + pred2s)
+
+predictors <- cbind(cos(2*pi*days.tmp/f[imodes[1]]), sin(2*pi*days.tmp/f[imodes[1]]))
+if(length(imodes)>1) {
+  for (i in 2:length(imodes)) {
+    predictors <- cbind(predictors, cbind(cos(2*pi*days.tmp/f[imodes[i]]), sin(2*pi*days.tmp/f[imodes[i]])))
+  }
+}
+
+fit <- lm(lsl.daily.tmp.detrended ~ predictors)
+
+# 4. After the harmonic regression, we are left with the residuals. Fit an ARMA (2,2) model to the residuals.
+arima.fit <- arima(x=fit$residuals, order=c(2,0,2))
+
+# 5. After fitting an ARMA (2,2) model to the residuals, we obtain the residuals for this second model.
+#arima.fit$residuals
+
+# 6. The 2nd set of residuals is the data that we'll be using for our GEV model fitting.
+
+
+# 7. Check the ACF and PACF plots to ensure that there is little to no autocorrelation in the data.
+#acf.tmp <- acf(arima.fit$residuals, plot=FALSE)
+# I checked with imodes taking the top 5; the acf immediately falls to 1e-6. Good!
+
+# 8. We can take weekly or monthly block maxima here.
+
+
+
+
+
+#===============================================================================
+#===============================================================================
+#===============================================================================
+# BELOW HERE IS FROM ORIGINAL fit_priors.R ROUTINE
+#===============================================================================
+#===============================================================================
+#===============================================================================
+
+
+
+
+
+
+
 
 #
 #===============================================================================

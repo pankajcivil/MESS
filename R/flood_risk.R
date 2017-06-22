@@ -9,7 +9,7 @@
 #===============================================================================
 #
 
-filename.evt.parameters <- 'evt_models_calibratedParameters__13Jun2017.nc'
+filename.evt.parameters <- '../output/evt_models_calibratedParameters_gev-nav_21Jun2017.nc'
 filename.sealevelrise <- '../../BRICK/output_model/BRICK-fastdyn_physical_gamma_01Jun2017.nc'
 
 time.beg <- 2015           # inital year, "present"
@@ -116,17 +116,6 @@ ncdata <- nc_open(filename.evt.parameters)
 nc_close(ncdata)
 
 
-# TODO
-# TODO
-         # thinning for now, to test everything
-         thin.len <- 1000
-         for (model in types.of.model) {
-           parameters[[model]] <- parameters[[model]][seq(from=1, to=nrow(parameters[[model]]), by=thin.len),]
-         }
-# TODO
-# TODO
-
-
 #
 #===============================================================================
 # read sea-level rise realizations, fingerprinted to Delfzijl TG station
@@ -161,6 +150,7 @@ lsl_subsidence <- subsidence.rate * time_proj_rel
 
 n.ensemble <- rep(NA, length(types.of.model)); names(n.ensemble) <- types.of.model
 for (model in types.of.model) {n.ensemble[[model]] <- nrow(parameters[[model]])}
+
 n.heightening <- length(heightening)
 n.time <- length(time_proj)
 names.vandantzig <- c('p_fail_tot','p_fail_avg','p_fail_max','expected_damage','expected_cost_exp','expected_cost_quad','total_loss_exp','total_loss_quad')
@@ -179,8 +169,11 @@ for (model in types.of.model) {
     vandantzig.out[[model]][[i]] <- mat.or.vec(n.heightening, length.vandantzig)
     colnames(vandantzig.out[[model]][[i]]) <- names.vandantzig
     p_fail_tot <- rep(0, n.heightening)
-    p_fail_tot <- rep(0, n.heightening)
-    p_fail_tot <- rep(0, n.heightening)
+    p_fail_avg <- rep(0, n.heightening)
+    p_fail_max <- rep(0, n.heightening)
+    expected_damage <- rep(0, n.heightening)
+    total_loss_exp  <- rep(0, n.heightening)
+    total_loss_quad <- rep(0, n.heightening)
 
 # TODO -- make this loop over heightenings either an 'apply' or more efficient?
 
@@ -299,8 +292,105 @@ for (model in types.of.model) {
   Reg.med[[model]] <- median(Reg[[model]])
 }
 
+
 # What is distribution of expected regret for each ensemble, if we heighten by
 # the ensemble mean/median optimal heightening?
+
+# TODO
+
+
+#
+#===============================================================================
+# What is the regret of using model X if model Y is the 'truth'?
+#===============================================================================
+#
+
+# heighten by Hopt[[model_X]] but calculate regret using model_Y
+
+regret_matrix_avg <- matrix(nrow=length(types.of.model), ncol=length(types.of.model))
+rownames(regret_matrix_avg) <- types.of.model
+colnames(regret_matrix_avg) <- types.of.model
+regret_matrix_med <- matrix(nrow=length(types.of.model), ncol=length(types.of.model))
+rownames(regret_matrix_med) <- types.of.model
+colnames(regret_matrix_med) <- types.of.model
+RegX <- vector('list', length(types.of.model)); names(RegX) <- types.of.model
+for (model_assumed in types.of.model) {
+  RegX[[model_assumed]] <- vector('list', length(types.of.model)); names(RegX[[model_assumed]]) <- types.of.model
+  for (model_truth in types.of.model) {
+    RegX[[model_assumed]][[model_truth]] <- rep(NA, n.ensemble[[model]])
+  }
+}
+
+for (model_assumed in types.of.model) {
+  for (model_truth in types.of.model) {
+    RegX[[model_assumed]][[model_truth]] <- loss.ens[[model_truth]][iopt.ens[[model_assumed]],] -
+                                            Popt[[model_truth]]
+    regret_matrix_avg[model_assumed, model_truth] <- mean(RegX[[model_assumed]][[model_truth]])
+    regret_matrix_med[model_assumed, model_truth] <- median(RegX[[model_assumed]][[model_truth]])
+  }
+}
+
+
+# Calculate BIC for each model
+# Note: this is only based on the thinned ensembles currently. Can use the full
+# calibrated simulations from the MCMC if we want.
+
+bic <- rep(NA, length(types.of.model)); names(bic) <- types.of.model
+llik.mod <- rep(NA, length(types.of.model)); names(llik.mod) <- types.of.model
+for (model in types.of.model) {
+  lpri.tmp <- rep(NA, n.ensemble.filt[[model]])
+  llik.tmp <- rep(NA, n.ensemble.filt[[model]])
+  for (i in 1:n.ensemble.filt[[model]]) {
+    if(substr(model,4,4)!='3') {auxiliary <- trimmed_forcing(data_calib$year_unique, time_forc, temperature_forc)$temperature}
+    if(model %in% types.of.nav) {
+      lpri.tmp[i] <- log_prior_naveau(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], priors=priors, model=model)
+      llik.tmp[i] <- log_like_naveau(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], data_calib=data_calib$lsl_max, auxiliary=auxiliary, Tmax=Tmax)
+    } else if(model %in% types.of.gev) {
+      lpri.tmp[i] <- log_prior_gev(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], priors=priors, model=model)
+      llik.tmp[i] <- log_like_gev(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], data_calib=data_calib$lsl_max, auxiliary=auxiliary)
+    }
+  }
+  imax <- which.max(llik.tmp)
+  bic[[model]] <- -2*max(llik.tmp) + length(parnames_all[[model]])*log(length(data_calib$lsl_max))
+  llik.mod[[model]] <- mean(llik.tmp)
+}
+
+# a few different model averaging schemes
+# note that wgt_lik is actual BMA
+wgt_sf <- rep(NA, length(types.of.model)); names(wgt_sf) <- types.of.model
+wgt_bic <- rep(NA, length(types.of.model)); names(wgt_bic) <- types.of.model
+wgt_lik <- rep(NA, length(types.of.model)); names(wgt_lik) <- types.of.model
+
+reg_wgt_sf <- rep(NA, length(types.of.model)); names(reg_wgt_sf) <- types.of.model
+reg_wgt_bic <- rep(NA, length(types.of.model)); names(reg_wgt_bic) <- types.of.model
+reg_wgt_lik <- rep(NA, length(types.of.model)); names(reg_wgt_lik) <- types.of.model
+
+llik.ref <- min(llik.mod)
+
+wgt_bic <- min(bic)/bic; wgt_bic <- wgt_bic/sum(wgt_bic)
+wgt_sf  <- exp(-2*(bic-bic[1])) / sum(exp(-2*(bic-bic[1])))
+wgt_lik <- exp(llik.mod - llik.ref)/sum(exp(llik.mod - llik.ref))
+
+
+for (model in types.of.model) {
+  reg_wgt_bic[[model]] <- sum(regret_matrix_avg[match(model,types.of.model),]*wgt_bic)
+  reg_wgt_lik[[model]] <- sum(regret_matrix_avg[match(model,types.of.model),]*wgt_lik)
+  reg_wgt_sf[[model]] <- sum(regret_matrix_avg[match(model,types.of.model),]*wgt_sf)
+}
+
+
+regret_comparison <- cbind(regret_matrix_avg, reg_wgt_lik, reg_wgt_bic, reg_wgt_sf)
+
+
+barplot(height=bic, names.arg=types.of.model, ylim=c(2090,2120),
+        main='BIC (lower is better)', ylab='BIC', xlab='Model', xpd=FALSE)
+
+# plot of the BMA weights and
+par(mfrow=c(2,1))
+barplot(height=wgt_lik, names.arg=types.of.model, ylim=c(0, .3), xpd=FALSE,
+        ylab='Model weights', xlab='Model', main='BMA weights, from MCMC')
+barplot(height=reg_wgt_lik, names.arg=types.of.model, ylim=c(0,70), xpd=FALSE,
+        ylab=paste('BMA-weighted expected regret (M',euro,')', sep=''), xlab='Model')
 
 # TODO
 
@@ -318,6 +408,39 @@ for (model in types.of.model) {
 # scratch below here
 #===============================================================================
 #
+
+# some of the nav6 SOW have absurdly high regret
+plot.dir <- '../figures/'
+itmp <- which(Reg$nav6 > 1e5) # note that this is in the trillions of euros
+model <- 'nav6'
+pdf(paste(plot.dir,'parameter_correlations_',model,'.pdf',sep=''),width=10,height=10,colormodel='cmyk')
+par(mfrow=c(5,5))
+for (p1 in 1:(length(parnames_all[[model]])-1)) {
+  if(p1 > 1) {for (i in 1:(p1-1)) {plot.new();}}
+  for (p2 in (p1+1):length(parnames_all[[model]])) {
+    plot(parameters[[model]][,p2], parameters[[model]][,p1], xlab=parnames_all[[model]][p2], ylab=parnames_all[[model]][p1])
+    points(parameters[[model]][itmp,p2], parameters[[model]][itmp,p1], col='red')
+  }
+}
+dev.off()
+
+# filtering of the naveau models that project any kappa < 0
+n.ensemble.filt <- n.ensemble
+parameters.filt <- parameters
+ibad <- vector('list', length(types.of.nav)); names(ibad) <- types.of.nav
+for (model in types.of.nav) {
+  ibad.tmp <- NULL
+  for (i in 1:n.ensemble[[model]]) {
+    par.tmp <- project_naveau(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], auxiliary=temperature_forc)
+    if(any(par.tmp[,'kappa'] < 0)) {ibad.tmp <- c(ibad.tmp, i)}
+  }
+  ibad[[model]] <- ibad.tmp
+  if(length(ibad[[model]]) > 0) {
+    n.ensemble.filt[[model]] <- n.ensemble[[model]] - length(ibad[[model]])
+    parameters.filt[[model]] <- parameters[[model]][-ibad[[model]],]
+  }
+}
+
 
 # testing GEV cdf timing
 np <- 50
