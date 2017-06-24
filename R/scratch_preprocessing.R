@@ -115,6 +115,202 @@ print('...done.')
 #===============================================================================
 #
 
+
+
+#===
+#=== convert Delfzijl tide gauge data to hourly series
+#===
+
+dat.dir <- '~/codes/EVT/data/tide_gauge_Europe/Delfzijl_Oddo_data/'
+data <- read_data(dat.dir=dat.dir, filetype='txt', septype='\t')
+
+# convert sea levels from cm to mm, consistent with the other European data
+data$sl <- 10* data$sl
+
+data$year   <- as.numeric(substr(as.character(data$date), start=1, stop=4))
+data$month  <- as.numeric(substr(as.character(data$date), start=5, stop=6))
+data$day    <- as.numeric(substr(as.character(data$date), start=7, stop=8))
+data$hour   <- as.numeric(substr(data$time, 1,2))
+data$minute <- as.numeric(substr(data$time, 4,5))
+
+# time in days since 01 January 1960
+data$time.days <- as.numeric(mdy.date(month=month, day=day, year=year)) + hour/24 + minute/(24*60)
+
+# difference between time stamps (in units of days)
+time.diff <- diff(time.days)
+
+# check that they are in the proper order, ascending
+print(paste('Are there any times out of order? ',any(time.diff < 0), sep=''))
+
+# put everything back in order - make sure you do this for the sea levels and
+# other fields too, so do as a matrix. also recalculate the time differences,
+# which you will need for averaging
+data <- data[order(data$time.days),]
+time.diff <- diff(data$time.days)
+
+# what is three hours? in units of days
+three.hours <- 3/24
+
+# where are there gaps longer than three hours? (+10sec for precision)
+igap <- which(time.diff > (three.hours+10/(24*60*60)))
+
+# TODO
+
+
+# where are there gaps shorter than three hours? (-10sec)
+# should find lots of places. need to average these up to 3 hours.
+iokay <- which( (time.diff < (three.hours+10/(24*60*60))) & (time.diff > (three.hours-10/(24*60*60))) )
+ishort <- which(time.diff < (three.hours-10/(24*60*60)))
+
+i10min <- which( (time.diff < (10/60/24+10/(24*60*60))) & (time.diff > (10/60/24-10/(24*60*60))) )
+i1hour <- which( (time.diff < (1/24+10/(24*60*60))) & (time.diff > (1/24-10/(24*60*60))) )
+i3hour <- which( (time.diff < (3/24+10/(24*60*60))) & (time.diff > (3/24-10/(24*60*60))) )
+
+tnew.1hour <- seq(from=data$time.days[max(i3hour)]+three.hours, to=data$time.days[max(i1hour)], by=three.hours)
+tnew.10min <- seq(from=data$time.days[max(i1hour)]+three.hours, to=data$time.days[max(i10min)], by=three.hours)
+tnew.3hour <- data$time.days[i3hour]
+
+# there is one missing 3-hour data point, between indices 239599 and 239600
+# the 3-hourly data get averaged up to daily maxima time series; just ignore
+# this and any other gaps, since the largest one is 8 hours in November 2014.
+# still have enough data to get a meaningful daily maximum.
+
+time.new <- c(tnew.3hour, tnew.1hour, tnew.10min)
+
+# average up to three hourly time series
+
+sl.3hour <- rep(NA, length(time.new))
+
+# plug in the data that are already 3-hourly
+sl.3hour[1:length(tnew.3hour)] <- data$sl[i3hour]
+
+# average up the data that are 1-hourly
+print('Averaging hourly measurements up to 3-hourly...')
+pb <- txtProgressBar(min=0,max=length(tnew.1hour),initial=0,style=3)
+sl.tmp <- rep(NA, length(tnew.1hour))
+for (t in 1:length(tnew.1hour)) {
+  itmp <- which( (data$time.days > (tnew.1hour[t]-three.hours)) & (data$time.days <= tnew.1hour[t]) )
+  sl.tmp[t] <- mean(data$sl[itmp])
+  setTxtProgressBar(pb, t)
+}
+close(pb)
+print('   ... done.')
+sl.3hour[(length(tnew.3hour)+1):(length(tnew.3hour)+length(tnew.1hour))] <- sl.tmp
+
+# average up the data that are 10-minutely
+print('Averaging 10-minutely measurements up to 3-hourly...')
+pb <- txtProgressBar(min=0,max=length(tnew.10min),initial=0,style=3)
+sl.tmp <- rep(NA, length(tnew.10min))
+for (t in 1:length(tnew.10min)) {
+  itmp <- which( (data$time.days > (tnew.10min[t]-three.hours)) & (data$time.days <= tnew.10min[t]) )
+  sl.tmp[t] <- mean(data$sl[itmp])
+  setTxtProgressBar(pb, t)
+}
+close(pb)
+print('   ... done.')
+sl.3hour[(length(tnew.3hour)+length(tnew.1hour)+1):length(sl.3hour)] <- sl.tmp
+
+# that takes a long time, so save the workspace image
+save.image(file='../output/preprocessing_delfzijl.RData')
+
+
+#===
+#=== need monthly means to fit linear sea-level rise trend (for GPD)
+#===
+
+# TODO
+
+
+
+
+#===
+#=== subtract linear sea-level trend (from fit to monthly means)
+#===
+
+# TODO
+
+
+
+#===
+#=== daily block maxima; calculate 99% quantile as GPD threshold
+#===
+
+# TODO
+
+
+
+#===
+#=== find all the excesses, "declustering" = if two are within a day of each
+#=== other, take only the maximum of the two (so make sure you save the times
+#=== of each excess)
+#===
+
+# TODO
+
+
+
+decluster_timeseries <- function(time, time.series, min.dt) {
+  decluster <- vector('list',2)
+  names(decluster) <- c('time','time.series')
+  tdiff <- diff(time)
+  ind.too.close <- which(tdiff <= min.dt)
+  if(length(ind.too.close) > 0) {
+    # go through the places where there are time.series values too close together,
+    # and set to throw the smaller value away.
+    # need to account for the possibility that there are more than two values in
+    # a 'cluster'.
+    # indices where new clusters begin: (tack on first one manually)
+    ind.clusters <- c(ind.too.close[1] , ind.too.close[which(diff(ind.too.close) > 1) + 1])
+    if(length(ind.clusters) > 1) {
+      # case where there are multiple clusters to consider
+      # initialize by fixing to remove all of the spots that are too close. then
+      # we will remove the indices of each cluster's maximum
+      irem <- unique(c(ind.too.close, ind.too.close + 1))
+      for (i in 1:length(ind.clusters)) {
+        # how long is this cluster?
+        if(i < length(ind.clusters)) {
+          first <- ind.clusters[i]
+          last  <- ind.too.close[which(ind.too.close==ind.clusters[i+1]) -1]+1
+        } else {
+          first <- ind.clusters[i]
+          if (length(which(ind.too.close > first))==0) {last <- first + 1
+          } else {last <- first+length(which(ind.too.close > first)) + 1}
+        }
+        ind.this.cluster <- first:last
+        isave <- ind.this.cluster[which.max(time.series[first:last])]
+        # remove this cluster's maximum from irem; they might be out of order
+        isave <- which(irem==isave)
+        irem <- irem[-isave]
+      }
+    } else {
+      # case with only one cluster
+      # initialize by fixing to remove all of the cluster. then we will remove
+      # the index of the cluster maximum from this
+      irem <- unique(c(ind.too.close, ind.too.close + 1))
+      irem <- irem[-which.max(time.series[irem])]
+    }
+    decluster$time <- time[-irem]
+    decluster$time.series <- time.series[-irem]
+  } else {
+    decluster$time <- time
+    decluster$time.series <- time.series
+  }
+  return(decluster)
+}
+
+
+
+
+length(which(diff(ind.too.close) > 1)) + 1
+
+
+
+
+
+##
+## same as above but for arbitrary European station, and with preprocessing
+##
+
 # pick a single data set to work on the pre-processing. using something already
 # an hourly time series, and long record
 itmp <- which.min( abs(nyear-length(data_calib$lsl_max)))
@@ -219,6 +415,9 @@ hreg.tmp <- harmonic.regression(inputts=play.data, inputtime=days.tmp, Tau=5000)
 pred1c <- cos(2*pi*days.tmp/5000); pred1s <- sin(2*pi*days.tmp/5000); pred2c <- cos(2*pi*days.tmp/500); pred2s <- sin(2*pi*days.tmp/500);
 fit <- lm(play.data2 ~ pred1c + pred1s + pred2c + pred2s)
 
+acf1 <- acf(lsl.daily.tmp.detrended, plot=FALSE)
+
+# using it for real:
 predictors <- cbind(cos(2*pi*days.tmp/f[imodes[1]]), sin(2*pi*days.tmp/f[imodes[1]]))
 if(length(imodes)>1) {
   for (i in 2:length(imodes)) {
@@ -226,13 +425,20 @@ if(length(imodes)>1) {
   }
 }
 
-fit <- lm(lsl.daily.tmp.detrended ~ predictors)
+harmonic.fit <- lm(lsl.daily.tmp.detrended ~ predictors)
+#harmonic.fit$residuals
+acf2 <- acf(harmonic.fit$residuals, plot=FALSE)
 
 # 4. After the harmonic regression, we are left with the residuals. Fit an ARMA (2,2) model to the residuals.
-arima.fit <- arima(x=fit$residuals, order=c(2,0,2))
+arima.fit <- arima(x=harmonic.fit$residuals, order=c(2,0,2), include.mean=FALSE)
+acf3 <- acf(arima.fit$residuals, plot=FALSE)
 
 # 5. After fitting an ARMA (2,2) model to the residuals, we obtain the residuals for this second model.
 #arima.fit$residuals
+
+# simulate from the fitted ARMA process:
+#tmp <- arima.sim(n=length(days.tmp), list(ar=c(arima.fit$coef['ar1'], arima.fit$coef['ar2']),
+                  ma=c(arima.fit$coef['ma1'], arima.fit$coef['ma2'])), sd = sqrt(arima.fit$sigma2))
 
 # 6. The 2nd set of residuals is the data that we'll be using for our GEV model fitting.
 
