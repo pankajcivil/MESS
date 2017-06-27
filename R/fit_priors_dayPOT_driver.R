@@ -1,6 +1,6 @@
 #===============================================================================
 # read tide gauge data for many locations to get a feel for what plausible
-# values for the GEV and Naveau model (i) parameters may be
+# values for the PP-GPD parameters may be
 #
 # Questions? Tony Wong (twong@psu.edu)
 #===============================================================================
@@ -12,7 +12,7 @@ niter.deoptim000 <- 200   # number of DE iterations
 output.dir <- '../output/'
 #setwd('/storage/home/axw322/work/codes/EVT/R')
 setwd('/Users/axw322/codes/EVT/R')
-appen <- 'gev_nav'
+appen <- 'ppgpd'
 
 #
 #===============================================================================
@@ -48,6 +48,14 @@ print('...done.')
 #===============================================================================
 #
 
+
+## TODO
+## TODO -- HERE IS WHERE THE SCRIPT THAT READS AND PROCESSES ALL OF THE DATA
+## TODO -- SHOULD GO. IT SHOULD RETURN DATA_CALIB (DELFZIJL) AND DATA_EUROPE
+## TODO -- (ALL OF THEM), EVERYTHING WE NEED FOR THE DEOPTIM AND MCMC CALIBRATIONS
+## TODO
+
+
 print('reading Delfzijl, Netherlands, tide gauge data...')
 
 source('read_data_tidegauge_delfzijl.R')
@@ -62,49 +70,7 @@ print('...done.')
 
 print('reading lots of other European tide gauge data...')
 
-filetype='csv'
-dat.dir <- '~/codes/EVT/data/tide_gauge_Europe/'
-files.tg <- list.files(path=dat.dir, pattern=filetype)
-
-data_set <- vector('list', length(files.tg))
-for (dd in 1:length(files.tg)) {
-  names(data_set)[dd] <- substr(files.tg[dd], start=1, stop=7)
-  data.tmp <- read.table(paste(dat.dir,files.tg[dd],sep=''), header=FALSE, sep=',')
-  data_set[[dd]] <- vector('list', 5)
-  names(data_set[[dd]]) <- c('year','month','day','hour','sl')
-  data_set[[dd]]$year <- data.tmp$V1
-  data_set[[dd]]$month <- data.tmp$V2
-  data_set[[dd]]$day <- data.tmp$V3
-  data_set[[dd]]$hour <- data.tmp$V4
-  data_set[[dd]]$sl <- data.tmp$V5
-}
-
-# process data
-
-# annual block maxima
-for (dd in 1:length(data_set)) {
-  data_set[[dd]]$sl_norm     <- rep(NA, length(data_set[[dd]]$year))
-  data_set[[dd]]$year_unique <- unique(data_set[[dd]]$year)
-  data_set[[dd]]$year_unique <- data_set[[dd]]$year_unique[order(data_set[[dd]]$year_unique)]
-  data_set[[dd]]$lsl_max     <- rep(NA, length(data_set[[dd]]$year_unique))
-  for (t in 1:length(data_set[[dd]]$year_unique)) {
-    ind_this_year <- which(data_set[[dd]]$year==data_set[[dd]]$year_unique[t])
-    data_set[[dd]]$sl_norm[ind_this_year] <- data_set[[dd]]$sl[ind_this_year] - mean(data_set[[dd]]$sl[ind_this_year])
-    data_set[[dd]]$lsl_max[t] <- max(data_set[[dd]]$sl_norm[ind_this_year])
-  }
-}
-
-# trim before 1850 (or whenever is time_forc[1]), which is when the temperature
-# forcing starts. also make a note of how long each record is
-nyear <- rep(NA, length(data_set))
-for (dd in 1:length(data_set)) {
-  if(data_set[[dd]]$year_unique[1] < time_forc[1]) {
-    icut <- which(data_set[[dd]]$year_unique < time_forc[1])
-    data_set[[dd]]$year_unique <- data_set[[dd]]$year_unique[-icut]
-    data_set[[dd]]$lsl_max <- data_set[[dd]]$lsl_max[-icut]
-  }
-  nyear[dd] <- length(data_set[[dd]]$year_unique)
-}
+source('...')
 
 print('...done.')
 

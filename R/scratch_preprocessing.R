@@ -154,9 +154,6 @@ three.hours <- 3/24
 # where are there gaps longer than three hours? (+10sec for precision)
 igap <- which(time.diff > (three.hours+10/(24*60*60)))
 
-# TODO
-
-
 # where are there gaps shorter than three hours? (-10sec)
 # should find lots of places. need to average these up to 3 hours.
 iokay <- which( (time.diff < (three.hours+10/(24*60*60))) & (time.diff > (three.hours-10/(24*60*60))) )
@@ -175,68 +172,119 @@ tnew.3hour <- data$time.days[i3hour]
 # this and any other gaps, since the largest one is 8 hours in November 2014.
 # still have enough data to get a meaningful daily maximum.
 
-time.new <- c(tnew.3hour, tnew.1hour, tnew.10min)
+time.days.3hour <- c(tnew.3hour, tnew.1hour, tnew.10min)
 
 # average up to three hourly time series
 
-sl.3hour <- rep(NA, length(time.new))
+sl.3hour <- rep(NA, length(time.days.3hour))
+year.3hour <- rep(NA, length(time.days.3hour))
 
 # plug in the data that are already 3-hourly
 sl.3hour[1:length(tnew.3hour)] <- data$sl[i3hour]
+year.3hour[1:length(tnew.3hour)] <- data$year[i3hour]
 
 # average up the data that are 1-hourly
 print('Averaging hourly measurements up to 3-hourly...')
 pb <- txtProgressBar(min=0,max=length(tnew.1hour),initial=0,style=3)
 sl.tmp <- rep(NA, length(tnew.1hour))
+year.tmp <- rep(NA, length(tnew.1hour))
 for (t in 1:length(tnew.1hour)) {
   itmp <- which( (data$time.days > (tnew.1hour[t]-three.hours)) & (data$time.days <= tnew.1hour[t]) )
-  sl.tmp[t] <- mean(data$sl[itmp])
+  sl.tmp[t] <- mean(data$sl[itmp], na.rm=TRUE)
+  year.tmp[t] <- median(data$year[itmp], na.rm=TRUE)
   setTxtProgressBar(pb, t)
 }
 close(pb)
 print('   ... done.')
 sl.3hour[(length(tnew.3hour)+1):(length(tnew.3hour)+length(tnew.1hour))] <- sl.tmp
+year.3hour[(length(tnew.3hour)+1):(length(tnew.3hour)+length(tnew.1hour))] <- year.tmp
 
 # average up the data that are 10-minutely
 print('Averaging 10-minutely measurements up to 3-hourly...')
 pb <- txtProgressBar(min=0,max=length(tnew.10min),initial=0,style=3)
 sl.tmp <- rep(NA, length(tnew.10min))
+year.tmp <- rep(NA, length(tnew.10min))
 for (t in 1:length(tnew.10min)) {
   itmp <- which( (data$time.days > (tnew.10min[t]-three.hours)) & (data$time.days <= tnew.10min[t]) )
-  sl.tmp[t] <- mean(data$sl[itmp])
+  sl.tmp[t] <- mean(data$sl[itmp], na.rm=TRUE)
+  year.tmp[t] <- median(data$year[itmp], na.rm=TRUE)
   setTxtProgressBar(pb, t)
 }
 close(pb)
 print('   ... done.')
 sl.3hour[(length(tnew.3hour)+length(tnew.1hour)+1):length(sl.3hour)] <- sl.tmp
+year.3hour[(length(tnew.3hour)+length(tnew.1hour)+1):length(sl.3hour)] <- year.tmp
 
 # that takes a long time, so save the workspace image
-save.image(file='../output/preprocessing_delfzijl.RData')
-
-
-#===
-#=== need monthly means to fit linear sea-level rise trend (for GPD)
-#===
-
-# TODO
-
-
+save.image(file='../output/preprocessing.RData')
 
 
 #===
 #=== subtract linear sea-level trend (from fit to monthly means)
 #===
 
-# TODO
+# calcualte monthly means
 
+dates.new <- date.mdy(time.days.3hour)
+date.beg <- date.mdy(min(time.days.3hour))
+date.end <- date.mdy(max(time.days.3hour))
+
+# how many months are there?
+months.firstyear <- 12-date.beg$month+1
+if(date.end$day > 15) {months.lastyear  <- date.end$month
+} else {months.lastyear <- date.end$month-1}
+# the -1 makes sure we don't count the first or last years
+n.months <- 12*(date.end$year - date.beg$year - 1) + months.firstyear + months.lastyear
+
+sl.month <- rep(NA, length(n.months))
+time.month <- rep(NA, length(n.months))
+cnt <- 1
+print('getting time series of monthly means, to calculate sea-level rise trend...')
+pb <- txtProgressBar(min=0,max=n.months,initial=0,style=3)
+for (yy in date.beg$year:date.end$year) {
+  ind.this.year <- which(dates.new$year == yy)
+  for (mm in min(dates.new$month[ind.this.year]):max(dates.new$month[ind.this.year])) {
+    ind.this.month <- which( (dates.new$year == yy) & (dates.new$month == mm) )
+    sl.month[cnt] <- mean(sl.3hour[ind.this.month], na.rm=TRUE)
+    time.month[cnt] <- mean(time.days.3hour[ind.this.month], na.rm=TRUE)
+    cnt <- cnt+1
+    setTxtProgressBar(pb, cnt)
+  }
+}
+close(pb)
+
+# fit trend
+slr.trend <- lm(sl.month ~ time.month)
+slr.trend.3hour <- slr.trend$coefficients[1] + slr.trend$coefficients[2]*time.days.3hour
+
+# subtract off from the 3-hourly data
+sl.3hour.detrended <- sl.3hour - slr.trend.3hour
+print('  ... done.')
 
 
 #===
 #=== daily block maxima; calculate 99% quantile as GPD threshold
 #===
 
-# TODO
+n.days <- ceiling(max(time.days.3hour) - min(time.days.3hour))
+sl.daily.max <- rep(NA, n.days)
+year.daily.max <- rep(NA, n.days) # save which year each came from to organize into blocks
+time.daily <- seq(from=0.5+floor(min(time.days.3hour)), to=0.5+floor(max(time.days.3hour))
+cnt <- 1
+print('getting time series of daily maxima...')
+pb <- txtProgressBar(min=0,max=n.days,initial=0,style=3)
+for (ttmp in time.daily) {
+  ind.today <- which( abs(time.days.3hour-ttmp) < 0.5 )
+  sl.daily.max[cnt] <- max(sl.3hour[ind.today], na.rm=TRUE)
+  year.daily.max[cnt] <- median(year.3hour[ind.today], na.rm=TRUE)
+  setTxtProgressBar(pb, cnt)
+  cnt <- cnt+1
+}
+close(pb)
+print('  ... done.')
 
+# that takes a long time, so save the workspace image
+save.image(file='../output/preprocessing.RData')
 
 
 #===
@@ -245,13 +293,21 @@ save.image(file='../output/preprocessing_delfzijl.RData')
 #=== of each excess)
 #===
 
-# TODO
+# threshold is 99% quantile of tide gauge's observed values.
+# Buchanan et al (2016) use the 99% quantile of the daily maximum time series.
+#gpd.threshold <- as.numeric(quantile(sl.3hour.detrended, .99, na.rm=TRUE))
+gpd.threshold <- as.numeric(quantile(sl.daily.max, .99, na.rm=TRUE))
 
+ind.exceed <- which(sl.daily.max >= gpd.threshold)
+time.exceed <- time.daily[ind.exceed]
+sl.exceed <- sl.daily.max[ind.exceed]
+year.exceed <- year.daily.max[ind.exceed]
 
-
-decluster_timeseries <- function(time, time.series, min.dt) {
-  decluster <- vector('list',2)
-  names(decluster) <- c('time','time.series')
+# whoops, extRemes package has a function for this, and it works better for
+# the EVT analysis. ah well.
+decluster_timeseries <- function(time, year, time.series, min.dt) {
+  decluster <- vector('list',3)
+  names(decluster) <- c('time','year','time.series')
   tdiff <- diff(time)
   ind.too.close <- which(tdiff <= min.dt)
   if(length(ind.too.close) > 0) {
@@ -290,18 +346,84 @@ decluster_timeseries <- function(time, time.series, min.dt) {
       irem <- irem[-which.max(time.series[irem])]
     }
     decluster$time <- time[-irem]
+    decluster$year <- year[-irem]
     decluster$time.series <- time.series[-irem]
   } else {
     decluster$time <- time
+    decluster$year <- year
     decluster$time.series <- time.series
   }
   return(decluster)
 }
 
+declustered.exceed <- decluster_timeseries(time=time.exceed, year=year.exceed, time.series=sl.exceed, min.dt=1)
+time.exceed.decl <- declustered.exceed$time
+year.exceed.decl <- declustered.exceed$year
+sl.exceed.decl <- declustered.exceed$time.series
+
+
+# TODO - decluster and then reinsert
+sl.daily.max.declustered <- decluster(sl.daily.max, threshold=gpd.threshold, r=1 )
+data.tmp <- data.frame( cbind(1:n.days, time.daily, sl.daily.max.declustered))
+data.tmp$time.daily <- data.tmp$time.daily/365.25
+names(data.tmp) <- c('obs','year','sl')
+
+# try initial MLE fit for GP-PP model with extRemes package
+fit0 <- fevd(sl, data.tmp, threshold=gpd.threshold, type="PP", units="mm", time.units='days')
+
+# note that 'rate' is giving you estimate of
+# [total number of exceedances] / [total time span]
+
+# also note that devd does not have support for type='PP', so need to code the
+# likelihood functions yourself. but let's be honest, you'd do that anyway.
+
+# and finally, note that this MLE fit is pretty terrible! so code your own
+# likelihood functions and MLE fit and see if you and old friend DE optimization
+# can do better. probably some weird assumption in the model...
+
+# non-stationary GP-PP model: lambda, scale, shape
+
+data.gpd <- data.frame(cbind(1:length(sl.exceed.decl), time.exceed.decl/365.25, sl.exceed.decl))
+names(data.gpd) <- c('obs','year_exceedance','sl_exceedance')
+
+# note that data.gpd$year_exceedance has units of years after 1 Jan 1960
+
+#===
+#=== sub-list object on 'data_calib' to store what is needed to calbirate PP-GPD
+#===
+
+data_calib$gpd <- vector('list', 4)
+names(data_calib$gpd) <- c('counts','time_length','excesses','threshold')
+# initialize
+data_calib$gpd$threshold <- gpd.threshold
+data_calib$gpd$counts <- data_calib$gpd$time_length <- rep(NA, length(year.unique))
+data_calib$gpd$excesses <- vector('list', length(year.unique))
+for (y in 1:length(year.unique)) {
+  hits.this.year <- which(year.exceed.decl==year.unique[y])
+  data_calib$gpd$counts[y] <- length(hits.this.year)
+    data_calib$gpd$time_length[y] <- max(time.daily[which(year.daily.max==year.unique[y])]) -
+                                     min(time.daily[which(year.daily.max==year.unique[y])]) + 1
+  if(length(hits.this.year) > 0) {data_calib$gpd$excesses[[y]] <- sl.exceed.decl[hits.this.year]
+  } else                         {data_calib$gpd$excesses[[y]] <- NA}
+}
+
+# alternatively, could bin em all together. but this won't allow for potential
+# non-stationary behavior in the poisson process
+data_calib$gpd$excesses_all <- sl.exceed.decl
+data_calib$gpd$counts_all <- length(sl.exceed.decl)
+data_calib$gpd$time_length_all <- max(time.daily) - min(time.daily) + 1
+
+
+## this works!
+out.deoptim <- DEoptim(neg_log_like_ppgpd, lower=c(0,0,-2), upper=c(1,15000,2),
+                    DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
+                    parnames=c('lambda','sigma','xi'), data_calib=data_calib, auxiliary=NULL)
 
 
 
-length(which(diff(ind.too.close) > 1)) + 1
+
+
+
 
 
 
