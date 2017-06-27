@@ -106,10 +106,10 @@ if(nmodel > 1) {colnames(bic.delfzijl) <- types.of.model; rownames(bic.delfzijl)
 
 # PP-GPD model fitting
 for (gpd.type in types.of.gpd) {
-#  if(gpd.type=='gpd3') {auxiliary <- NULL
-#  } else {auxiliary <- trimmed_forcing(data_calib$gpd$year, time_forc, temperature_forc)$temperature}
-# for now... (until add support for nonstationary)
-  auxiliary <- NULL
+  print(paste('Starting DE optimization at Delfzijl for model ',gpd.type,'...', sep=''))
+  tbeg <- proc.time()
+  if(gpd.type=='gpd3') {auxiliary <- NULL
+  } else {auxiliary <- trimmed_forcing(data_calib$gev_year$year, time_forc, temperature_forc)$temperature}
   out.deoptim <- DEoptim(neg_log_like_ppgpd, lower=bound_lower_set[[gpd.type]], upper=bound_upper_set[[gpd.type]],
                        DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
                        parnames=parnames_all[[gpd.type]], data_calib=data_calib, auxiliary=auxiliary)
@@ -120,6 +120,8 @@ for (gpd.type in types.of.gpd) {
   } else {
     bic.delfzijl <- 2*out.deoptim$optim$bestval + length(parnames_all[[gpd.type]])*log(length(data_calib$gpd$counts_all))
   }
+  tend <- proc.time()
+  print(paste('... done. Took ',round(as.numeric(tend-tbeg)[3]/60,2),' minutes', sep=''))
 }
 
 print('...done.')
@@ -155,15 +157,17 @@ if(nmodel > 1) {colnames(bic.eur) <- types.of.model; rownames(bic.eur) <- files.
 
 for (dd in 1:length(data_set)) {
   print(paste('starting to calculate MLE PP-GPD parameters for European data set ',dd,' / ',length(data_set),sep=''))
-
+  tbeg0 <- proc.time()
   data_set[[dd]]$bic.deoptim <- rep(NA, nmodel)
   data_set[[dd]]$deoptim <- vector('list', nmodel)
   names(data_set[[dd]]$deoptim) <- types.of.model
 
   # PP-GPD model fitting
   for (gpd.type in types.of.gpd) {
+    print(paste('  - starting DE optimization for model ',gpd.type,'...', sep=''))
+    tbeg <- proc.time()
     if(gpd.type=='gpd3') {auxiliary <- NULL
-    } else {auxiliary <- trimmed_forcing(data_set[[dd]]$year_unique, time_forc, temperature_forc)$temperature}
+    } else {auxiliary <- trimmed_forcing(data_europe[[dd]]$gev_year$year, time_forc, temperature_forc)$temperature}
     out.deoptim <- DEoptim(neg_log_like_ppgpd, lower=bound_lower_set[[gpd.type]], upper=bound_upper_set[[gpd.type]],
                          DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
                          parnames=parnames_all[[gpd.type]], data_calib=data_europe[[dd]], auxiliary=auxiliary)
@@ -174,7 +178,11 @@ for (dd in 1:length(data_set)) {
     } else {
       bic.eur[dd] <- 2*out.deoptim$optim$bestval + length(parnames_all[[gpd.type]])*log(length(data_set[[dd]]$gpd$counts_all))
     }
+    tend <- proc.time()
+    print(paste('... done. Took ',round(as.numeric(tend-tbeg)[3]/60,2),' minutes', sep=''))
   }
+  tend0 <- proc.time()
+  print(paste('... done. Took ',round(as.numeric(tend0-tbeg0)[3]/60,2),' minutes', sep=''))
 }
 
 # also include Delfzijl points in this fit/spread

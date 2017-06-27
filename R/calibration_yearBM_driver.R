@@ -56,11 +56,6 @@ print('reading temperature data...')
 
 source('read_data_temperature.R')
 
-# maximum temperature serves as an additinoal prior constraint on kappa0, kappa1
-# that is, kappa1 > -kappa0/Tmax (otherwise, kappa = kappa0 + kappa1*T might be
-# negative)
-Tmax <- max(temperature_forc)
-
 print('...done.')
 
 #

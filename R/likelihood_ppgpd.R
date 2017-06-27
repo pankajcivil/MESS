@@ -31,6 +31,41 @@
 # 3. all parameters (rate, scale, shape) as time series (annual values/each block)
 # 4. values of the exceedance levels (level-threshold)
 
+
+# assumes that x comes in as x-threshold
+# also doesn't address the case where some of the shape=0 and others do not
+gpd_pdf <- function(x, scale, shape, log=FALSE){
+  p <- rep(NA,length(x))
+  if(all(shape==0)) {
+    if(log) {
+      p <- -x/scale - log(scale)
+    } else {
+      p <- (1/scale) * exp(-x/scale)
+    }
+  } else {
+    if(log) {
+      p <- -(1+1/shape)*log(1+shape*x/scale) - log(scale)
+      if(any(shape < 0)) {
+        i1 <- which(shape < 0); i2 <- which(x > (-scale/shape)); i3 <- intersect(i1,i2)
+        p[i3] <- -Inf
+      } else if(any(shape > 0)) {
+        i1 <- which(shape > 0); i2 <- which(x < (-scale/shape)); i3 <- intersect(i1,i2)
+        p[i3] <- -Inf
+      }
+    } else {
+      p <- (1/scale) * (1+shape*x/scale)^(-(1+1/shape))
+      if(any(shape < 0)) {
+        i1 <- which(shape < 0); i2 <- which(x > (loc-scale/shape)); i3 <- intersect(i1,i2)
+        p[i3] <- 0
+      } else if(any(shape > 0)) {
+        i1 <- which(shape > 0); i2 <- which(x < (loc-scale/shape)); i3 <- intersect(i1,i2)
+        p[i3] <- 0
+      }
+    }
+  }
+  return(p)
+}
+
 gpd_cdf <- function(q, scale, shape){
   p <- rep(NA,length(q))
   if(all(shape==0)) {
@@ -69,13 +104,6 @@ ppgpd_overtop <- function(h, lambda, sigma, xi, threshold, nmax, time.length){
   return(res)
 }
 
-
-#========================================
-# DANGER - UNDER CONSTRUCTION - CAUTION!
-#========================================
-
-
-
 #===============================================================================
 
 
@@ -96,13 +124,34 @@ project_ppgpd <- function(parameters,
     lambda <- rep(parameters[match('lambda',parnames)], length(auxiliary))
     sigma <- rep(parameters[match('sigma',parnames)], length(auxiliary))
     xi <- rep(parameters[match('xi',parnames)], length(auxiliary))
+  } else if(n.param==4) {
+    # rate parameter nonstationary
+    lambda0 <- parameters[match('lambda0',parnames)]
+    lambda1 <- parameters[match('lambda1',parnames)]
+    sigma <- rep(parameters[match('sigma',parnames)], length(auxiliary))
+    xi <- rep(parameters[match('xi',parnames)], length(auxiliary))
+    lambda <- lambda0 + lambda1*auxiliary
+  } else if(n.param==5) {
+    # rate and scale parameters nonstationary
+    lambda0 <- parameters[match('lambda0',parnames)]
+    lambda1 <- parameters[match('lambda1',parnames)]
+    sigma0 <- parameters[match('sigma0',parnames)]
+    sigma1 <- parameters[match('sigma1',parnames)]
+    xi <- rep(parameters[match('xi',parnames)], length(auxiliary))
+    lambda <- lambda0 + lambda1*auxiliary
+    sigma <- exp(sigma0 + sigma1*auxiliary)
+  } else if(n.param==6) {
+    # rate, scale and shape all nonstationary
+    lambda0 <- parameters[match('lambda0',parnames)]
+    lambda1 <- parameters[match('lambda1',parnames)]
+    sigma0 <- parameters[match('sigma0',parnames)]
+    sigma1 <- parameters[match('sigma1',parnames)]
+    xi0 <- parameters[match('xi0',parnames)]
+    xi1 <- parameters[match('xi1',parnames)]
+    lambda <- lambda0 + lambda1*auxiliary
+    sigma <- exp(sigma0 + sigma1*auxiliary)
+    xi <- xi0 + xi1*auxiliary
   } else {print('ERROR - invalid number of parameters for PP-GPD')}
-
-
-# TODO
-# TODO - add support for nonstationary models
-# TODO
-
 
   parameters_project[,'lambda'] <- lambda
   parameters_project[,'sigma'] <- sigma
@@ -169,39 +218,56 @@ log_like_ppgpd <- function(parameters,
                            auxiliary=NULL
 ){
   llik <- 0
-  #print(parameters)
+  nbins <- length(data_calib$gpd$counts)
+#  print(parameters)
   n.param <- length(parnames)
   if(n.param==3) {
     # fit a standard stationary PP-GPD
-    lambda <- parameters[match('lambda',parnames)]
-    sigma <- parameters[match('sigma',parnames)]
-    xi <- parameters[match('xi',parnames)]
+    lambda <- rep(parameters[match('lambda',parnames)], nbins)
+    sigma <- rep(parameters[match('sigma',parnames)], nbins)
+    xi <- rep(parameters[match('xi',parnames)], nbins)
+  } else if(n.param==4) {
+    # Poisson process rate parameter nonstationary
+    lambda0 <- parameters[match('lambda0',parnames)]
+    lambda1 <- parameters[match('lambda1',parnames)]
+    sigma <- rep(parameters[match('sigma',parnames)], nbins)
+    xi <- rep(parameters[match('xi',parnames)], nbins)
+    lambda <- lambda0 + lambda1*auxiliary
+  } else if(n.param==5) {
+    # rate and scale parameters nonstationary
+    lambda0 <- parameters[match('lambda0',parnames)]
+    lambda1 <- parameters[match('lambda1',parnames)]
+    sigma0 <- parameters[match('sigma0',parnames)]
+    sigma1 <- parameters[match('sigma1',parnames)]
+    xi <- rep(parameters[match('xi',parnames)], nbins)
+    lambda <- lambda0 + lambda1*auxiliary
+    sigma <- exp(sigma0 + sigma1*auxiliary)
+  } else if(n.param==6) {
+    # rate, scale and shape all nonstationary
+    lambda0 <- parameters[match('lambda0',parnames)]
+    lambda1 <- parameters[match('lambda1',parnames)]
+    sigma0 <- parameters[match('sigma0',parnames)]
+    sigma1 <- parameters[match('sigma1',parnames)]
+    xi0 <- parameters[match('xi0',parnames)]
+    xi1 <- parameters[match('xi1',parnames)]
+    lambda <- lambda0 + lambda1*auxiliary
+    sigma <- exp(sigma0 + sigma1*auxiliary)
+    xi <- xi0 + xi1*auxiliary
   } else {print('ERROR - invalid number of parameters for PP-GPD')}
 
 
-# TODO
-# TODO - add support for nonstationary models
-# TODO
-
-
-# devd(type='GP', log=TRUE) and
-# dpois(x=[counts this interval], lambda=[actual lambda]*[interval length], log=TRUE)
-
-
-  # this way is working, but slow. speed up with an "apply" ?
-  nbins <- length(data_calib$gpd$counts)
-  llik.bin <- rep(NA, nbins)
-  for (b in 1:nbins) {
-    if(data_calib$gpd$counts[b] > 0) {
-      llik.bin[b] <- dpois(x=data_calib$gpd$counts[b], lambda=(lambda*data_calib$gpd$time_length[b]), log=TRUE) +
-                     sum(devd(data_calib$gpd$excesses[[b]]-data_calib$gpd$threshold, threshold=0, scale=sigma, shape=xi, log=TRUE, type='GP'))
-    } else {
-      llik.bin[b] <- dpois(x=data_calib$gpd$counts[b], lambda=(lambda*data_calib$gpd$time_length[b]), log=TRUE)
+  # check extra conditions that would otherwise 'break' the likelihood function
+  if( any(lambda < 0) | any(sigma < 0) ) {llik <- -Inf}
+  else {
+    # this way is working, but slow. speed up with an "apply" ?
+    llik.bin <- dpois(x=data_calib$gpd$counts, lambda=(lambda*data_calib$gpd$time_length), log=TRUE)
+    hits <- which(data_calib$gpd$counts!=0)
+    for (b in hits) {
+      llik.bin[b] <- llik.bin[b] +
+                     sum(devd(data_calib$gpd$excesses[[b]]-data_calib$gpd$threshold, threshold=0, scale=sigma[b], shape=xi[b], log=TRUE, type='GP'))
     }
+    llik <- sum(llik.bin)
   }
-  llik <- sum(llik.bin)
-
-
 
 # this way works, but cannot take nonstationarity in the poisson process
 #if(data_calib$gpd$counts_all > 0) {
@@ -210,7 +276,6 @@ log_like_ppgpd <- function(parameters,
 #} else {
 #  llik <- dpois(x=data_calib$gpd$counts_all, lambda=(lambda*data_calib$gpd$time_length_all), log=TRUE)
 #}
-
 
   return(llik)
 }

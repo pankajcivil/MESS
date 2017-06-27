@@ -13,6 +13,8 @@ filename.yearBM.parameters <- '../output/evt_models_calibratedParameters_gev-nav
 filename.dayPOT.parameters <- '../output/evt_models_calibratedParameters_ppgpd_27Jun2017.nc'
 filename.sealevelrise <- '../../BRICK/output_model/BRICK-fastdyn_physical_gamma_01Jun2017.nc'
 filename.datacalib <- '../output/datacalib_27Jun2017.rds'
+filename.priors.dayPOT <- '../output/surge_priors_ppgpd_27Jun2017.rds'
+filename.priors.yearBM <- '../output/surge_priors_gev_nav_19Jun2017.rds'
 
 time.beg <- 2015           # inital year, "present"
 time.end <- 2065           # final year (time horizon)
@@ -270,6 +272,7 @@ for (model in types.of.model) {
   vandantzig.out[[model]] <- vector('list', n.ensemble[[model]])
 
   print(paste('starting flood risk assessment for model ',model,'...',sep=''))
+  tbeg <- proc.time()
   pb <- txtProgressBar(min=0,max=nrow(parameters[[model]]),initial=0,style=3)
 
   for (i in 1:n.ensemble[[model]]) {
@@ -302,6 +305,8 @@ for (model in types.of.model) {
     setTxtProgressBar(pb, i)
   }
   close(pb)
+  tend <- proc.time()
+  print(paste(' ... done. That took ',(tend[3]-tbeg[3])/60,' minutes', sep=''))
 }
 
 
@@ -415,6 +420,11 @@ for (model_assumed in types.of.model) {
   }
 }
 
+# need the priors?
+priors.dayPOT <- readRDS(filename.priors.dayPOT)
+priors.yearBM <- readRDS(filename.priors.yearBM)
+
+
 
 # Calculate BIC for each model
 # Note: this is only based on the thinned ensembles currently. Can use the full
@@ -423,20 +433,26 @@ for (model_assumed in types.of.model) {
 bic <- rep(NA, nmodel); names(bic) <- types.of.model
 llik.mod <- rep(NA, nmodel); names(llik.mod) <- types.of.model
 for (model in types.of.model) {
-  lpri.tmp <- rep(NA, n.ensemble.filt[[model]])
-  llik.tmp <- rep(NA, n.ensemble.filt[[model]])
-  for (i in 1:n.ensemble.filt[[model]]) {
+#  lpri.tmp <- rep(NA, n.ensemble[[model]])
+  llik.tmp <- rep(NA, n.ensemble[[model]])
+  for (i in 1:n.ensemble[[model]]) {
     if(substr(model,4,4)!='3') {auxiliary <- trimmed_forcing(data_calib$year_unique, time_forc, temperature_forc)$temperature}
     if(model %in% types.of.nav) {
-      lpri.tmp[i] <- log_prior_naveau(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], priors=priors, model=model)
-      llik.tmp[i] <- log_like_naveau(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], data_calib=data_calib$lsl_max, auxiliary=auxiliary, Tmax=Tmax)
+#      lpri.tmp[i] <- log_prior_naveau(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], priors=priors, model=model)
+      llik.tmp[i] <- log_like_naveau(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], data_calib=data_calib$gev_year$lsl_max, auxiliary=auxiliary, Tmax=Tmax)
+      ndata <- length(data_calib$gev_year$year)
     } else if(model %in% types.of.gev) {
-      lpri.tmp[i] <- log_prior_gev(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], priors=priors, model=model)
-      llik.tmp[i] <- log_like_gev(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], data_calib=data_calib$lsl_max, auxiliary=auxiliary)
+#      lpri.tmp[i] <- log_prior_gev(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], priors=priors, model=model)
+      llik.tmp[i] <- log_like_gev(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], data_calib=data_calib$gev_year$lsl_max, auxiliary=auxiliary)
+      ndata <- length(data_calib$gev_year$year)
+    } else if(model %in% types.of.gpd) {
+#      lpri.tmp[i] <- log_prior_ppgpd(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], priors=priors, model=model)
+      llik.tmp[i] <- log_like_ppgpd(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], data_calib=data_calib, auxiliary=auxiliary)
+      ndata <- data_calib$gpd$counts_all
     }
   }
   imax <- which.max(llik.tmp)
-  bic[[model]] <- -2*max(llik.tmp) + length(parnames_all[[model]])*log(length(data_calib$lsl_max))
+  bic[[model]] <- -2*max(llik.tmp) + length(parnames_all[[model]])*log(ndata)
   llik.mod[[model]] <- mean(llik.tmp)
 }
 
@@ -465,6 +481,7 @@ for (model in types.of.model) {
 
 
 regret_comparison <- cbind(regret_matrix_avg, reg_wgt_lik, reg_wgt_bic, reg_wgt_sf)
+
 
 
 barplot(height=bic, names.arg=types.of.model, ylim=c(2090,2120),
@@ -510,7 +527,7 @@ for (p1 in 1:(length(parnames_all[[model]])-1)) {
 dev.off()
 
 # filtering of the naveau models that project any kappa < 0
-n.ensemble.filt <- n.ensemble
+n.ensemble <- n.ensemble
 parameters.filt <- parameters
 ibad <- vector('list', length(types.of.nav)); names(ibad) <- types.of.nav
 for (model in types.of.nav) {
@@ -521,7 +538,7 @@ for (model in types.of.nav) {
   }
   ibad[[model]] <- ibad.tmp
   if(length(ibad[[model]]) > 0) {
-    n.ensemble.filt[[model]] <- n.ensemble[[model]] - length(ibad[[model]])
+    n.ensemble[[model]] <- n.ensemble[[model]] - length(ibad[[model]])
     parameters.filt[[model]] <- parameters[[model]][-ibad[[model]],]
   }
 }
