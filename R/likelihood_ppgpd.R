@@ -20,14 +20,6 @@
 # This assumes that you only send in
 #===============================================================================
 
-
-# TODO
-# TODO - modifying below here in progress!
-# TODO
-
-# log-likelihood given by Coles (2001), eq. 4.10:
-# llike <- -length(data)*log(sigma) - (1+1/xi)*sum(log(1+xi*data/sigma))
-
 # use eq. 11 of Martins and Stedinger (2001), for each year independently:
 # llike <- log([likelihood of seeing exactly m exceedances in time interval dt with rate lambda[t]])
 #           + log([joint GPD density for the m exceedances in time interval dt])
@@ -39,12 +31,50 @@
 # 3. all parameters (rate, scale, shape) as time series (annual values/each block)
 # 4. values of the exceedance levels (level-threshold)
 
-# TODO
-# TODO
+gpd_cdf <- function(q, scale, shape){
+  p <- rep(NA,length(q))
+  if(all(shape==0)) {
+    p <- 1-exp(-q/scale)
+  } else {
+    p <- 1-((1+shape*q/scale)^(-1/shape))
+    if(any(shape < 0)) {
+      i1 <- which(shape < 0); i2 <- which(q > (-scale/shape)); i3 <- intersect(i1,i2)
+      # if shape < 0, i3 is all the places where q > theoretical upper bound
+      # -> there ought to be 100% probability mass below here
+      p[i3] <- 1
+    } else if(any(shape > 0)) {
+      i1 <- which(shape > 0); i2 <- which(q < (-scale/shape)); i3 <- intersect(i1,i2)
+      # if shape > 0, i3 is all the places where q < theoretical upper bound
+      # -> there ought to be 100% probability mass above here    }
+      p[i3] <- 0
+    }
+  }
+  return(p)
+}
 
-# NOTE: don't use this one for now; calculate in likelhiood function using
-# devd(type='GP', log=TRUE) and
-# dpois(x=[counts this interval], lambda=[actual lambda]*[interval length], log=TRUE)
+# h is effective height (mm), lambda is poisson process rate (lambda*365.25 is
+# expected nubmer of exceedances/year), scale and shape are as in GPD, threshold
+# is the GPD threshold, nmax is the maximum number of events/year we consider,
+# time.length is the number of days in the time interval considered (365.25 for
+# a year).
+
+ppgpd_overtop <- function(h, lambda, sigma, xi, threshold, nmax, time.length){
+  res <- 0
+  #cdf_gpd <- pevd(q=h-threshold, threshold=0, scale=sigma, shape=xi, type='GP')
+  cdf_gpd <- gpd_cdf(q=(h-threshold), scale=sigma, shape=xi)
+  pdf_pp <- dpois(x=1:nmax, lambda=(lambda*time.length))
+  for (i in 1:nmax) {
+    res <- res + pdf_pp[i] * (1-(cdf_gpd^i))
+  }
+  return(res)
+}
+
+
+#========================================
+# DANGER - UNDER CONSTRUCTION - CAUTION!
+#========================================
+
+
 
 #===============================================================================
 

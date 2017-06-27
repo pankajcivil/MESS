@@ -32,8 +32,7 @@ library(ncdf4)
 #
 #===============================================================================
 # read and process data for temperature (auxiliary covariate for nonstationary
-# parameters)
-# yields: temperature_forc, time_forc
+# parameters). yields: temperature_forc, time_forc
 #===============================================================================
 #
 
@@ -49,7 +48,8 @@ print('...done.')
 #===============================================================================
 #
 
-print('reading and process data from Delfzijl and other European tide gauge stations (this might take a while)...')
+print('reading and process data from Delfzijl and other European tide gauge stations.')
+print(' (if you do not have this already done and [filename.processing] defined, this might take a while)...')
 
 if(exists('filename.processing')) {load(filename.processing)
 } else {source('processing_script.R')}
@@ -229,12 +229,10 @@ for (model in types.of.model) {
 #    (or do empirical sd? might underestimate though - take wider)
 
 # assign which parameters have which priors
-rm(list=c('gamma.priors','normal.priors','uniform.priors'))
-gamma.priors <- c('mu','mu0','kappa','kappa0','sigma','sigma0')
-normal.priors <- c('xi','mu1','sigma1','xi0','xi1','kappa1')
+if(exists('gamma.priors')) {rm(list=c('gamma.priors','normal.priors','uniform.priors'))}
+gamma.priors <- c('lambda','lambda0','sigma','sigma0')
+normal.priors <- c('xi','sigma1','xi0','xi1')
 uniform.priors <- NULL
-# test fitting uniform priors
-#uniform.priors <- c('mu','mu0','kappa','kappa0','sigma','sigma0','xi','mu1','sigma1','xi0','xi1','kappa1')
 
 priors <- vector('list', nmodel); names(priors) <- types.of.model
 for (model in types.of.model) {
@@ -258,31 +256,6 @@ for (model in types.of.model) {
   }
 }
 
-# redo the kappas for Naveau, sampling from log(kappa) ('lkappa') instead
-model <- 'nav3'; par <- 'kappa'
-priors[[model]][[par]]$rate <- median(log(mle.fits[[model]][,par])) / var(log(mle.fits[[model]][,par]))
-priors[[model]][[par]]$shape <- median(log(mle.fits[[model]][,par])) * priors[[model]][[par]]$rate
-names(priors[[model]])[match(par,names(priors[[model]]))] <- 'lkappa'
-parnames_all[[model]][match(par, parnames_all[[model]])] <- 'lkappa'
-
-model <- 'nav4'; par <- 'kappa0'
-priors[[model]][[par]]$rate <- median(log(mle.fits[[model]][,par])) / var(log(mle.fits[[model]][,par]))
-priors[[model]][[par]]$shape <- median(log(mle.fits[[model]][,par])) * priors[[model]][[par]]$rate
-names(priors[[model]])[match(par,names(priors[[model]]))] <- 'lkappa0'
-parnames_all[[model]][match(par, parnames_all[[model]])] <- 'lkappa0'
-
-model <- 'nav5'; par <- 'kappa0'
-priors[[model]][[par]]$rate <- median(log(mle.fits[[model]][,par])) / var(log(mle.fits[[model]][,par]))
-priors[[model]][[par]]$shape <- median(log(mle.fits[[model]][,par])) * priors[[model]][[par]]$rate
-names(priors[[model]])[match(par,names(priors[[model]]))] <- 'lkappa0'
-parnames_all[[model]][match(par, parnames_all[[model]])] <- 'lkappa0'
-
-model <- 'nav6'; par <- 'kappa0'
-priors[[model]][[par]]$rate <- median(log(mle.fits[[model]][,par])) / var(log(mle.fits[[model]][,par]))
-priors[[model]][[par]]$shape <- median(log(mle.fits[[model]][,par])) * priors[[model]][[par]]$rate
-names(priors[[model]])[match(par,names(priors[[model]]))] <- 'lkappa0'
-parnames_all[[model]][match(par, parnames_all[[model]])] <- 'lkappa0'
-
 print('...done.')
 
 # plot priors and MLE histograms
@@ -291,9 +264,6 @@ for (model in types.of.model) {
   x11()
   par(mfrow=c(3,2))
   for (p in 1:length(parnames_all[[model]])) {
-
-# TODO - deal wtih lkappa and lkappa0 here
-
     range <- max(mle.fits[[model]][,p]) - min(mle.fits[[model]][,p])
     lower <- min(mle.fits[[model]][,p]) - 0.05*range
     upper <- max(mle.fits[[model]][,p]) + 0.05*range
@@ -333,7 +303,6 @@ filename.priors <- paste(output.dir,'surge_priors_',appen,'_',today,'.rds', sep=
 filename.mles <- paste(output.dir,'surge_MLEs_',appen,'_',today,'.rds', sep='')
 filename.initvals <- paste(output.dir,'surge_initialvalues_',appen,'_',today,'.rds', sep='')
 filename.everything <- paste(output.dir,'kitchen_sink_priors_',appen,'_',today,'.RData', sep='')
-filename.temperature <- paste(output.dir,'temperature_forcing_',today,'.csv', sep='')
 
 print(paste('saving priors and initial values as .rds files (',filename.priors,', ',filename.initvals,') to read and use later...',sep=''))
 
@@ -341,7 +310,6 @@ save.image(file=filename.everything)
 saveRDS(priors, file=filename.priors)
 saveRDS(mle.fits, file=filename.mles)
 saveRDS(deoptim.delfzijl, file=filename.initvals)
-write.csv(x=cbind(time_forc, temperature_forc), file=filename.temperature, row.names=FALSE)
 
 print('...done.')
 

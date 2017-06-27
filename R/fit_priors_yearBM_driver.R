@@ -10,6 +10,7 @@ NP.deoptim000 <- 200      # number of DE population members (at least 10*[# para
 niter.deoptim000 <- 200   # number of DE iterations
 #n_node000 <- 1            # number of CPUs to use
 output.dir <- '../output/'
+filename.processing <- '../output/preprocessing.RData'
 #setwd('/storage/home/axw322/work/codes/EVT/R')
 setwd('/Users/axw322/codes/EVT/R')
 appen <- 'gev_nav'
@@ -44,67 +45,15 @@ print('...done.')
 
 #
 #===============================================================================
-# read and process data for Dutch station (Delfzijl)
+# read and process data for tide gauge stations (or read previous processing)
 #===============================================================================
 #
 
-print('reading Delfzijl, Netherlands, tide gauge data...')
+print('reading and process data from Delfzijl and other European tide gauge stations.')
+print(' (if you do not have this already done and [filename.processing] defined, this might take a while)...')
 
-source('read_data_tidegauge_delfzijl.R')
-
-print('...done.')
-
-#
-#===============================================================================
-# read and process data for set of European stations
-#===============================================================================
-#
-
-print('reading lots of other European tide gauge data...')
-
-filetype='csv'
-dat.dir <- '~/codes/EVT/data/tide_gauge_Europe/'
-files.tg <- list.files(path=dat.dir, pattern=filetype)
-
-data_set <- vector('list', length(files.tg))
-for (dd in 1:length(files.tg)) {
-  names(data_set)[dd] <- substr(files.tg[dd], start=1, stop=7)
-  data.tmp <- read.table(paste(dat.dir,files.tg[dd],sep=''), header=FALSE, sep=',')
-  data_set[[dd]] <- vector('list', 5)
-  names(data_set[[dd]]) <- c('year','month','day','hour','sl')
-  data_set[[dd]]$year <- data.tmp$V1
-  data_set[[dd]]$month <- data.tmp$V2
-  data_set[[dd]]$day <- data.tmp$V3
-  data_set[[dd]]$hour <- data.tmp$V4
-  data_set[[dd]]$sl <- data.tmp$V5
-}
-
-# process data
-
-# annual block maxima
-for (dd in 1:length(data_set)) {
-  data_set[[dd]]$sl_norm     <- rep(NA, length(data_set[[dd]]$year))
-  data_set[[dd]]$year_unique <- unique(data_set[[dd]]$year)
-  data_set[[dd]]$year_unique <- data_set[[dd]]$year_unique[order(data_set[[dd]]$year_unique)]
-  data_set[[dd]]$lsl_max     <- rep(NA, length(data_set[[dd]]$year_unique))
-  for (t in 1:length(data_set[[dd]]$year_unique)) {
-    ind_this_year <- which(data_set[[dd]]$year==data_set[[dd]]$year_unique[t])
-    data_set[[dd]]$sl_norm[ind_this_year] <- data_set[[dd]]$sl[ind_this_year] - mean(data_set[[dd]]$sl[ind_this_year])
-    data_set[[dd]]$lsl_max[t] <- max(data_set[[dd]]$sl_norm[ind_this_year])
-  }
-}
-
-# trim before 1850 (or whenever is time_forc[1]), which is when the temperature
-# forcing starts. also make a note of how long each record is
-nyear <- rep(NA, length(data_set))
-for (dd in 1:length(data_set)) {
-  if(data_set[[dd]]$year_unique[1] < time_forc[1]) {
-    icut <- which(data_set[[dd]]$year_unique < time_forc[1])
-    data_set[[dd]]$year_unique <- data_set[[dd]]$year_unique[-icut]
-    data_set[[dd]]$lsl_max <- data_set[[dd]]$lsl_max[-icut]
-  }
-  nyear[dd] <- length(data_set[[dd]]$year_unique)
-}
+if(exists('filename.processing')) {load(filename.processing)
+} else {source('processing_script.R')}
 
 print('...done.')
 
@@ -116,7 +65,7 @@ print('...done.')
 
 print('setting up GEV and Naveau-i model parameters for DE optimization...')
 
-source('parameter_setup.R')
+source('parameter_setup_yearBM.R')
 
 print('...done.')
 
@@ -147,37 +96,37 @@ print('starting DE optimization for MLE GEV and Naveau-i parameters at Delfzijl,
 source('likelihood_gev.R')
 source('likelihood_naveau.R')
 
-deoptim.delfzijl <- vector('list', 8); names(deoptim.delfzijl) <- types.of.model
+deoptim.delfzijl <- vector('list', nmodel); names(deoptim.delfzijl) <- types.of.model
 for (i in 1:nmodel) {
   deoptim.delfzijl[[types.of.model[i]]] <- mat.or.vec(1, length(parnames_all[[types.of.model[i]]]))
   rownames(deoptim.delfzijl[[types.of.model[i]]]) <- 'delfzijl'
   colnames(deoptim.delfzijl[[types.of.model[i]]]) <- parnames_all[[types.of.model[i]]]
 }
-bic.delfzijl <- mat.or.vec(1, 8)
+bic.delfzijl <- mat.or.vec(1, nmodel)
 colnames(bic.delfzijl) <- types.of.model; rownames(bic.delfzijl) <- 'delfzijl'
 
 # GEV model fitting
 for (gev.type in types.of.gev) {
   if(gev.type=='gev3') {auxiliary <- NULL
-  } else {auxiliary <- trimmed_forcing(data_calib$year_unique, time_forc, temperature_forc)$temperature}
+  } else {auxiliary <- trimmed_forcing(data_calib$gev_year$year, time_forc, temperature_forc)$temperature}
   out.deoptim <- DEoptim(neg_log_like_gev, lower=bound_lower_set[[gev.type]], upper=bound_upper_set[[gev.type]],
                        DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
-                       parnames=parnames_all[[gev.type]], data_calib=data_calib$lsl_max, auxiliary=auxiliary)
+                       parnames=parnames_all[[gev.type]], data_calib=data_calib$gev_year$lsl_max, auxiliary=auxiliary)
   deoptim.delfzijl[[gev.type]][1,] <- out.deoptim$optim$bestmem
   colnames(deoptim.delfzijl[[gev.type]]) <- parnames_all[[gev.type]]
-  bic.delfzijl[1, gev.type] <- 2*out.deoptim$optim$bestval + length(parnames_all[[gev.type]])*log(length(data_calib$lsl_max))
+  bic.delfzijl[1, gev.type] <- 2*out.deoptim$optim$bestval + length(parnames_all[[gev.type]])*log(length(data_calib$gev_year$lsl_max))
 }
 
 # Naveau (i) model fitting
 for (nav.type in types.of.nav) {
   if(nav.type=='nav3') {auxiliary <- NULL
-  } else {auxiliary <- trimmed_forcing(data_calib$year_unique, time_forc, temperature_forc)$temperature}
+  } else {auxiliary <- trimmed_forcing(data_calib$gev_year$year, time_forc, temperature_forc)$temperature}
   out.deoptim <- DEoptim(neg_log_like_naveau, lower=bound_lower_set[[nav.type]], upper=bound_upper_set[[nav.type]],
                        DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
-                       parnames=parnames_all[[nav.type]], data_calib=data_calib$lsl_max, auxiliary=auxiliary)
+                       parnames=parnames_all[[nav.type]], data_calib=data_calib$gev_year$lsl_max, auxiliary=auxiliary)
   deoptim.delfzijl[[nav.type]][1,] <- out.deoptim$optim$bestmem
   colnames(deoptim.delfzijl[[nav.type]]) <- parnames_all[[nav.type]]
-  bic.delfzijl[1, nav.type] <- 2*out.deoptim$optim$bestval + length(parnames_all[[nav.type]])*log(length(data_calib$lsl_max))
+  bic.delfzijl[1, nav.type] <- 2*out.deoptim$optim$bestval + length(parnames_all[[nav.type]])*log(length(data_calib$gev_year$lsl_max))
 }
 
 print('...done.')
@@ -203,13 +152,13 @@ lines(x, log10(1-nav.cdf), col='red')
 
 print('starting DE optimization for MLE GEV and Naveau-i parameters for all European stations in set...')
 
-deoptim.eur <- vector('list', 8); names(deoptim.eur) <- types.of.model
+deoptim.eur <- vector('list', nmodel); names(deoptim.eur) <- types.of.model
 for (i in 1:nmodel) {
   deoptim.eur[[types.of.model[i]]] <- mat.or.vec(length(data_set), length(parnames_all[[types.of.model[i]]]))
   rownames(deoptim.eur[[types.of.model[i]]]) <- files.tg
   colnames(deoptim.eur[[types.of.model[i]]]) <- parnames_all[[types.of.model[i]]]
 }
-bic.eur <- mat.or.vec(length(data_set), 8)
+bic.eur <- mat.or.vec(length(data_set), nmodel)
 colnames(bic.eur) <- types.of.model; rownames(bic.eur) <- files.tg
 
 for (dd in 1:length(data_set)) {
@@ -221,25 +170,25 @@ for (dd in 1:length(data_set)) {
   # GEV model fitting
   for (gev.type in types.of.gev) {
     if(gev.type=='gev3') {auxiliary <- NULL
-    } else {auxiliary <- trimmed_forcing(data_set[[dd]]$year_unique, time_forc, temperature_forc)$temperature}
+    } else {auxiliary <- trimmed_forcing(data_europe[[dd]]$gev_year$year, time_forc, temperature_forc)$temperature}
     out.deoptim <- DEoptim(neg_log_like_gev, lower=bound_lower_set[[gev.type]], upper=bound_upper_set[[gev.type]],
                          DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
-                         parnames=parnames_all[[gev.type]], data_calib=data_set[[dd]]$lsl_max, auxiliary=auxiliary)
+                         parnames=parnames_all[[gev.type]], data_calib=data_europe[[dd]]$gev_year$lsl_max, auxiliary=auxiliary)
     deoptim.eur[[gev.type]][dd,] <- out.deoptim$optim$bestmem
     colnames(deoptim.eur[[gev.type]]) <- parnames_all[[gev.type]]
-    bic.eur[dd, gev.type] <- 2*out.deoptim$optim$bestval + length(parnames_all[[gev.type]])*log(length(data_set[[dd]]$lsl_max))
+    bic.eur[dd, gev.type] <- 2*out.deoptim$optim$bestval + length(parnames_all[[gev.type]])*log(length(data_europe[[dd]]$gev_year$lsl_max))
   }
 
   # Naveau (i) model fitting
   for (nav.type in types.of.nav) {
     if(nav.type=='nav3') {auxiliary <- NULL
-    } else {auxiliary <- trimmed_forcing(data_set[[dd]]$year_unique, time_forc, temperature_forc)$temperature}
+    } else {auxiliary <- trimmed_forcing(data_europe[[dd]]$gev_year$year, time_forc, temperature_forc)$temperature}
     out.deoptim <- DEoptim(neg_log_like_naveau, lower=bound_lower_set[[nav.type]], upper=bound_upper_set[[nav.type]],
                          DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
-                         parnames=parnames_all[[nav.type]], data_calib=data_set[[dd]]$lsl_max, auxiliary=auxiliary)
+                         parnames=parnames_all[[nav.type]], data_calib=data_europe[[dd]]$gev_year$lsl_max, auxiliary=auxiliary)
     deoptim.eur[[nav.type]][dd,] <- out.deoptim$optim$bestmem
     colnames(deoptim.eur[[nav.type]]) <- parnames_all[[nav.type]]
-    bic.eur[dd, nav.type] <- 2*out.deoptim$optim$bestval + length(parnames_all[[nav.type]])*log(length(data_set[[dd]]$lsl_max))
+    bic.eur[dd, nav.type] <- 2*out.deoptim$optim$bestval + length(parnames_all[[nav.type]])*log(length(data_europe[[dd]]$gev_year$lsl_max))
   }
 }
 
@@ -262,8 +211,8 @@ dd <- 6
 x.eur <- seq(from=0, to=6000, by=10)
 parameters <- deoptim.eur$nav3[dd,]; cdf.nav <- naveau_cdf(x=x.eur, kappa=parameters[1], sigma=parameters[2], xi=parameters[3])
 parameters <- deoptim.eur$gev3[dd,]; cdf.gev <- pevd(q=x.eur, loc=parameters[1], scale=parameters[2], shape=parameters[3])
-esf.levels.eur <- data_set[[dd]]$lsl_max[order(data_set[[dd]]$lsl_max)]
-esf.values.eur <- seq(from=length(data_set[[dd]]$lsl_max), to=1, by=-1)/(length(data_set[[dd]]$lsl_max)+1)
+esf.levels.eur <- data_europe[[dd]]$gev_year$lsl_max[order(data_europe[[dd]]$gev_year$lsl_max)]
+esf.values.eur <- seq(from=length(data_europe[[dd]]$gev_year$lsl_max), to=1, by=-1)/(length(data_europe[[dd]]$gev_year$lsl_max)+1)
 plot(esf.levels.eur, log10(esf.values.eur))
 lines(x.eur, log10(1-cdf.nav), col='red')
 lines(x.eur, log10(1-cdf.gev), col='blue')

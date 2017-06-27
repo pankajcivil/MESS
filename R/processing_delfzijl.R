@@ -306,11 +306,25 @@ print('  ... done.')
 
 # TODO
 
-
+#
 #===============================================================================
+# save 'data_calib' object as RDS for use later
+#===============================================================================
+#
+
+output.dir <- '../output/'
+today=Sys.Date(); today=format(today,format="%d%b%Y")
+filename.datacalib <- paste(output.dir,'datacalib_',today,'.rds', sep='')
+saveRDS(data_calib, file=filename.datacalib)
+
+#
+#===============================================================================
+#
 
 print('done processing Delfzijl data')
 
+#
 #===============================================================================
 # End
 #===============================================================================
+#

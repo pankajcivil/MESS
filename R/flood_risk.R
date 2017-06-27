@@ -9,12 +9,15 @@
 #===============================================================================
 #
 
-filename.evt.parameters <- '../output/evt_models_calibratedParameters_gev-nav_21Jun2017.nc'
+filename.yearBM.parameters <- '../output/evt_models_calibratedParameters_gev-nav_21Jun2017.nc'
+filename.dayPOT.parameters <- '../output/evt_models_calibratedParameters_ppgpd_27Jun2017.nc'
 filename.sealevelrise <- '../../BRICK/output_model/BRICK-fastdyn_physical_gamma_01Jun2017.nc'
+filename.datacalib <- '../output/datacalib_27Jun2017.rds'
 
 time.beg <- 2015           # inital year, "present"
 time.end <- 2065           # final year (time horizon)
 time.step <- 1             # time step in years
+nmax.flood <- 183          # maximum number of flood events in a year considered
 height.low <- 0            # lowest heightening considered [m]
 height.high <- 10          # tallest heightening considered [m]
 height.increment <- 0.05   # increments of heightening considered [m]
@@ -32,9 +35,9 @@ height.initial <- 5        # initial dike ring height [m]
 
 # use maximum posterior probability stationary GEV parameters to estimate H0
 # consistent with Eijgenraam Table 1
-p0 <- 0.00137              # Eijgenraam et al (2012)
-gev.prelim <- amcmc_prelim$gev3$samples[which.max(amcmc_prelim$gev3$log.p),]
-height.initial <- qevd(p=1-p0, loc=gev.prelim[1], scale=gev.prelim[2], shape=gev.prelim[3])/1000
+#p0 <- 0.00137              # Eijgenraam et al (2012)
+#gev.prelim <- amcmc_prelim$gev3$samples[which.max(amcmc_prelim$gev3$log.p),]
+#height.initial <- qevd(p=1-p0, loc=gev.prelim[1], scale=gev.prelim[2], shape=gev.prelim[3])/1000
 
 heightening <- seq(from=height.low, to=height.high, by=height.increment)
 
@@ -89,8 +92,8 @@ cost <- function(h0, dh, cost.func, type) {
 }
 
 # 10*heightening because heightening in meters, but these cost functions are cm
-cost.exp  <- sapply(1:length(heightening), function(i) {cost(h0=0, dh=10*heightening[i], cost.func=cost.func, type='exponential')})
-cost.quad <- sapply(1:length(heightening), function(i) {cost(h0=0, dh=10*heightening[i], cost.func=cost.func, type='quadratic'  )})
+expected_cost_exp  <- sapply(1:length(heightening), function(i) {cost(h0=0, dh=10*heightening[i], cost.func=cost.func, type='exponential')})
+expected_cost_quad <- sapply(1:length(heightening), function(i) {cost(h0=0, dh=10*heightening[i], cost.func=cost.func, type='quadratic'  )})
 
 #
 #===============================================================================
@@ -100,20 +103,48 @@ cost.quad <- sapply(1:length(heightening), function(i) {cost(h0=0, dh=10*heighte
 
 types.of.gev <- c('gev3','gev4','gev5','gev6')
 types.of.nav <- c('nav3','nav4','nav5','nav6')
-types.of.model <- c(types.of.gev, types.of.nav)
+types.of.gpd <- c('gpd3')
+types.of.model <- c(types.of.gev, types.of.nav, types.of.gpd)
+nmodel <- length(types.of.model)
 
-parameters <- vector('list', length(types.of.model)); names(parameters) <- types.of.model
-parnames_all <- vector('list', length(types.of.model)); names(parnames_all) <- types.of.model
-covjump <- vector('list', length(types.of.model)); names(covjump) <- types.of.model
-ncdata <- nc_open(filename.evt.parameters)
+# annual block maxima models
+yearBM.models <- c(types.of.gev, types.of.nav)
+
+# monthly block maxima models <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO!
+#monthBM.models <- c(types.of.gev, types.of.nav)
+
+# daily peaks-over-thresholds models
+dayPOT.models <- c(types.of.gpd) # c(types.of.gpd, types.of.nav)  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO!
+
+
+parameters <- vector('list', nmodel); names(parameters) <- types.of.model
+parnames_all <- vector('list', nmodel); names(parnames_all) <- types.of.model
+covjump <- vector('list', nmodel); names(covjump) <- types.of.model
+
+# get the annual block maxima model parameters
+ncdata <- nc_open(filename.yearBM.parameters)
   time_forc <- ncvar_get(ncdata, 'time')
   temperature_forc <- ncvar_get(ncdata, 'temperature')
-  for (model in types.of.model) {
+  for (model in yearBM.models) {
     parameters[[model]]   <- t(ncvar_get(ncdata, paste('parameters.',model,sep='')))
     parnames_all[[model]] <- ncvar_get(ncdata, paste('parnames.',model,sep=''))
     covjump[[model]]      <- ncvar_get(ncdata, paste('covjump.',model,sep=''))
   }
 nc_close(ncdata)
+
+# get the daily peaks-over-thresholds model parameters
+ncdata <- nc_open(filename.dayPOT.parameters)
+  time_forc <- ncvar_get(ncdata, 'time')
+  temperature_forc <- ncvar_get(ncdata, 'temperature')
+  for (model in dayPOT.models) {
+    parameters[[model]]   <- t(ncvar_get(ncdata, paste('parameters.',model,sep='')))
+    parnames_all[[model]] <- ncvar_get(ncdata, paste('parnames.',model,sep=''))
+    covjump[[model]]      <- ncvar_get(ncdata, paste('covjump.',model,sep=''))
+  }
+nc_close(ncdata)
+
+# calibration data, including GPD threshold
+data_calib <- readRDS(paste(filename.datacalib,sep=''))
 
 
 #
@@ -140,6 +171,7 @@ temperature_proj <- temperature_forc[which(time_forc==time_proj[1]):which(time_f
 time_proj_rel <- time_proj - time_proj[1]
 lsl_subsidence <- subsidence.rate * time_proj_rel
 
+
 #
 #===============================================================================
 # flood risk analysis (Van Dantzig)
@@ -148,14 +180,90 @@ lsl_subsidence <- subsidence.rate * time_proj_rel
 
 # Set some preliminary stuff so you don't have to keep calculating them
 
-n.ensemble <- rep(NA, length(types.of.model)); names(n.ensemble) <- types.of.model
+n.ensemble <- rep(NA, nmodel); names(n.ensemble) <- types.of.model
 for (model in types.of.model) {n.ensemble[[model]] <- nrow(parameters[[model]])}
 
 n.heightening <- length(heightening)
 n.time <- length(time_proj)
 names.vandantzig <- c('p_fail_tot','p_fail_avg','p_fail_max','expected_damage','expected_cost_exp','expected_cost_quad','total_loss_exp','total_loss_quad')
 length.vandantzig <- length(names.vandantzig)
-vandantzig.out <- vector('list', length(types.of.model)); names(vandantzig.out) <- types.of.model
+vandantzig.out <- vector('list', nmodel); names(vandantzig.out) <- types.of.model
+
+h.eff0 <- height.initial - lsl_subsidence - lsl_proj
+
+#===============================================================================
+# define the functions for Van Dantzig (Flood risk) outcomes under each model
+# structure (this saves a few minutes per model ensemble)
+#===============================================================================
+
+# GEV (annual block maxima)
+outcome_gev <- function(h, h.eff0, heightening, par,
+                        value.initial, hgtdamage.rate, econgrowth.rate, time_proj_rel,
+                        discount.rate, expected_cost_exp, expected_cost_quad, names.vandantzig) {
+    res <- NULL
+    hgt <- 1000*(h.eff0+heightening[h])
+    p_fail <- 1-gev_cdf(q=hgt, loc=par.tmp[,1], scale=par.tmp[,2], shape=par.tmp[,3])
+    p_fail_tot <- 1 - prod(1-p_fail)
+    p_fail_avg <- mean(p_fail)
+    p_fail_max <- max(p_fail)
+    # heightening costs are not discounted because they occur in present
+    expected_damage <- mean( p_fail * value.initial * exp(hgtdamage.rate*heightening[h]*10) *
+                                 exp(econgrowth.rate*time_proj_rel) / ((1+discount.rate)^time_proj_rel) )
+    total_loss_exp  <- expected_damage + expected_cost_exp[h]
+    total_loss_quad <- expected_damage + expected_cost_quad[h]
+    res <- c(p_fail_tot, p_fail_avg, p_fail_max, expected_damage, expected_cost_exp[h], expected_cost_quad[h], total_loss_exp, total_loss_quad)
+    names(res) <- names.vandantzig
+    return(res)
+}
+
+# Naveau-i (annual block maxima)
+outcome_nav <- function(h, h.eff0, heightening, par,
+                        value.initial, hgtdamage.rate, econgrowth.rate, time_proj_rel,
+                        discount.rate, expected_cost_exp, expected_cost_quad, names.vandantzig) {
+    res <- NULL
+    hgt <- 1000*(h.eff0+heightening[h])
+    p_fail <- 1-naveau_cdf(x=hgt, kappa=par.tmp[,1], sigma=par.tmp[,2], xi=par.tmp[,3])
+    p_fail_tot <- 1 - prod(1-p_fail)
+    p_fail_avg <- mean(p_fail)
+    p_fail_max <- max(p_fail)
+    # heightening costs are not discounted because they occur in present
+    expected_damage <- mean( p_fail * value.initial * exp(hgtdamage.rate*heightening[h]*10) *
+                                 exp(econgrowth.rate*time_proj_rel) / ((1+discount.rate)^time_proj_rel) )
+    total_loss_exp  <- expected_damage + expected_cost_exp[h]
+    total_loss_quad <- expected_damage + expected_cost_quad[h]
+    res <- c(p_fail_tot, p_fail_avg, p_fail_max, expected_damage, expected_cost_exp[h], expected_cost_quad[h], total_loss_exp, total_loss_quad)
+    names(res) <- names.vandantzig
+    return(res)
+}
+
+# PP-GPD
+outcome_gpd <- function(h, h.eff0, heightening, par, threshold, nmax.flood, time.length,
+                        value.initial, hgtdamage.rate, econgrowth.rate, time_proj_rel,
+                        discount.rate, expected_cost_exp, expected_cost_quad, names.vandantzig) {
+    res <- NULL
+    hgt <- 1000*(h.eff0+heightening[h])
+    p_fail <- ppgpd_overtop(h=hgt, lambda=par[,1], sigma=par[,2], xi=par[,3],
+                            threshold=data_calib$gpd$threshold, nmax=nmax.flood, time.length=365.25)
+    p_fail_tot <- 1 - prod(1-p_fail)
+    p_fail_avg <- mean(p_fail)
+    p_fail_max <- max(p_fail)
+    # heightening costs are not discounted because they occur in present
+    expected_damage <- mean( p_fail * value.initial * exp(hgtdamage.rate*heightening[h]*10) *
+                                 exp(econgrowth.rate*time_proj_rel) / ((1+discount.rate)^time_proj_rel) )
+    total_loss_exp  <- expected_damage + expected_cost_exp[h]
+    total_loss_quad <- expected_damage + expected_cost_quad[h]
+    res <- c(p_fail_tot, p_fail_avg, p_fail_max, expected_damage, expected_cost_exp[h], expected_cost_quad[h], total_loss_exp, total_loss_quad)
+    names(res) <- names.vandantzig
+    return(res)
+}
+
+# and get the functions to project the model parameters
+source('likelihood_naveau.R')
+source('likelihood_gev.R')
+source('likelihood_ppgpd.R')
+
+#===============================================================================
+# actually do the flood risk analysis
 
 for (model in types.of.model) {
 
@@ -166,69 +274,46 @@ for (model in types.of.model) {
 
   for (i in 1:n.ensemble[[model]]) {
 
-    vandantzig.out[[model]][[i]] <- mat.or.vec(n.heightening, length.vandantzig)
-    colnames(vandantzig.out[[model]][[i]]) <- names.vandantzig
-    p_fail_tot <- rep(0, n.heightening)
-    p_fail_avg <- rep(0, n.heightening)
-    p_fail_max <- rep(0, n.heightening)
-    expected_damage <- rep(0, n.heightening)
-    total_loss_exp  <- rep(0, n.heightening)
-    total_loss_quad <- rep(0, n.heightening)
-
-# TODO -- make this loop over heightenings either an 'apply' or more efficient?
-
     if(substr(model,1,3) == 'nav') {
       # project the particular model's parameters across the time horizon
       par.tmp <- project_naveau(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], auxiliary=temperature_proj)
-      for (h in 1:n.heightening) {
-        height.eff <- height.initial + heightening[h] - lsl_subsidence - lsl_proj
-        p_fail <- 1-naveau_cdf(x=1000*height.eff, kappa=par.tmp[,1], sigma=par.tmp[,2], xi=par.tmp[,3])
-        p_fail_tot[h] <- 1 - prod(1-p_fail)
-        p_fail_avg[h] <- mean(p_fail)
-        p_fail_max[h] <- max(p_fail)
-        # heightening costs are not discounted because they occur in present
-        expected_damage[h] <- mean( p_fail * value.initial * exp(hgtdamage.rate*heightening[h]*10) *
-                                    exp(econgrowth.rate*time_proj_rel) / ((1+discount.rate)^time_proj_rel) )
-        total_loss_exp[h]  <- expected_damage[h] + cost.exp[h]
-        total_loss_quad[h] <- expected_damage[h] + cost.quad[h]
-      }
+      vandantzig.out[[model]][[i]] <- t(sapply(1:n.heightening, function(h) {outcome_nav(h, h.eff0=h.eff0, heightening=heightening,
+                                      par=par.tmp,
+                                      value.initial=value.initial, hgtdamage.rate=hgtdamage.rate, econgrowth.rate=econgrowth.rate,
+                                      time_proj_rel=time_proj_rel, discount.rate=discount.rate, expected_cost_exp=expected_cost_exp,
+                                      expected_cost_quad=expected_cost_quad, names.vandantzig=names.vandantzig)}))
     } else if(substr(model,1,3) == 'gev') {
       # project the particular model's parameters across the time horizon
       par.tmp <- project_gev(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], auxiliary=temperature_proj)
-      for (h in 1:n.heightening) {
-        height.eff <- height.initial + heightening[h] - lsl_subsidence - lsl_proj
-        p_fail <- 1-gev_cdf(q=1000*height.eff, loc=par.tmp[,1], scale=par.tmp[,2], shape=par.tmp[,3])
-        p_fail_tot[h] <- 1 - prod(1-p_fail)
-        p_fail_avg[h] <- mean(p_fail)
-        p_fail_max[h] <- max(p_fail)
-        # heightening costs are not discounted because they occur in present
-        expected_damage[h] <- mean( p_fail * value.initial * exp(hgtdamage.rate*heightening[h]*10) *
-                                    exp(econgrowth.rate*time_proj_rel) / ((1+discount.rate)^time_proj_rel) )
-        total_loss_exp[h]  <- expected_damage[h] + cost.exp[h]
-        total_loss_quad[h] <- expected_damage[h] + cost.quad[h]
-      }
+      vandantzig.out[[model]][[i]] <- t(sapply(1:n.heightening, function(h) {outcome_gev(h, h.eff0=h.eff0, heightening=heightening,
+                                      par=par.tmp,
+                                      value.initial=value.initial, hgtdamage.rate=hgtdamage.rate, econgrowth.rate=econgrowth.rate,
+                                      time_proj_rel=time_proj_rel, discount.rate=discount.rate, expected_cost_exp=expected_cost_exp,
+                                      expected_cost_quad=expected_cost_quad, names.vandantzig=names.vandantzig)}))
+    } else if(substr(model,1,3) == 'gpd') {
+      # project the particular model's parameters across the time horizon
+      par.tmp <- project_ppgpd(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], auxiliary=temperature_proj)
+      vandantzig.out[[model]][[i]] <- t(sapply(1:n.heightening, function(h) {outcome_gpd(h, h.eff0=h.eff0, heightening=heightening,
+                                      par=par.tmp, threshold=data_calib$gpd$threshold, nmax.flood=nmax.flood, time.length=time.length,
+                                      value.initial=value.initial, hgtdamage.rate=hgtdamage.rate, econgrowth.rate=econgrowth.rate,
+                                      time_proj_rel=time_proj_rel, discount.rate=discount.rate, expected_cost_exp=expected_cost_exp,
+                                      expected_cost_quad=expected_cost_quad, names.vandantzig=names.vandantzig)}))
     } else {print('error - unrecognized model type')}
-
-# TODO -- there is DEFINITELY a less embarassing way to do this...
-
-    vandantzig.out[[model]][[i]][,'p_fail_tot'] <- p_fail_tot
-    vandantzig.out[[model]][[i]][,'p_fail_avg'] <- p_fail_avg
-    vandantzig.out[[model]][[i]][,'p_fail_max'] <- p_fail_max
-    vandantzig.out[[model]][[i]][,'expected_damage'] <- expected_damage
-    vandantzig.out[[model]][[i]][,'expected_cost_exp'] <- cost.exp
-    vandantzig.out[[model]][[i]][,'expected_cost_quad'] <- cost.quad
-    vandantzig.out[[model]][[i]][,'total_loss_exp'] <- total_loss_exp
-    vandantzig.out[[model]][[i]][,'total_loss_quad'] <- total_loss_quad
     setTxtProgressBar(pb, i)
   }
   close(pb)
 }
+
 
 #
 #===============================================================================
 # write output file
 #===============================================================================
 #
+
+# for now just save workspace image
+save.image(file='../output/floodrisk_inprog.RData')
+
 
 # TODO
 
@@ -245,17 +330,17 @@ cost.function <- 'quad'
 
 # For each ensemble, for each ensemble member, calculate the optimal heightening
 # Call P(s,x) the performance of strategy s in SOW x, and Popt(x) the best case
-iopt <- vector('list', length(types.of.model)); names(iopt) <- types.of.model
-Hopt <- vector('list', length(types.of.model)); names(Hopt) <- types.of.model
-Popt <- vector('list', length(types.of.model)); names(Popt) <- types.of.model
+iopt <- vector('list', nmodel); names(iopt) <- types.of.model
+Hopt <- vector('list', nmodel); names(Hopt) <- types.of.model
+Popt <- vector('list', nmodel); names(Popt) <- types.of.model
 
 # Also calculate the ensemble median total cost at each hegihtening, and minimize
 # this, in order to develop an ensemble-optimal strategy to follow.
-loss.ens <- vector('list', length(types.of.model)); names(loss.ens) <- types.of.model
-loss.ens.med <- vector('list', length(types.of.model)); names(loss.ens.med) <- types.of.model
-iopt.ens <- rep(NA, length(types.of.model)); names(iopt.ens) <- types.of.model
-Hopt.ens <- rep(NA, length(types.of.model)); names(Hopt.ens) <- types.of.model
-Popt.ens <- rep(NA, length(types.of.model)); names(Popt.ens) <- types.of.model
+loss.ens <- vector('list', nmodel); names(loss.ens) <- types.of.model
+loss.ens.med <- vector('list', nmodel); names(loss.ens.med) <- types.of.model
+iopt.ens <- rep(NA, nmodel); names(iopt.ens) <- types.of.model
+Hopt.ens <- rep(NA, nmodel); names(Hopt.ens) <- types.of.model
+Popt.ens <- rep(NA, nmodel); names(Popt.ens) <- types.of.model
 
 for (model in types.of.model) {
   iopt[[model]] <- rep(NA, n.ensemble[[model]])
@@ -281,8 +366,8 @@ for (model in types.of.model) {
 # So following Hopt.ens, how much worse does this perform for each SOW than the
 # optimal strategy for that SOW (Hopt[[model]][i]) ?
 
-Reg <- vector('list', length(types.of.model)); names(Reg) <- types.of.model
-Reg.med <- rep(NA, length(types.of.model)); names(Reg.med) <- types.of.model
+Reg <- vector('list', nmodel); names(Reg) <- types.of.model
+Reg.med <- rep(NA, nmodel); names(Reg.med) <- types.of.model
 for (model in types.of.model) {
   Reg[[model]] <- rep(NA, n.ensemble[[model]])
   for (i in 1:n.ensemble[[model]]) {
@@ -307,15 +392,15 @@ for (model in types.of.model) {
 
 # heighten by Hopt[[model_X]] but calculate regret using model_Y
 
-regret_matrix_avg <- matrix(nrow=length(types.of.model), ncol=length(types.of.model))
+regret_matrix_avg <- matrix(nrow=nmodel, ncol=nmodel)
 rownames(regret_matrix_avg) <- types.of.model
 colnames(regret_matrix_avg) <- types.of.model
-regret_matrix_med <- matrix(nrow=length(types.of.model), ncol=length(types.of.model))
+regret_matrix_med <- matrix(nrow=nmodel, ncol=nmodel)
 rownames(regret_matrix_med) <- types.of.model
 colnames(regret_matrix_med) <- types.of.model
-RegX <- vector('list', length(types.of.model)); names(RegX) <- types.of.model
+RegX <- vector('list', nmodel); names(RegX) <- types.of.model
 for (model_assumed in types.of.model) {
-  RegX[[model_assumed]] <- vector('list', length(types.of.model)); names(RegX[[model_assumed]]) <- types.of.model
+  RegX[[model_assumed]] <- vector('list', nmodel); names(RegX[[model_assumed]]) <- types.of.model
   for (model_truth in types.of.model) {
     RegX[[model_assumed]][[model_truth]] <- rep(NA, n.ensemble[[model]])
   }
@@ -335,8 +420,8 @@ for (model_assumed in types.of.model) {
 # Note: this is only based on the thinned ensembles currently. Can use the full
 # calibrated simulations from the MCMC if we want.
 
-bic <- rep(NA, length(types.of.model)); names(bic) <- types.of.model
-llik.mod <- rep(NA, length(types.of.model)); names(llik.mod) <- types.of.model
+bic <- rep(NA, nmodel); names(bic) <- types.of.model
+llik.mod <- rep(NA, nmodel); names(llik.mod) <- types.of.model
 for (model in types.of.model) {
   lpri.tmp <- rep(NA, n.ensemble.filt[[model]])
   llik.tmp <- rep(NA, n.ensemble.filt[[model]])
@@ -357,13 +442,13 @@ for (model in types.of.model) {
 
 # a few different model averaging schemes
 # note that wgt_lik is actual BMA
-wgt_sf <- rep(NA, length(types.of.model)); names(wgt_sf) <- types.of.model
-wgt_bic <- rep(NA, length(types.of.model)); names(wgt_bic) <- types.of.model
-wgt_lik <- rep(NA, length(types.of.model)); names(wgt_lik) <- types.of.model
+wgt_sf <- rep(NA, nmodel); names(wgt_sf) <- types.of.model
+wgt_bic <- rep(NA, nmodel); names(wgt_bic) <- types.of.model
+wgt_lik <- rep(NA, nmodel); names(wgt_lik) <- types.of.model
 
-reg_wgt_sf <- rep(NA, length(types.of.model)); names(reg_wgt_sf) <- types.of.model
-reg_wgt_bic <- rep(NA, length(types.of.model)); names(reg_wgt_bic) <- types.of.model
-reg_wgt_lik <- rep(NA, length(types.of.model)); names(reg_wgt_lik) <- types.of.model
+reg_wgt_sf <- rep(NA, nmodel); names(reg_wgt_sf) <- types.of.model
+reg_wgt_bic <- rep(NA, nmodel); names(reg_wgt_bic) <- types.of.model
+reg_wgt_lik <- rep(NA, nmodel); names(reg_wgt_lik) <- types.of.model
 
 llik.ref <- min(llik.mod)
 
@@ -475,7 +560,7 @@ model <- 'nav5'
 plot(heightening, vandantzig.out[[model]][[1]][,'total_loss_exp'], pch=16, ylim=c(0,300), xlim=c(0,4), xlab='Heightening [m]', ylab=paste('Expected costs [M',euro,']',sep=''))
 points(heightening, vandantzig.out[[model]][[1]][,'expected_damage'], col='red', pch=16)
 points(heightening[1], vandantzig.out[[model]][[1]][1,'total_loss_exp'], pch=16)
-points(heightening, cost.exp, col='blue', pch=16)
+points(heightening, expected_cost_exp, col='blue', pch=16)
 imin <- which.min(vandantzig.out[[model]][[1]][,'total_loss_exp'])
 points(heightening[imin], vandantzig.out[[model]][[1]][imin,'total_loss_exp'], pch=8, col='purple', lwd=3, cex=1.5)
 legend(1,300, c('total costs','build costs','damages'), pch=c(16,16,16), col=c('black','blue','red'), bty='n')

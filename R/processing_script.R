@@ -75,10 +75,14 @@ decluster_timeseries <- function(time, year, time.series, min.dt) {
 # Delfzijl
 source('processing_delfzijl.R')
 
-# TODO
+# save your work! (done periodically within each script, but you would rather not re-do all that, right?)
+save.image(file='../output/preprocessing.RData')
 
 # Other European stations
 source('processing_europe.R')
+
+# save your work! (done periodically within each script, but you would rather not re-do all that, right?)
+save.image(file='../output/preprocessing.RData')
 
 #
 #===============================================================================

@@ -1,6 +1,5 @@
 #===============================================================================
-# Calibration of GEV, Naveau-i (and other...?) model(s) for storm surge
-# at Delfzijl, The Netherlands.
+# Calibration of PP-GPD model(s) for storm surge at Delfzijl, The Netherlands.
 #
 # Questions? Tony Wong (twong@psu.edu)
 #===============================================================================
@@ -13,21 +12,19 @@ niter_mcmc_prod000 <- 1e5        # number of MCMC iterations (PRODUCTION chains)
 nnode_mcmc_prod000 <- 4          # number of CPUs to use (PRODUCTION chains)
 gamma_mcmc000 <- 0.5             # speed of adaptation (0.5=faster, 1=slowest)
 
-filename.priors   <- 'surge_priors_gev_nav_19Jun2017.rds'  # file holding the 'priors' object
-filename.temperature <- 'temperature_forcing_19Jun2017.csv'  # temperature forcing used
-filename.initvals <- 'surge_initialvalues_gev_nav_19Jun2017.rds'  # file holding the 'deoptim.delfzijl' object
-filename.mles <- 'surge_MLEs_gev_nav_19Jun2017.rds' # file holding the 'mle.fits' object
-filename.datacalib <- 'datacalib.rds' # file holding the 'data_calib' object (calibration data)
+filename.priors   <- 'surge_priors_ppgpd_27Jun2017.rds'  # file holding the 'priors' object
+filename.initvals <- 'surge_initialvalues_ppgpd_27Jun2017.rds'  # file holding the 'deoptim.delfzijl' object
+filename.mles <- 'surge_MLEs_ppgpd_27Jun2017.rds' # file holding the 'mle.fits' object
+filename.datacalib <- 'datacalib_27Jun2017.rds' # file holding the 'data_calib' object (calibration data)
 
 output.dir <- '../output/'
 
 #setwd('/storage/home/axw322/work/codes/EVT/R')
 setwd('/Users/axw322/codes/EVT/R')
-appen <- 'gev_nav'
+appen <- 'ppgpd'
 
 # Name the calibrated parameters output file
 today <- Sys.Date(); today=format(today,format="%d%b%Y")
-appen <- 'gev-nav'
 filename.parameters <- paste(output.dir,'evt_models_calibratedParameters_',appen,'_',today,'.nc',sep='')
 
 #
@@ -78,22 +75,21 @@ print('...done.')
 
 #
 #===============================================================================
-# set up GEV and Naveau (i) model parameters
+# set up PP-GPD model parameters
 #===============================================================================
 #
 
-print('setting up GEV and Naveau-i model parameters for DE optimization...')
+print('setting up PP-GPD model parameters for DE optimization...')
 
 priors <- readRDS(paste(output.dir,filename.priors,sep=''))
 deoptim.delfzijl <- readRDS(paste(output.dir,filename.initvals,sep=''))
 mle.fits <- readRDS(paste(output.dir,filename.mles,sep=''))
 
-source('parameter_setup_yearBM.R')
+source('parameter_setup_dayPOT.R')
 
 print('...done.')
 
-source('likelihood_gev.R')
-source('likelihood_naveau.R')
+source('likelihood_ppgpd.R')
 
 #
 #===============================================================================
@@ -113,7 +109,7 @@ accept_mcmc_few <- 0.44         # optimal for only one parameter
 accept_mcmc_many <- 0.234       # optimal for many parameters
 amcmc_prelim <- vector('list', nmodel); names(amcmc_prelim) <- types.of.model
 
-for (model in types.of.gev) {
+for (model in types.of.gpd) {
 
   print(paste('Starting preliminary calibration for model ',model,' (',nnode_mcmc,' cores x ',niter_mcmc,' iterations)...', sep=''))
 
@@ -123,33 +119,11 @@ for (model in types.of.gev) {
   accept_mcmc <- accept_mcmc_many + (accept_mcmc_few - accept_mcmc_many)/length(parnames_all[[model]])
   step_mcmc <- as.numeric(0.05*apply(X=mle.fits[[model]], MARGIN=2, FUN=sd))
   tbeg=proc.time()
-  amcmc_prelim[[model]] = MCMC(log_post_gev, niter_mcmc, initial_parameters,
+  amcmc_prelim[[model]] = MCMC(log_post_ppgpd, niter_mcmc, initial_parameters,
                             adapt=TRUE, acc.rate=accept_mcmc, scale=step_mcmc,
                             gamma=gamma_mcmc, list=TRUE, n.start=startadapt_mcmc,
-                            parnames=parnames_all[[model]], data_calib=data_calib$gev_year$lsl_max,
+                            parnames=parnames_all[[model]], data_calib=data_calib,
                             priors=priors, auxiliary=auxiliary, model=model)
-  tend=proc.time()
-
-  print(paste('... done. Took ',round(as.numeric(tend-tbeg)[3]/60,2),' minutes', sep=''))
-}
-
-for (model in types.of.nav) {
-
-  print(paste('Starting preliminary calibration for model ',model,' (',nnode_mcmc,' cores x ',niter_mcmc,' iterations)...', sep=''))
-
-  initial_parameters <- as.numeric(deoptim.delfzijl[[model]])
-  if('lkappa'  %in% parnames_all[[model]]) {initial_parameters[match('lkappa' ,parnames_all[[model]])] <- log(initial_parameters[match('lkappa' ,parnames_all[[model]])])}
-  if('lkappa0' %in% parnames_all[[model]]) {initial_parameters[match('lkappa0',parnames_all[[model]])] <- log(initial_parameters[match('lkappa0',parnames_all[[model]])])}
-  if(model=='nav3') {auxiliary <- NULL
-  } else {auxiliary <- trimmed_forcing(data_calib$gev_year$year, time_forc, temperature_forc)$temperature}
-  accept_mcmc <- accept_mcmc_many + (accept_mcmc_few - accept_mcmc_many)/length(parnames_all[[model]])
-  step_mcmc <- as.numeric(0.05*apply(X=mle.fits[[model]], MARGIN=2, FUN=sd))
-  tbeg=proc.time()
-  amcmc_prelim[[model]] = MCMC(log_post_naveau, niter_mcmc, initial_parameters,
-                            adapt=TRUE, acc.rate=accept_mcmc, scale=step_mcmc,
-                            gamma=gamma_mcmc, list=TRUE, n.start=startadapt_mcmc,
-                            parnames=parnames_all[[model]], data_calib=data_calib$gev_year$lsl_max,
-                            priors=priors, auxiliary=auxiliary, model=model, Tmax=Tmax)
   tend=proc.time()
 
   print(paste('... done. Took ',round(as.numeric(tend-tbeg)[3]/60,2),' minutes', sep=''))
@@ -177,58 +151,32 @@ for (model in types.of.model) {
 
   print(paste('Starting production calibration for model ',model,' (',nnode_mcmc,' cores x ',niter_mcmc,' iterations)...', sep=''))
 
-  if (model %in% types.of.gev) {
+  if (model %in% types.of.gpd) {
     initial_parameters <- amcmc_prelim[[model]]$samples[amcmc_prelim[[model]]$n.sample,]
-    if(model=='gev3') {auxiliary <- NULL
-    } else {auxiliary <- trimmed_forcing(data_calib$gev_year$year, time_forc, temperature_forc)$temperature}
+# TODO -- add non-stationary support
+auxiliary <- NULL
+#    if(model=='gpd3') {auxiliary <- NULL
+#    } else {auxiliary <- trimmed_forcing(data_calib$gev_year$year, time_forc, temperature_forc)$temperature}
     accept_mcmc <- accept_mcmc_many + (accept_mcmc_few - accept_mcmc_many)/length(parnames_all[[model]])
     step_mcmc <- amcmc_prelim[[model]]$cov.jump
     if(nnode_mcmc==1) {
       # do single chain
       tbeg=proc.time()
-      amcmc_out[[model]] = MCMC(log_post_gev, niter_mcmc, initial_parameters,
+      amcmc_out[[model]] = MCMC(log_post_ppgpd, niter_mcmc, initial_parameters,
                             adapt=TRUE, acc.rate=accept_mcmc, scale=step_mcmc,
                             gamma=gamma_mcmc, list=TRUE, n.start=startadapt_mcmc,
-                            parnames=parnames_all[[model]], data_calib=data_calib$gev_year$lsl_max,
+                            parnames=parnames_all[[model]], data_calib=data_calib,
                             priors=priors, auxiliary=auxiliary, model=model)
       tend=proc.time()
     } else if(nnode_mcmc > 1) {
       # do parallel chains
       tbeg <- proc.time()
-      amcmc_out[[model]] <- MCMC.parallel(log_post_gev, niter_mcmc, initial_parameters,
+      amcmc_out[[model]] <- MCMC.parallel(log_post_ppgpd, niter_mcmc, initial_parameters,
                             n.chain=4, n.cpu=4, packages='extRemes',
 				            scale=step_mcmc, adapt=TRUE, acc.rate=accept_mcmc,
                             gamma=gamma_mcmc, list=TRUE, n.start=startadapt_mcmc,
-                            parnames=parnames_all[[model]], data_calib=data_calib$gev_year$lsl_max,
+                            parnames=parnames_all[[model]], data_calib=data_calib,
                             priors=priors, auxiliary=auxiliary, model=model)
-      tend <- proc.time()
-    }
-  } else if (model %in% types.of.nav) {
-    initial_parameters <- amcmc_prelim[[model]]$samples[amcmc_prelim[[model]]$n.sample,]
-    # don't need to transform, since the preliminary chains sampled log(kappa)
-#    if('lkappa'  %in% parnames_all[[model]]) {initial_parameters[match('lkappa' ,parnames_all[[model]])] <- log(initial_parameters[match('lkappa' ,parnames_all[[model]])])}
-#    if('lkappa0' %in% parnames_all[[model]]) {initial_parameters[match('lkappa0',parnames_all[[model]])] <- log(initial_parameters[match('lkappa0',parnames_all[[model]])])}
-    if(model=='nav3') {auxiliary <- NULL
-    } else {auxiliary <- trimmed_forcing(data_calib$gev_year$year, time_forc, temperature_forc)$temperature}
-    accept_mcmc <- accept_mcmc_many + (accept_mcmc_few - accept_mcmc_many)/length(parnames_all[[model]])
-    step_mcmc <- amcmc_prelim[[model]]$cov.jump
-    if(nnode_mcmc==1) {
-      # do single chain
-      tbeg=proc.time()
-      amcmc_out[[model]] = MCMC(log_post_naveau, niter_mcmc, initial_parameters,
-                            adapt=TRUE, acc.rate=accept_mcmc, scale=step_mcmc,
-                            gamma=gamma_mcmc, list=TRUE, n.start=startadapt_mcmc,
-                            parnames=parnames_all[[model]], data_calib=data_calib$gev_year$lsl_max,
-                            priors=priors, auxiliary=auxiliary, model=model, Tmax=Tmax)
-      tend=proc.time()
-    } else if(nnode_mcmc > 1) {
-      # do parallel chains
-      tbeg <- proc.time()
-      amcmc_out[[model]] <- MCMC.parallel(log_post_naveau, niter_mcmc, initial_parameters, n.chain=4, n.cpu=4,
-				             scale=step_mcmc, adapt=TRUE, acc.rate=accept_mcmc,
-                             gamma=gamma_mcmc, list=TRUE, n.start=startadapt_mcmc,
-                             parnames=parnames_all[[model]], data_calib=data_calib$gev_year$lsl_max,
-                             priors=priors, auxiliary=auxiliary, model=model, Tmax=Tmax)
       tend <- proc.time()
     }
   } else {print('error - unknown model type')}
@@ -261,11 +209,11 @@ print('...done.')
 
 # test plot
 if (FALSE) {
-model <- 'nav4'
-par(mfrow=c(6,2))
+model <- 'gpd3'
+par(mfrow=c(3,2))
 for (p in 1:length(parnames_all[[model]])) {
-    plot(amcmc_out[[model]]$samples[,p], type='l', ylab=parnames_all[[model]][p])
-    hist(amcmc_out[[model]]$samples[round(0.5*niter_mcmc):niter_mcmc,p], xlab=parnames_all[[model]][p], main='')
+    plot(amcmc_out[[model]][[1]]$samples[,p], type='l', ylab=parnames_all[[model]][p])
+    hist(amcmc_out[[model]][[1]]$samples[round(0.5*niter_mcmc):niter_mcmc,p], xlab=parnames_all[[model]][p], main='')
 }
 }
 
@@ -325,7 +273,7 @@ for (model in types.of.model) {
 
 if(FALSE) {
 # examples monitoring of stability of quantiles:
-model <- 'gev3'
+model <- 'gpd3'
 par(mfrow=c(3,2))
 for (p in 1:length(parnames_all[[model]])) {
   ran <- max(quant[[model]]$q95[,p])-min(quant[[model]]$q05[,p])
@@ -527,35 +475,6 @@ nc_close(outnc)
 
 # link straight into flood risk
 parameters <- parameters.posterior
-
-# ... or...
-
-#
-#===============================================================================
-# read a previous calibration output file, to use for flood risk
-#===============================================================================
-#
-
-types.of.gev <- c('gev3','gev4','gev5','gev6')
-types.of.nav <- c('nav3','nav4','nav5','nav6')
-types.of.model <- c(types.of.gev, types.of.nav)
-
-parameters <- vector('list', nmodel); names(parameters) <- types.of.model
-parnames_all <- vector('list', nmodel); names(parnames_all) <- types.of.model
-covjump <- vector('list', nmodel); names(covjump) <- types.of.model
-ncdata <- nc_open('evt_models_calibratedParameters__13Jun2017.nc')
-  time_forc <- ncvar_get(ncdata, 'time')
-  temperature_forc <- ncvar_get(ncdata, 'temperature')
-  for (model in types.of.model) {
-    parameters[[model]]   <- t(ncvar_get(ncdata, paste('parameters.',model,sep='')))
-    parnames_all[[model]] <- ncvar_get(ncdata, paste('parnames.',model,sep=''))
-    covjump[[model]]      <- ncvar_get(ncdata, paste('covjump.',model,sep=''))
-  }
-nc_close(ncdata)
-
-
-}
-
 
 #
 #===============================================================================
