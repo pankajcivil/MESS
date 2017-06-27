@@ -148,7 +148,7 @@ source('likelihood_gev.R')
 source('likelihood_naveau.R')
 
 deoptim.delfzijl <- vector('list', 8); names(deoptim.delfzijl) <- types.of.model
-for (i in 1:length(types.of.model)) {
+for (i in 1:nmodel) {
   deoptim.delfzijl[[types.of.model[i]]] <- mat.or.vec(1, length(parnames_all[[types.of.model[i]]]))
   rownames(deoptim.delfzijl[[types.of.model[i]]]) <- 'delfzijl'
   colnames(deoptim.delfzijl[[types.of.model[i]]]) <- parnames_all[[types.of.model[i]]]
@@ -204,7 +204,7 @@ lines(x, log10(1-nav.cdf), col='red')
 print('starting DE optimization for MLE GEV and Naveau-i parameters for all European stations in set...')
 
 deoptim.eur <- vector('list', 8); names(deoptim.eur) <- types.of.model
-for (i in 1:length(types.of.model)) {
+for (i in 1:nmodel) {
   deoptim.eur[[types.of.model[i]]] <- mat.or.vec(length(data_set), length(parnames_all[[types.of.model[i]]]))
   rownames(deoptim.eur[[types.of.model[i]]]) <- files.tg
   colnames(deoptim.eur[[types.of.model[i]]]) <- parnames_all[[types.of.model[i]]]
@@ -214,8 +214,8 @@ colnames(bic.eur) <- types.of.model; rownames(bic.eur) <- files.tg
 
 for (dd in 1:length(data_set)) {
 
-  data_set[[dd]]$bic.deoptim <- rep(NA, length(types.of.model))
-  data_set[[dd]]$deoptim <- vector('list', length(types.of.model))
+  data_set[[dd]]$bic.deoptim <- rep(NA, nmodel)
+  data_set[[dd]]$deoptim <- vector('list', nmodel)
   names(data_set[[dd]]$deoptim) <- types.of.model
 
   # GEV model fitting
@@ -244,7 +244,7 @@ for (dd in 1:length(data_set)) {
 }
 
 # also include Delfzijl points in this fit/spread
-mle.fits <- vector('list', length(types.of.model)); names(mle.fits) <- types.of.model
+mle.fits <- vector('list', nmodel); names(mle.fits) <- types.of.model
 mle.fits$gev3 <- rbind(deoptim.eur$gev3, deoptim.delfzijl$gev3)
 mle.fits$gev4 <- rbind(deoptim.eur$gev4, deoptim.delfzijl$gev4)
 mle.fits$gev5 <- rbind(deoptim.eur$gev5, deoptim.delfzijl$gev5)
@@ -303,7 +303,7 @@ uniform.priors <- NULL
 # test fitting uniform priors
 #uniform.priors <- c('mu','mu0','kappa','kappa0','sigma','sigma0','xi','mu1','sigma1','xi0','xi1','kappa1')
 
-priors <- vector('list', length(types.of.model)); names(priors) <- types.of.model
+priors <- vector('list', nmodel); names(priors) <- types.of.model
 for (model in types.of.model) {
   priors[[model]] <- vector('list', length(parnames_all[[model]])); names(priors[[model]]) <- parnames_all[[model]]
   for (par in parnames_all[[model]]) {

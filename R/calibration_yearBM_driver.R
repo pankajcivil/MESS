@@ -112,7 +112,7 @@ startadapt_mcmc <- max(500,round(0.05*niter_mcmc))
 stopadapt_mcmc <- round(niter_mcmc*1.0)
 accept_mcmc_few <- 0.44         # optimal for only one parameter
 accept_mcmc_many <- 0.234       # optimal for many parameters
-amcmc_prelim <- vector('list', length(types.of.model)); names(amcmc_prelim) <- types.of.model
+amcmc_prelim <- vector('list', nmodel); names(amcmc_prelim) <- types.of.model
 
 for (model in types.of.gev) {
 
@@ -172,7 +172,7 @@ startadapt_mcmc <- max(500,round(0.05*niter_mcmc))
 stopadapt_mcmc <- round(niter_mcmc*1.0)
 accept_mcmc_few <- 0.44         # optimal for only one parameter
 accept_mcmc_many <- 0.234       # optimal for many parameters
-amcmc_out <- vector('list', length(types.of.model)); names(amcmc_out) <- types.of.model
+amcmc_out <- vector('list', nmodel); names(amcmc_out) <- types.of.model
 
 for (model in types.of.model) {
 
@@ -278,7 +278,7 @@ for (p in 1:length(parnames_all[[model]])) {
 
 # Gelman and Rubin diagnostics - determine and chop off for burn-in
 niter.test <- seq(from=round(0.1*niter_mcmc), to=niter_mcmc, by=round(0.05*niter_mcmc))
-gr.test <- mat.or.vec(length(niter.test), length(types.of.model))
+gr.test <- mat.or.vec(length(niter.test), nmodel)
 gr.tmp <- rep(NA, length(niter.test))
 colnames(gr.test) <- types.of.model
 
@@ -308,7 +308,7 @@ for (model in types.of.model) {
 
 # Monitor posterior 5, 50 and 95% quantiles for drift
 # Only checking for one of the chains
-quant <- vector('list', length(types.of.model)); names(quant) <- types.of.model
+quant <- vector('list', nmodel); names(quant) <- types.of.model
 names.monitor <- c('q05', 'q50', 'q95')
 for (model in types.of.model) {
   quant[[model]] <- vector('list', 3); names(quant[[model]]) <- names.monitor
@@ -350,7 +350,7 @@ for (p in 1:length(parnames_all[[model]])) {
 
 
 # Heidelberger and Welch diagnostics?
-hw.diag <- vector('list', length(types.of.model)); names(hw.diag) <- types.of.model
+hw.diag <- vector('list', nmodel); names(hw.diag) <- types.of.model
 for (model in types.of.model) {
   hw.diag[[model]] <- heidel.diag(as.mcmc(amcmc_out[[model]][[1]]$samples), eps=0.1, pvalue=0.05)
 }
@@ -378,7 +378,7 @@ if(nnode_mcmc==1) {
   }
 }
 
-chains_burned <- vector('list', length(types.of.model)); names(chains_burned) <- types.of.model
+chains_burned <- vector('list', nmodel); names(chains_burned) <- types.of.model
 for (model in types.of.model) {
   if(nnode_mcmc > 1) {
     chains_burned[[model]] <- vector('list', nnode_mcmc)
@@ -408,7 +408,7 @@ if(FALSE) {#==========================
 
 acf_cutoff <- 0.05
 lag_max <- 0.01*niter_mcmc # if we end up with fewer than 100 samples, what are we even doing?
-niter_thin <- rep(0, length(types.of.model)); names(niter_thin) <- types.of.model
+niter_thin <- rep(0, nmodel); names(niter_thin) <- types.of.model
 for (model in types.of.model) {
   for (p in 1:length(parnames_all[[model]])) {
     if(nnode_mcmc > 1) {acf_tmp <- acf(x=chains_burned[[model]][[1]][,p], plot=FALSE, lag.max=lag_max)}
@@ -460,8 +460,8 @@ for (model in types.of.model) {
 # Combine all of the chains from 'ifirst' to 'niter_mcmc' into a potpourri of
 # [alleged] samples from the posterior. Only saving the transition covariance
 # matrix for one of the chains (if in parallel).
-parameters.posterior <- vector('list', length(types.of.model)); names(parameters.posterior) <- types.of.model
-covjump.posterior <- vector('list', length(types.of.model)); names(covjump.posterior) <- types.of.model
+parameters.posterior <- vector('list', nmodel); names(parameters.posterior) <- types.of.model
+covjump.posterior <- vector('list', nmodel); names(covjump.posterior) <- types.of.model
 
 for (model in types.of.model) {
   if(nnode_mcmc==1) {
@@ -488,12 +488,12 @@ for (model in types.of.model) {
 lmax=0
 for (model in types.of.model) {for (i in 1:length(parnames_all[[model]])){lmax=max(lmax,nchar(parnames_all[[model]][i]))}}
 
-dim.parameters <- vector('list', length(types.of.model)); names(dim.parameters) <- types.of.model
-dim.parnames   <- vector('list', length(types.of.model)); names(dim.parnames)   <- types.of.model
-var.parameters <- vector('list', length(types.of.model)); names(var.parameters) <- types.of.model
-var.parnames   <- vector('list', length(types.of.model)); names(var.parnames)   <- types.of.model
-var.covjump    <- vector('list', length(types.of.model)); names(var.covjump)    <- types.of.model
-dim.ensemble   <- vector('list', length(types.of.model)); names(dim.ensemble)   <- types.of.model
+dim.parameters <- vector('list', nmodel); names(dim.parameters) <- types.of.model
+dim.parnames   <- vector('list', nmodel); names(dim.parnames)   <- types.of.model
+var.parameters <- vector('list', nmodel); names(var.parameters) <- types.of.model
+var.parnames   <- vector('list', nmodel); names(var.parnames)   <- types.of.model
+var.covjump    <- vector('list', nmodel); names(var.covjump)    <- types.of.model
+dim.ensemble   <- vector('list', nmodel); names(dim.ensemble)   <- types.of.model
 dim.name <- ncdim_def('name.len', '', 1:lmax, unlim=FALSE)
 dim.time <- ncdim_def('ntime', '', (time_forc), unlim=FALSE)
 var.time <- ncvar_def('time', '', dim.time, -999)
@@ -541,9 +541,9 @@ types.of.gev <- c('gev3','gev4','gev5','gev6')
 types.of.nav <- c('nav3','nav4','nav5','nav6')
 types.of.model <- c(types.of.gev, types.of.nav)
 
-parameters <- vector('list', length(types.of.model)); names(parameters) <- types.of.model
-parnames_all <- vector('list', length(types.of.model)); names(parnames_all) <- types.of.model
-covjump <- vector('list', length(types.of.model)); names(covjump) <- types.of.model
+parameters <- vector('list', nmodel); names(parameters) <- types.of.model
+parnames_all <- vector('list', nmodel); names(parnames_all) <- types.of.model
+covjump <- vector('list', nmodel); names(covjump) <- types.of.model
 ncdata <- nc_open('evt_models_calibratedParameters__13Jun2017.nc')
   time_forc <- ncvar_get(ncdata, 'time')
   temperature_forc <- ncvar_get(ncdata, 'temperature')

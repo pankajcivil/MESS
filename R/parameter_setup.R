@@ -2,6 +2,7 @@
 types.of.gev <- c('gev3','gev4','gev5','gev6')
 types.of.nav <- c('nav3','nav4','nav5','nav6')
 types.of.model <- c(types.of.gev, types.of.nav)
+nmodel <- length(types.of.model)
 
 # if this is the first time we're doing this, set up so that we do the DE
 # optimization from kappa itself...

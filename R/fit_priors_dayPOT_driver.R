@@ -6,10 +6,11 @@
 #===============================================================================
 
 #rm(list=ls())
-NP.deoptim000 <- 200      # number of DE population members (at least 10*[# parameters])
-niter.deoptim000 <- 200   # number of DE iterations
+NP.deoptim000 <- 100      # number of DE population members (at least 10*[# parameters])
+niter.deoptim000 <- 100   # number of DE iterations
 #n_node000 <- 1            # number of CPUs to use
 output.dir <- '../output/'
+filename.processing <- '../output/preprocessing.RData'
 #setwd('/storage/home/axw322/work/codes/EVT/R')
 setwd('/Users/axw322/codes/EVT/R')
 appen <- 'ppgpd'
@@ -44,45 +45,26 @@ print('...done.')
 
 #
 #===============================================================================
-# read and process data for Dutch station (Delfzijl)
+# read and process data for tide gauge stations (or read previous processing)
 #===============================================================================
 #
 
+print('reading and process data from Delfzijl and other European tide gauge stations (this might take a while)...')
 
-## TODO
-## TODO -- HERE IS WHERE THE SCRIPT THAT READS AND PROCESSES ALL OF THE DATA
-## TODO -- SHOULD GO. IT SHOULD RETURN DATA_CALIB (DELFZIJL) AND DATA_EUROPE
-## TODO -- (ALL OF THEM), EVERYTHING WE NEED FOR THE DEOPTIM AND MCMC CALIBRATIONS
-## TODO
-
-
-print('reading Delfzijl, Netherlands, tide gauge data...')
-
-source('read_data_tidegauge_delfzijl.R')
+if(exists('filename.processing')) {load(filename.processing)
+} else {source('processing_script.R')}
 
 print('...done.')
 
 #
 #===============================================================================
-# read and process data for set of European stations
+# set up PP-GPD model parameters
 #===============================================================================
 #
 
-print('reading lots of other European tide gauge data...')
+print('setting up PP-GPD model parameters for DE optimization...')
 
-source('...')
-
-print('...done.')
-
-#
-#===============================================================================
-# set up GEV and Naveau (i) model parameters
-#===============================================================================
-#
-
-print('setting up GEV and Naveau-i model parameters for DE optimization...')
-
-source('parameter_setup.R')
+source('parameter_setup_dayPOT.R')
 
 print('...done.')
 
@@ -108,49 +90,43 @@ CR.deoptim <- 0.9
 #===============================================================================
 #
 
-print('starting DE optimization for MLE GEV and Naveau-i parameters at Delfzijl, Netherlands...')
+print('starting DE optimization for MLE PP-GPD parameters at Delfzijl, Netherlands...')
 
-source('likelihood_gev.R')
-source('likelihood_naveau.R')
+source('likelihood_ppgpd.R')
 
-deoptim.delfzijl <- vector('list', 8); names(deoptim.delfzijl) <- types.of.model
-for (i in 1:length(types.of.model)) {
+deoptim.delfzijl <- vector('list', nmodel); names(deoptim.delfzijl) <- types.of.model
+for (i in 1:nmodel) {
   deoptim.delfzijl[[types.of.model[i]]] <- mat.or.vec(1, length(parnames_all[[types.of.model[i]]]))
   rownames(deoptim.delfzijl[[types.of.model[i]]]) <- 'delfzijl'
   colnames(deoptim.delfzijl[[types.of.model[i]]]) <- parnames_all[[types.of.model[i]]]
 }
-bic.delfzijl <- mat.or.vec(1, 8)
-colnames(bic.delfzijl) <- types.of.model; rownames(bic.delfzijl) <- 'delfzijl'
+bic.delfzijl <- mat.or.vec(1, nmodel)
+if(nmodel > 1) {colnames(bic.delfzijl) <- types.of.model; rownames(bic.delfzijl) <- 'delfzijl'
+} else {names(bic.delfzijl) <- 'delfzijl'}
 
-# GEV model fitting
-for (gev.type in types.of.gev) {
-  if(gev.type=='gev3') {auxiliary <- NULL
-  } else {auxiliary <- trimmed_forcing(data_calib$year_unique, time_forc, temperature_forc)$temperature}
-  out.deoptim <- DEoptim(neg_log_like_gev, lower=bound_lower_set[[gev.type]], upper=bound_upper_set[[gev.type]],
+# PP-GPD model fitting
+for (gpd.type in types.of.gpd) {
+#  if(gpd.type=='gpd3') {auxiliary <- NULL
+#  } else {auxiliary <- trimmed_forcing(data_calib$gpd$year, time_forc, temperature_forc)$temperature}
+# for now... (until add support for nonstationary)
+  auxiliary <- NULL
+  out.deoptim <- DEoptim(neg_log_like_ppgpd, lower=bound_lower_set[[gpd.type]], upper=bound_upper_set[[gpd.type]],
                        DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
-                       parnames=parnames_all[[gev.type]], data_calib=data_calib$lsl_max, auxiliary=auxiliary)
-  deoptim.delfzijl[[gev.type]][1,] <- out.deoptim$optim$bestmem
-  colnames(deoptim.delfzijl[[gev.type]]) <- parnames_all[[gev.type]]
-  bic.delfzijl[1, gev.type] <- 2*out.deoptim$optim$bestval + length(parnames_all[[gev.type]])*log(length(data_calib$lsl_max))
-}
-
-# Naveau (i) model fitting
-for (nav.type in types.of.nav) {
-  if(nav.type=='nav3') {auxiliary <- NULL
-  } else {auxiliary <- trimmed_forcing(data_calib$year_unique, time_forc, temperature_forc)$temperature}
-  out.deoptim <- DEoptim(neg_log_like_naveau, lower=bound_lower_set[[nav.type]], upper=bound_upper_set[[nav.type]],
-                       DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
-                       parnames=parnames_all[[nav.type]], data_calib=data_calib$lsl_max, auxiliary=auxiliary)
-  deoptim.delfzijl[[nav.type]][1,] <- out.deoptim$optim$bestmem
-  colnames(deoptim.delfzijl[[nav.type]]) <- parnames_all[[nav.type]]
-  bic.delfzijl[1, nav.type] <- 2*out.deoptim$optim$bestval + length(parnames_all[[nav.type]])*log(length(data_calib$lsl_max))
+                       parnames=parnames_all[[gpd.type]], data_calib=data_calib, auxiliary=auxiliary)
+  deoptim.delfzijl[[gpd.type]][1,] <- out.deoptim$optim$bestmem
+  colnames(deoptim.delfzijl[[gpd.type]]) <- parnames_all[[gpd.type]]
+  if(nmodel > 1) {
+    bic.delfzijl[1, gpd.type] <- 2*out.deoptim$optim$bestval + length(parnames_all[[gpd.type]])*log(length(data_calib$gpd$counts_all))
+  } else {
+    bic.delfzijl <- 2*out.deoptim$optim$bestval + length(parnames_all[[gpd.type]])*log(length(data_calib$gpd$counts_all))
+  }
 }
 
 print('...done.')
 
 # plot this survival function against the empirical one
 if(FALSE) {
-parameters <- deoptim.delfzijl$nav3
+parameters <- deoptim.delfzijl$gpd3
 x <- seq(0, 10000, 10)
 nav.cdf <- naveau_cdf(x=x, kappa=parameters[1], sigma=parameters[2], xi=parameters[3])
 plot(esf.levels, log10(esf.values), ylim=c(-2.5,0), xlim=c(0,6000), xlab='Level [cm]', ylab='Survival function [1-cdf]', yaxt='n')
@@ -160,65 +136,50 @@ lines(x, log10(1-nav.cdf), col='red')
 
 #
 #===============================================================================
-# fit MLE GEV and Naveau models (nav3,gev3=all stationary (i.e., 3 free parameters),
-# gev/nav4=location/lower tail parameter is nonstationary, gev/nav5=lower tail
-# and scale nonstationary, gev/nav6= all three nonstationary)
-# for all tide gauge stations within +/-15 degrees lat/lon of the Dutch station
+# fit MLE PP-GPD models for all tide gauge stations within +/-[some number of]
+# degrees lat/lon of the Dutch station
 #===============================================================================
 #
 
-print('starting DE optimization for MLE GEV and Naveau-i parameters for all European stations in set...')
+print('starting DE optimization for MLE PP-GPD parameters for all European stations in set...')
 
-deoptim.eur <- vector('list', 8); names(deoptim.eur) <- types.of.model
-for (i in 1:length(types.of.model)) {
+deoptim.eur <- vector('list', nmodel); names(deoptim.eur) <- types.of.model
+for (i in 1:nmodel) {
   deoptim.eur[[types.of.model[i]]] <- mat.or.vec(length(data_set), length(parnames_all[[types.of.model[i]]]))
   rownames(deoptim.eur[[types.of.model[i]]]) <- files.tg
   colnames(deoptim.eur[[types.of.model[i]]]) <- parnames_all[[types.of.model[i]]]
 }
-bic.eur <- mat.or.vec(length(data_set), 8)
-colnames(bic.eur) <- types.of.model; rownames(bic.eur) <- files.tg
+bic.eur <- mat.or.vec(length(data_set), nmodel)
+if(nmodel > 1) {colnames(bic.eur) <- types.of.model; rownames(bic.eur) <- files.tg
+} else {names(bic.eur) <- files.tg}
 
 for (dd in 1:length(data_set)) {
+  print(paste('starting to calculate MLE PP-GPD parameters for European data set ',dd,' / ',length(data_set),sep=''))
 
-  data_set[[dd]]$bic.deoptim <- rep(NA, length(types.of.model))
-  data_set[[dd]]$deoptim <- vector('list', length(types.of.model))
+  data_set[[dd]]$bic.deoptim <- rep(NA, nmodel)
+  data_set[[dd]]$deoptim <- vector('list', nmodel)
   names(data_set[[dd]]$deoptim) <- types.of.model
 
-  # GEV model fitting
-  for (gev.type in types.of.gev) {
-    if(gev.type=='gev3') {auxiliary <- NULL
+  # PP-GPD model fitting
+  for (gpd.type in types.of.gpd) {
+    if(gpd.type=='gpd3') {auxiliary <- NULL
     } else {auxiliary <- trimmed_forcing(data_set[[dd]]$year_unique, time_forc, temperature_forc)$temperature}
-    out.deoptim <- DEoptim(neg_log_like_gev, lower=bound_lower_set[[gev.type]], upper=bound_upper_set[[gev.type]],
+    out.deoptim <- DEoptim(neg_log_like_ppgpd, lower=bound_lower_set[[gpd.type]], upper=bound_upper_set[[gpd.type]],
                          DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
-                         parnames=parnames_all[[gev.type]], data_calib=data_set[[dd]]$lsl_max, auxiliary=auxiliary)
-    deoptim.eur[[gev.type]][dd,] <- out.deoptim$optim$bestmem
-    colnames(deoptim.eur[[gev.type]]) <- parnames_all[[gev.type]]
-    bic.eur[dd, gev.type] <- 2*out.deoptim$optim$bestval + length(parnames_all[[gev.type]])*log(length(data_set[[dd]]$lsl_max))
-  }
-
-  # Naveau (i) model fitting
-  for (nav.type in types.of.nav) {
-    if(nav.type=='nav3') {auxiliary <- NULL
-    } else {auxiliary <- trimmed_forcing(data_set[[dd]]$year_unique, time_forc, temperature_forc)$temperature}
-    out.deoptim <- DEoptim(neg_log_like_naveau, lower=bound_lower_set[[nav.type]], upper=bound_upper_set[[nav.type]],
-                         DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
-                         parnames=parnames_all[[nav.type]], data_calib=data_set[[dd]]$lsl_max, auxiliary=auxiliary)
-    deoptim.eur[[nav.type]][dd,] <- out.deoptim$optim$bestmem
-    colnames(deoptim.eur[[nav.type]]) <- parnames_all[[nav.type]]
-    bic.eur[dd, nav.type] <- 2*out.deoptim$optim$bestval + length(parnames_all[[nav.type]])*log(length(data_set[[dd]]$lsl_max))
+                         parnames=parnames_all[[gpd.type]], data_calib=data_europe[[dd]], auxiliary=auxiliary)
+    deoptim.eur[[gpd.type]][dd,] <- out.deoptim$optim$bestmem
+    colnames(deoptim.eur[[gpd.type]]) <- parnames_all[[gpd.type]]
+    if(nmodel > 1) {
+      bic.eur[dd, gpd.type] <- 2*out.deoptim$optim$bestval + length(parnames_all[[gpd.type]])*log(length(data_europe[[dd]]$gpd$counts_all))
+    } else {
+      bic.eur[dd] <- 2*out.deoptim$optim$bestval + length(parnames_all[[gpd.type]])*log(length(data_set[[dd]]$gpd$counts_all))
+    }
   }
 }
 
 # also include Delfzijl points in this fit/spread
-mle.fits <- vector('list', length(types.of.model)); names(mle.fits) <- types.of.model
-mle.fits$gev3 <- rbind(deoptim.eur$gev3, deoptim.delfzijl$gev3)
-mle.fits$gev4 <- rbind(deoptim.eur$gev4, deoptim.delfzijl$gev4)
-mle.fits$gev5 <- rbind(deoptim.eur$gev5, deoptim.delfzijl$gev5)
-mle.fits$gev6 <- rbind(deoptim.eur$gev6, deoptim.delfzijl$gev6)
-mle.fits$nav3 <- rbind(deoptim.eur$nav3, deoptim.delfzijl$nav3)
-mle.fits$nav4 <- rbind(deoptim.eur$nav4, deoptim.delfzijl$nav4)
-mle.fits$nav5 <- rbind(deoptim.eur$nav5, deoptim.delfzijl$nav5)
-mle.fits$nav6 <- rbind(deoptim.eur$nav6, deoptim.delfzijl$nav6)
+mle.fits <- vector('list', nmodel); names(mle.fits) <- types.of.model
+mle.fits$gpd3 <- rbind(deoptim.eur$gpd3, deoptim.delfzijl$gpd3)
 
 print('...done.')
 
@@ -240,6 +201,12 @@ lines(x.eur, log10(1-cdf.gev), col='blue')
 # check distributions, fit priors
 #===============================================================================
 #
+
+
+# TODO - HERE NOW
+# TODO - HERE NOW <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HERE NOW!!
+# TODO - HERE NOW
+
 
 print('fitting prior distributions to the MLE parameters...')
 
@@ -269,7 +236,7 @@ uniform.priors <- NULL
 # test fitting uniform priors
 #uniform.priors <- c('mu','mu0','kappa','kappa0','sigma','sigma0','xi','mu1','sigma1','xi0','xi1','kappa1')
 
-priors <- vector('list', length(types.of.model)); names(priors) <- types.of.model
+priors <- vector('list', nmodel); names(priors) <- types.of.model
 for (model in types.of.model) {
   priors[[model]] <- vector('list', length(parnames_all[[model]])); names(priors[[model]]) <- parnames_all[[model]]
   for (par in parnames_all[[model]]) {

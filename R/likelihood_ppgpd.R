@@ -30,7 +30,7 @@
 
 # use eq. 11 of Martins and Stedinger (2001), for each year independently:
 # llike <- log([likelihood of seeing exactly m exceedances in time interval dt with rate lambda[t]])
-           + log([joint GPD density for the m exceedances in time interval dt])
+#           + log([joint GPD density for the m exceedances in time interval dt])
 # ^^^ do this for all of the intervals
 
 # need to send in for each interval:
