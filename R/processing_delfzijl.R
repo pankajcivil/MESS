@@ -257,6 +257,28 @@ data_calib$gpd$time_length_all <- max(time.daily) - min(time.daily) + 1
 
 #
 #===============================================================================
+# subsample smaller sets of the POT/GPD data
+#===============================================================================
+#
+
+# initialize, and create list elements for these GPD experiments. then later
+# remove from each sub-list item the years the experiment will not use
+gpd.experiments <- c('gpd30','gpd50','gpd70','gpd90','gpd110')
+years.gpd.experiments <- c(30,50,70,90,110); names(years.gpd.experiments) <- gpd.experiments
+for (gpd.exp in gpd.experiments) {
+  data_calib[[gpd.exp]] <- data_calib$gpd
+  ind.experiment <- (length(data_calib$gev_year$year)-years.gpd.experiments[[gpd.exp]]+1):length(data_calib$gev_year$year)
+  data_calib[[gpd.exp]]$counts <- data_calib[[gpd.exp]]$counts[ind.experiment]
+  data_calib[[gpd.exp]]$time_length <- data_calib[[gpd.exp]]$time_length[ind.experiment]
+  data_calib[[gpd.exp]]$excesses <- data_calib[[gpd.exp]]$excesses[ind.experiment]
+  data_calib[[gpd.exp]]$year <- data_calib$gev_year$year[ind.experiment]
+  data_calib[[gpd.exp]]$counts_all <- NULL
+  data_calib[[gpd.exp]]$time_length_all <- NULL
+  data_calib[[gpd.exp]]$excesses_all <- NULL
+}
+
+#
+#===============================================================================
 # now do the GEV/Naveau annual block maxima. calculate based on the 3-houlry
 # time series (sl.3hour.detrended)
 #===============================================================================
@@ -316,6 +338,8 @@ output.dir <- '../output/'
 today=Sys.Date(); today=format(today,format="%d%b%Y")
 filename.datacalib <- paste(output.dir,'datacalib_',today,'.rds', sep='')
 saveRDS(data_calib, file=filename.datacalib)
+
+save.image(file='../output/preprocessing.RData')
 
 #
 #===============================================================================

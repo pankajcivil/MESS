@@ -130,7 +130,7 @@ print('...done.')
 if(FALSE) {
 parameters <- deoptim.delfzijl$gpd3
 x <- seq(0, 10000, 10)
-nav.cdf <- naveau_cdf(x=x, kappa=parameters[1], sigma=parameters[2], xi=parameters[3])
+nav.cdf <- gpd_cdf(q=x, scale=parameters[2], shape=parameters[3])
 plot(esf.levels, log10(esf.values), ylim=c(-2.5,0), xlim=c(0,6000), xlab='Level [cm]', ylab='Survival function [1-cdf]', yaxt='n')
 axis(2, at=seq(-3, 0, by=1), label=parse(text=paste("10^", seq(-3,0), sep="")))
 lines(x, log10(1-nav.cdf), col='red')
@@ -168,6 +168,18 @@ for (dd in 1:length(data_set)) {
     tbeg <- proc.time()
     if(gpd.type=='gpd3') {auxiliary <- NULL
     } else {auxiliary <- trimmed_forcing(data_europe[[dd]]$gev_year$year, time_forc, temperature_forc)$temperature}
+    # if tide gauge record starts before temperatures, clip it
+    if(data_europe[[dd]]$gev_year$year[1] < time_forc[1]) {
+      irem <- which(data_europe[[dd]]$gev_year$year < time_forc[1])
+      data_europe[[dd]]$gev_year$year <- data_europe[[dd]]$gev_year$year[-irem]
+      data_europe[[dd]]$gev_year$lsl_max <- data_europe[[dd]]$gev_year$lsl_max[-irem]
+      data_europe[[dd]]$gpd$counts <- data_europe[[dd]]$gpd$counts[-irem]
+      data_europe[[dd]]$gpd$excesses <- data_europe[[dd]]$gpd$excesses[-irem]
+      data_europe[[dd]]$gpd$time_length <- data_europe[[dd]]$gpd$time_length[-irem]
+      data_europe[[dd]]$gpd$time_length_all <- sum(data_europe[[dd]]$gpd$time_length)
+      data_europe[[dd]]$gpd$counts_all <- sum(unlist(data_europe[[dd]]$gpd$counts), na.rm=TRUE)
+      data_europe[[dd]]$gpd$excesses_all <- unlist(data_europe[[dd]]$gpd$excesses)[!is.na(unlist(data_europe[[dd]]$gpd$excesses))]
+    }
     out.deoptim <- DEoptim(neg_log_like_ppgpd, lower=bound_lower_set[[gpd.type]], upper=bound_upper_set[[gpd.type]],
                          DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
                          parnames=parnames_all[[gpd.type]], data_calib=data_europe[[dd]], auxiliary=auxiliary)
@@ -181,6 +193,7 @@ for (dd in 1:length(data_set)) {
     tend <- proc.time()
     print(paste('... done. Took ',round(as.numeric(tend-tbeg)[3]/60,2),' minutes', sep=''))
   }
+  save.image('fitting_priors_tmp.RData')
   tend0 <- proc.time()
   print(paste('... done. Took ',round(as.numeric(tend0-tbeg0)[3]/60,2),' minutes', sep=''))
 }
@@ -188,6 +201,9 @@ for (dd in 1:length(data_set)) {
 # also include Delfzijl points in this fit/spread
 mle.fits <- vector('list', nmodel); names(mle.fits) <- types.of.model
 mle.fits$gpd3 <- rbind(deoptim.eur$gpd3, deoptim.delfzijl$gpd3)
+mle.fits$gpd4 <- rbind(deoptim.eur$gpd4, deoptim.delfzijl$gpd4)
+mle.fits$gpd5 <- rbind(deoptim.eur$gpd5, deoptim.delfzijl$gpd5)
+mle.fits$gpd6 <- rbind(deoptim.eur$gpd6, deoptim.delfzijl$gpd6)
 
 print('...done.')
 
@@ -209,12 +225,6 @@ lines(x.eur, log10(1-cdf.gev), col='blue')
 # check distributions, fit priors
 #===============================================================================
 #
-
-
-# TODO - HERE NOW
-# TODO - HERE NOW <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HERE NOW!!
-# TODO - HERE NOW
-
 
 print('fitting prior distributions to the MLE parameters...')
 
@@ -239,7 +249,7 @@ for (model in types.of.model) {
 # assign which parameters have which priors
 if(exists('gamma.priors')) {rm(list=c('gamma.priors','normal.priors','uniform.priors'))}
 gamma.priors <- c('lambda','lambda0','sigma','sigma0')
-normal.priors <- c('xi','sigma1','xi0','xi1')
+normal.priors <- c('lambda1','sigma1','xi','xi0','xi1')
 uniform.priors <- NULL
 
 priors <- vector('list', nmodel); names(priors) <- types.of.model

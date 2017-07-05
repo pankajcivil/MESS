@@ -218,8 +218,8 @@ log_like_ppgpd <- function(parameters,
                            auxiliary=NULL
 ){
   llik <- 0
-  nbins <- length(data_calib$gpd$counts)
-#  print(parameters)
+  nbins <- length(data_calib$counts)
+  #print(parameters)
   n.param <- length(parnames)
   if(n.param==3) {
     # fit a standard stationary PP-GPD
@@ -255,26 +255,26 @@ log_like_ppgpd <- function(parameters,
     xi <- xi0 + xi1*auxiliary
   } else {print('ERROR - invalid number of parameters for PP-GPD')}
 
-
   # check extra conditions that would otherwise 'break' the likelihood function
   if( any(lambda < 0) | any(sigma < 0) ) {llik <- -Inf}
   else {
     # this way is working, but slow. speed up with an "apply" ?
-    llik.bin <- dpois(x=data_calib$gpd$counts, lambda=(lambda*data_calib$gpd$time_length), log=TRUE)
-    hits <- which(data_calib$gpd$counts!=0)
+    llik.bin <- dpois(x=data_calib$counts, lambda=(lambda*data_calib$time_length), log=TRUE)
+    hits <- which(data_calib$counts!=0)
     for (b in hits) {
       llik.bin[b] <- llik.bin[b] +
-                     sum(devd(data_calib$gpd$excesses[[b]]-data_calib$gpd$threshold, threshold=0, scale=sigma[b], shape=xi[b], log=TRUE, type='GP'))
+                     sum(devd(data_calib$excesses[[b]]-data_calib$threshold, threshold=0, scale=sigma[b], shape=xi[b], log=TRUE, type='GP'))
+      #if( (xi[b] < 0) & any( (data_calib$excesses[[b]]-data_calib$threshold) < (-sigma[b]/xi[b]) )) {llik.bin[b] <- -Inf; break;}
     }
     llik <- sum(llik.bin)
   }
 
 # this way works, but cannot take nonstationarity in the poisson process
-#if(data_calib$gpd$counts_all > 0) {
-#  llik <- dpois(x=data_calib$gpd$counts_all, lambda=(lambda*data_calib$gpd$time_length_all), log=TRUE) +
-#          sum(devd(data_calib$gpd$excesses_all-data_calib$gpd$threshold, threshold=0, scale=sigma, shape=xi, log=TRUE, type='GP'))
+#if(data_calib$counts_all > 0) {
+#  llik <- dpois(x=data_calib$counts_all, lambda=(lambda*data_calib$time_length_all), log=TRUE) +
+#          sum(devd(data_calib$excesses_all-data_calib$threshold, threshold=0, scale=sigma, shape=xi, log=TRUE, type='GP'))
 #} else {
-#  llik <- dpois(x=data_calib$gpd$counts_all, lambda=(lambda*data_calib$gpd$time_length_all), log=TRUE)
+#  llik <- dpois(x=data_calib$counts_all, lambda=(lambda*data_calib$time_length_all), log=TRUE)
 #}
 
   return(llik)

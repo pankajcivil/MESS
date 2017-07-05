@@ -1,5 +1,6 @@
 #===============================================================================
 # Calibration of PP-GPD model(s) for storm surge at Delfzijl, The Netherlands.
+# This version does the varying record length experiments.
 #
 # Questions? Tony Wong (twong@psu.edu)
 #===============================================================================
@@ -21,7 +22,8 @@ output.dir <- '../output/'
 
 #setwd('/storage/home/axw322/work/codes/EVT/R')
 setwd('/Users/axw322/codes/EVT/R')
-appen <- 'ppgpd'
+appen <- 'ppgpd-experiments'
+gpd.experiments <- c('gpd30','gpd50','gpd70','gpd90','gpd110')
 
 # Name the calibrated parameters output file
 today <- Sys.Date(); today=format(today,format="%d%b%Y")
@@ -107,26 +109,29 @@ startadapt_mcmc <- max(500,round(0.05*niter_mcmc))
 stopadapt_mcmc <- round(niter_mcmc*1.0)
 accept_mcmc_few <- 0.44         # optimal for only one parameter
 accept_mcmc_many <- 0.234       # optimal for many parameters
-amcmc_prelim <- vector('list', nmodel); names(amcmc_prelim) <- types.of.model
+amcmc_prelim <- vector('list', length(gpd.experiments)); names(amcmc_prelim) <- gpd.experiments
+for (gpd.exp in gpd.experiments) {amcmc_prelim[[gpd.exp]] <- vector('list', nmodel); names(amcmc_prelim[[gpd.exp]]) <- types.of.model}
 
-for (model in types.of.gpd) {
+for (gpd.exp in gpd.experiments) {
+  print(paste('Starting preliminary calibration for experiment ',gpd.exp,'...', sep=''))
+  for (model in types.of.gpd) {
+    print(paste('Starting preliminary calibration for model ',model,' (',nnode_mcmc,' cores x ',niter_mcmc,' iterations)...', sep=''))
 
-  print(paste('Starting preliminary calibration for model ',model,' (',nnode_mcmc,' cores x ',niter_mcmc,' iterations)...', sep=''))
+    initial_parameters <- as.numeric(deoptim.delfzijl[[model]])
+    if(model=='gpd3') {auxiliary <- NULL
+    } else {auxiliary <- trimmed_forcing(data_calib[[gpd.exp]]$year, time_forc, temperature_forc)$temperature}
+    accept_mcmc <- accept_mcmc_many + (accept_mcmc_few - accept_mcmc_many)/length(parnames_all[[model]])
+    step_mcmc <- as.numeric(0.05*apply(X=mle.fits[[model]], MARGIN=2, FUN=sd))
+    tbeg=proc.time()
+    amcmc_prelim[[gpd.exp]][[model]] = MCMC(log_post_ppgpd, niter_mcmc, initial_parameters,
+                              adapt=TRUE, acc.rate=accept_mcmc, scale=step_mcmc,
+                              gamma=gamma_mcmc, list=TRUE, n.start=startadapt_mcmc,
+                              parnames=parnames_all[[model]], data_calib=data_calib[[gpd.exp]],
+                              priors=priors, auxiliary=auxiliary, model=model)
+    tend=proc.time()
 
-  initial_parameters <- as.numeric(deoptim.delfzijl[[model]])
-  if(model=='gpd3') {auxiliary <- NULL
-  } else {auxiliary <- trimmed_forcing(data_calib$gev_year$year, time_forc, temperature_forc)$temperature}
-  accept_mcmc <- accept_mcmc_many + (accept_mcmc_few - accept_mcmc_many)/length(parnames_all[[model]])
-  step_mcmc <- as.numeric(0.05*apply(X=mle.fits[[model]], MARGIN=2, FUN=sd))
-  tbeg=proc.time()
-  amcmc_prelim[[model]] = MCMC(log_post_ppgpd, niter_mcmc, initial_parameters,
-                            adapt=TRUE, acc.rate=accept_mcmc, scale=step_mcmc,
-                            gamma=gamma_mcmc, list=TRUE, n.start=startadapt_mcmc,
-                            parnames=parnames_all[[model]], data_calib=data_calib$gpd,
-                            priors=priors, auxiliary=auxiliary, model=model)
-  tend=proc.time()
-
-  print(paste('... done. Took ',round(as.numeric(tend-tbeg)[3]/60,2),' minutes', sep=''))
+    print(paste('... done. Took ',round(as.numeric(tend-tbeg)[3]/60,2),' minutes', sep=''))
+  }
 }
 
 #
@@ -145,42 +150,44 @@ startadapt_mcmc <- max(500,round(0.05*niter_mcmc))
 stopadapt_mcmc <- round(niter_mcmc*1.0)
 accept_mcmc_few <- 0.44         # optimal for only one parameter
 accept_mcmc_many <- 0.234       # optimal for many parameters
-amcmc_out <- vector('list', nmodel); names(amcmc_out) <- types.of.model
+amcmc_out <- vector('list', length(gpd.experiments)); names(amcmc_out) <- gpd.experiments
+for (gpd.exp in gpd.experiments) {amcmc_out[[gpd.exp]] <- vector('list', nmodel); names(amcmc_out[[gpd.exp]]) <- types.of.model}
 
-for (model in types.of.model) {
+for (gpd.exp in gpd.experiments) {
+  print(paste('Starting production calibration for experiment ',gpd.exp,'...', sep=''))
+  for (model in types.of.model) {
+    print(paste('Starting production calibration for model ',model,' (',nnode_mcmc,' cores x ',niter_mcmc,' iterations)...', sep=''))
 
-  print(paste('Starting production calibration for model ',model,' (',nnode_mcmc,' cores x ',niter_mcmc,' iterations)...', sep=''))
-
-  if (model %in% types.of.gpd) {
-    initial_parameters <- amcmc_prelim[[model]]$samples[amcmc_prelim[[model]]$n.sample,]
-    if(model=='gpd3') {auxiliary <- NULL
-    } else {auxiliary <- trimmed_forcing(data_calib$gev_year$year, time_forc, temperature_forc)$temperature}
-    accept_mcmc <- accept_mcmc_many + (accept_mcmc_few - accept_mcmc_many)/length(parnames_all[[model]])
-    step_mcmc <- amcmc_prelim[[model]]$cov.jump
-    if(nnode_mcmc==1) {
-      # do single chain
-      tbeg=proc.time()
-      amcmc_out[[model]] = MCMC(log_post_ppgpd, niter_mcmc, initial_parameters,
-                            adapt=TRUE, acc.rate=accept_mcmc, scale=step_mcmc,
-                            gamma=gamma_mcmc, list=TRUE, n.start=startadapt_mcmc,
-                            parnames=parnames_all[[model]], data_calib=data_calib$gpd,
-                            priors=priors, auxiliary=auxiliary, model=model)
-      tend=proc.time()
-    } else if(nnode_mcmc > 1) {
-      # do parallel chains
-      tbeg <- proc.time()
-      amcmc_out[[model]] <- MCMC.parallel(log_post_ppgpd, niter_mcmc, initial_parameters,
-                            n.chain=4, n.cpu=4, packages='extRemes',
-				            scale=step_mcmc, adapt=TRUE, acc.rate=accept_mcmc,
-                            gamma=gamma_mcmc, list=TRUE, n.start=startadapt_mcmc,
-                            parnames=parnames_all[[model]], data_calib=data_calib$gpd,
-                            priors=priors, auxiliary=auxiliary, model=model)
-      tend <- proc.time()
-    }
-  } else {print('error - unknown model type')}
-  print(paste('... done. Took ',round(as.numeric(tend-tbeg)[3]/60,2),' minutes', sep=''))
+    if (model %in% types.of.gpd) {
+      initial_parameters <- amcmc_prelim[[gpd.exp]][[model]]$samples[amcmc_prelim[[gpd.exp]][[model]]$n.sample,]
+      if(model=='gpd3') {auxiliary <- NULL
+      } else {auxiliary <- trimmed_forcing(data_calib[[gpd.exp]]$year, time_forc, temperature_forc)$temperature}
+      accept_mcmc <- accept_mcmc_many + (accept_mcmc_few - accept_mcmc_many)/length(parnames_all[[model]])
+      step_mcmc <- amcmc_prelim[[gpd.exp]][[model]]$cov.jump
+      if(nnode_mcmc==1) {
+        # do single chain
+        tbeg=proc.time()
+        amcmc_out[[gpd.exp]][[model]] = MCMC(log_post_ppgpd, niter_mcmc, initial_parameters,
+                               adapt=TRUE, acc.rate=accept_mcmc, scale=step_mcmc,
+                               gamma=gamma_mcmc, list=TRUE, n.start=startadapt_mcmc,
+                               parnames=parnames_all[[model]], data_calib=data_calib,
+                               priors=priors, auxiliary=auxiliary, model=model)
+        tend=proc.time()
+      } else if(nnode_mcmc > 1) {
+        # do parallel chains
+        tbeg <- proc.time()
+        amcmc_out[[gpd.exp]][[model]] <- MCMC.parallel(log_post_ppgpd, niter_mcmc, initial_parameters,
+                               n.chain=4, n.cpu=4, packages='extRemes',
+                               scale=step_mcmc, adapt=TRUE, acc.rate=accept_mcmc,
+                               gamma=gamma_mcmc, list=TRUE, n.start=startadapt_mcmc,
+                               parnames=parnames_all[[model]], data_calib=data_calib[[gpd.exp]],
+                               priors=priors, auxiliary=auxiliary, model=model)
+        tend <- proc.time()
+      }
+    } else {print('error - unknown model type')}
+    print(paste('... done. Took ',round(as.numeric(tend-tbeg)[3]/60,2),' minutes', sep=''))
+  }
 }
-
 
 # for now, just save RData file so you can play around with the GR stats,
 # subtracting off burn-in, thinning (if needed), etc.

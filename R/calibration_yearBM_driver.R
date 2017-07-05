@@ -17,7 +17,7 @@ filename.priors   <- 'surge_priors_gev_nav_19Jun2017.rds'  # file holding the 'p
 filename.temperature <- 'temperature_forcing_19Jun2017.csv'  # temperature forcing used
 filename.initvals <- 'surge_initialvalues_gev_nav_19Jun2017.rds'  # file holding the 'deoptim.delfzijl' object
 filename.mles <- 'surge_MLEs_gev_nav_19Jun2017.rds' # file holding the 'mle.fits' object
-filename.datacalib <- 'datacalib.rds' # file holding the 'data_calib' object (calibration data)
+filename.datacalib <- 'datacalib_05Jul2017.rds' # file holding the 'data_calib' object (calibration data)
 
 output.dir <- '../output/'
 

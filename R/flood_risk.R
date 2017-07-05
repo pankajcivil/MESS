@@ -10,10 +10,10 @@
 #
 
 filename.yearBM.parameters <- '../output/evt_models_calibratedParameters_gev-nav_21Jun2017.nc'
-filename.dayPOT.parameters <- '../output/evt_models_calibratedParameters_ppgpd_27Jun2017.nc'
+filename.dayPOT.parameters <- '../output/evt_models_calibratedParameters_ppgpd_28Jun2017.nc'
 filename.sealevelrise <- '../../BRICK/output_model/BRICK-fastdyn_physical_gamma_01Jun2017.nc'
-filename.datacalib <- '../output/datacalib_27Jun2017.rds'
-filename.priors.dayPOT <- '../output/surge_priors_ppgpd_27Jun2017.rds'
+filename.datacalib <- 'datacalib_05Jul2017.rds'
+filename.priors.dayPOT <- '../output/surge_priors_ppgpd_28Jun2017.rds'
 filename.priors.yearBM <- '../output/surge_priors_gev_nav_19Jun2017.rds'
 
 time.beg <- 2015           # inital year, "present"
@@ -105,7 +105,7 @@ expected_cost_quad <- sapply(1:length(heightening), function(i) {cost(h0=0, dh=1
 
 types.of.gev <- c('gev3','gev4','gev5','gev6')
 types.of.nav <- c('nav3','nav4','nav5','nav6')
-types.of.gpd <- c('gpd3')
+types.of.gpd <- c('gpd3','gpd4','gpd5','gpd6')
 types.of.model <- c(types.of.gev, types.of.nav, types.of.gpd)
 nmodel <- length(types.of.model)
 
@@ -319,9 +319,6 @@ for (model in types.of.model) {
 # for now just save workspace image
 save.image(file='../output/floodrisk_inprog.RData')
 
-
-# TODO
-
 #
 #===============================================================================
 # analysis
@@ -432,28 +429,34 @@ priors.yearBM <- readRDS(filename.priors.yearBM)
 
 bic <- rep(NA, nmodel); names(bic) <- types.of.model
 llik.mod <- rep(NA, nmodel); names(llik.mod) <- types.of.model
+llik.mod.all <- vector('list', nmodel); names(llik.mod.all) <- types.of.model
+lpost.mod.all <- vector('list', nmodel); names(lpost.mod.all) <- types.of.model
 for (model in types.of.model) {
-#  lpri.tmp <- rep(NA, n.ensemble[[model]])
+  if(substr(model,4,4)!='3') {auxiliary <- trimmed_forcing(data_calib$gev_year$year, time_forc, temperature_forc)$temperature}
+  lpri.tmp <- rep(NA, n.ensemble[[model]])
   llik.tmp <- rep(NA, n.ensemble[[model]])
+  llik.mod.all[[model]] <- rep(NA, n.ensemble[[model]])
+  lpost.mod.all[[model]] <- rep(NA, n.ensemble[[model]])
   for (i in 1:n.ensemble[[model]]) {
-    if(substr(model,4,4)!='3') {auxiliary <- trimmed_forcing(data_calib$year_unique, time_forc, temperature_forc)$temperature}
     if(model %in% types.of.nav) {
-#      lpri.tmp[i] <- log_prior_naveau(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], priors=priors, model=model)
+      lpri.tmp[i] <- log_prior_naveau(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], priors=priors.yearBM, model=model)
       llik.tmp[i] <- log_like_naveau(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], data_calib=data_calib$gev_year$lsl_max, auxiliary=auxiliary, Tmax=Tmax)
       ndata <- length(data_calib$gev_year$year)
     } else if(model %in% types.of.gev) {
-#      lpri.tmp[i] <- log_prior_gev(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], priors=priors, model=model)
+      lpri.tmp[i] <- log_prior_gev(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], priors=priors.yearBM, model=model)
       llik.tmp[i] <- log_like_gev(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], data_calib=data_calib$gev_year$lsl_max, auxiliary=auxiliary)
       ndata <- length(data_calib$gev_year$year)
     } else if(model %in% types.of.gpd) {
-#      lpri.tmp[i] <- log_prior_ppgpd(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], priors=priors, model=model)
+      lpri.tmp[i] <- log_prior_ppgpd(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], priors=priors.dayPOT, model=model)
       llik.tmp[i] <- log_like_ppgpd(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], data_calib=data_calib, auxiliary=auxiliary)
       ndata <- data_calib$gpd$counts_all
     }
+    llik.mod.all[[model]][i] <- llik.tmp[i]
+    lpost.mod.all[[model]][i] <- llik.tmp[i] + lpri.tmp[i]
   }
   imax <- which.max(llik.tmp)
   bic[[model]] <- -2*max(llik.tmp) + length(parnames_all[[model]])*log(ndata)
-  llik.mod[[model]] <- mean(llik.tmp)
+  llik.mod[[model]] <- mean(llik.tmp[is.finite(llik.tmp)])
 }
 
 # a few different model averaging schemes
@@ -466,7 +469,7 @@ reg_wgt_sf <- rep(NA, nmodel); names(reg_wgt_sf) <- types.of.model
 reg_wgt_bic <- rep(NA, nmodel); names(reg_wgt_bic) <- types.of.model
 reg_wgt_lik <- rep(NA, nmodel); names(reg_wgt_lik) <- types.of.model
 
-llik.ref <- min(llik.mod)
+llik.ref <- median(llik.mod)
 
 wgt_bic <- min(bic)/bic; wgt_bic <- wgt_bic/sum(wgt_bic)
 wgt_sf  <- exp(-2*(bic-bic[1])) / sum(exp(-2*(bic-bic[1])))
@@ -482,10 +485,77 @@ for (model in types.of.model) {
 
 regret_comparison <- cbind(regret_matrix_avg, reg_wgt_lik, reg_wgt_bic, reg_wgt_sf)
 
+#
+#===============================================================================
+# save analysis output?
+#===============================================================================
+#
 
+# for now just save workspace image
+save.image(file='../output/floodrisk_inprog.RData')
 
-barplot(height=bic, names.arg=types.of.model, ylim=c(2090,2120),
+#
+#===============================================================================
+# some plots
+#                 - eventually, stick in the 'plotting.R' routine
+#===============================================================================
+#
+
+plot.dir <- '../figures/'
+
+#=====================
+# BIC comparison, annual block maxima models
+#=====================
+
+pdf(paste(plot.dir,'bic_comparison.pdf',sep=''),width=9,height=3.5,colormodel='cmyk')
+layout(matrix(c(1,2), nrow=1), c(5.4,2.5), c(3.5, 3.5))
+par(mai=c(.8,.8,.5,.2))
+barplot(height=bic[1:8], names.arg=types.of.model[1:8], ylim=c(2090,2110),
         main='BIC (lower is better)', ylab='BIC', xlab='Model', xpd=FALSE)
+par(mai=c(.8,.2,.5,.2))
+barplot(height=bic[9:12], names.arg=types.of.model[9:12], ylim=c(6340,6380),
+        main='', ylab='BIC', xlab='', xpd=FALSE)
+dev.off()
+
+
+#=====================
+# PP-GPD rate projection
+#=====================
+
+# plot of gpd4 rate (based on lambda) of exceedances projected
+lambda.proj          <- vector('list', length(types.of.gpd)); names(lambda.proj)          <- types.of.gpd
+lambda.proj.quantile <- vector('list', length(types.of.gpd)); names(lambda.proj.quantile) <- types.of.gpd
+rate.proj.quantile   <- vector('list', length(types.of.gpd)); names(rate.proj.quantile)   <- types.of.gpd
+for (model in types.of.gpd) {
+  lambda.proj[[model]] <- matrix(rep(parameters[[model]][,1], n.time), ncol=n.time) +
+                          matrix(rep(parameters[[model]][,2], n.time), ncol=n.time) *
+                          t(matrix(rep(temperature_proj, n.ensemble[[model]]), ncol=n.ensemble[[model]]))
+  lambda.proj.quantile[[model]] <- t(sapply(1:n.time, function(t) {quantile(lambda.proj[[model]][,t], c(0.05, 0.5, .95))}))
+  rate.proj.quantile[[model]] <- lambda.proj.quantile[[model]] * 365.25
+}
+
+
+plot(time_proj, rate.quant[,2], type='l', lwd=2, ylim=c(0,12))
+lines(time_proj, rate.quant[,1], type='l', lwd=2, lty=2)
+lines(time_proj, rate.quant[,3], type='l', lwd=2, lty=2)
+
+
+pdf(paste(plot.dir,'bic_comparison.pdf',sep=''),width=9,height=3.5,colormodel='cmyk')
+layout(matrix(c(1,2), nrow=1), c(5.4,2.5), c(3.5, 3.5))
+par(mai=c(.8,.8,.5,.2))
+barplot(height=bic[1:8], names.arg=types.of.model[1:8], ylim=c(2090,2110),
+        main='BIC (lower is better)', ylab='BIC', xlab='Model', xpd=FALSE)
+par(mai=c(.8,.2,.5,.2))
+barplot(height=bic[9:12], names.arg=types.of.model[9:12], ylim=c(6340,6380),
+        main='', ylab='BIC', xlab='', xpd=FALSE)
+dev.off()
+
+
+
+
+
+
+
 
 # plot of the BMA weights and
 par(mfrow=c(2,1))
@@ -494,15 +564,6 @@ barplot(height=wgt_lik, names.arg=types.of.model, ylim=c(0, .3), xpd=FALSE,
 barplot(height=reg_wgt_lik, names.arg=types.of.model, ylim=c(0,70), xpd=FALSE,
         ylab=paste('BMA-weighted expected regret (M',euro,')', sep=''), xlab='Model')
 
-# TODO
-
-#
-#===============================================================================
-# save analysis output?
-#===============================================================================
-#
-
-# TODO
 
 
 #
