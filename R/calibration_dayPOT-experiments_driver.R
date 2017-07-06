@@ -134,6 +134,87 @@ for (gpd.exp in gpd.experiments) {
   }
 }
 
+today=Sys.Date(); today=format(today,format="%d%b%Y")
+filename.everythingmcmc <- paste(output.dir,'kitchen_sink_mcmc_',appen,'_',today,'.RData', sep='')
+
+print(paste('saving preliminary results as .RData file (',filename.everythingmcmc,') to read and use later...',sep=''))
+save.image(file=filename.everythingmcmc)
+print('...done.')
+
+if(FALSE){
+# preliminary plot: gpd3
+bounds <- rbind( c(0.007, 0.014), c(240, 550), c(-0.25, 0.45))
+par(mfrow=c(5,3))
+for (gpd.exp in gpd.experiments) {
+  for (p in 1:3) {hist(amcmc_prelim[[gpd.exp]]$gpd3$samples[3e4:5e4,p], xlab=parnames_all$gpd3[p], main='', xlim=bounds[p,])}
+}
+# preliminary plot: gpd6
+bounds <- rbind( c(0, 0.015), c(-0.01, 0.02), c(4.4, 7), c(-2, 2), c(-0.7, 1), c(-1.5, 2))
+par(mfrow=c(5,6))
+for (gpd.exp in gpd.experiments) {
+  for (p in 1:6) {hist(amcmc_prelim[[gpd.exp]]$gpd3$samples[3e4:5e4,p], xlab=parnames_all$gpd6[p], main='', xlim=bounds[p,])}
+}
+# preliminary plot: all as kernel density estimates
+bounds.plot <- vector('list', nmodel); names(bounds.plot) <- types.of.gpd
+bounds.plot$gpd3 <- rbind( c(0.007, 0.014), c(240, 550), c(-0.25, 0.45))
+bounds.plot$gpd4 <- rbind( c(0, 0.015), c(-0.01, 0.02), c(240, 550), c(-0.25, 0.45))
+bounds.plot$gpd5 <- rbind( c(0, 0.015), c(-0.01, 0.02), c(4.4, 7), c(-2, 2), c(-0.25, 0.45))
+ylims <- vector('list', nmodel); names(ylims) <- types.of.gpd
+
+# set ylims for each of these, probably based on values in one of the KDEs
+
+par(mfrow=c(4,6))
+model <- 'gpd3'; nnode <- 512
+colors <- c('black','brown','goldenrod','orange','red')
+for (p in 1:length(parnames_all[[model]])) {
+    for (gpd.exp in gpd.experiments) {
+        tmp <- density(x=amcmc_prelim[[gpd.exp]][[model]]$samples[3e4:5e4,p], n=nnode, from=bounds[p,1], to=bounds[p,2])
+        if(gpd.exp == 'gpd30') {
+            plot(tmp$x, tmp$y, xlab=parnames_all[[model]][p], ylab='Density', main='', xlim=bounds[p,], col=colors[1], type='l', lwd=2, ylim=c(0, 2*max(tmp$y)))
+        } else {
+            lines(tmp$x, tmp$y, xlab=parnames_all[[model]][p], ylab='Density', main='', xlim=bounds[p,], col=colors[match(gpd.exp,gpd.experiments)], lwd=2)
+        }
+    }
+    plot.new()
+}
+model <- 'gpd4'
+for (p in 1:length(parnames_all[[model]])) {
+    for (gpd.exp in gpd.experiments) {
+        tmp <- density(x=amcmc_prelim[[gpd.exp]][[model]]$samples[3e4:5e4,p], n=nnode, from=bounds[p,1], to=bounds[p,2])
+        if(gpd.exp == 'gpd30') {
+            plot(tmp$x, tmp$y, xlab=parnames_all[[model]][p], ylab='Density', main='', xlim=bounds[p,], col=colors[1], type='l', lwd=2, ylim=c(0, 4.5*max(tmp$y)))
+        } else {
+            lines(tmp$x, tmp$y, xlab=parnames_all[[model]][p], ylab='Density', main='', xlim=bounds[p,], col=colors[match(gpd.exp,gpd.experiments)], lwd=2)
+        }
+    }
+    if(p > 2) {plot.new()}
+}
+model <- 'gpd5'
+for (p in 1:length(parnames_all[[model]])) {
+    for (gpd.exp in gpd.experiments) {
+        tmp <- density(x=amcmc_prelim[[gpd.exp]][[model]]$samples[3e4:5e4,p], n=nnode, from=bounds[p,1], to=bounds[p,2])
+        if(gpd.exp == 'gpd30') {
+            plot(tmp$x, tmp$y, xlab=parnames_all[[model]][p], ylab='Density', main='', xlim=bounds[p,], col=colors[1], type='l', lwd=2, ylim=c(0, 4.5*max(tmp$y)))
+        } else {
+            lines(tmp$x, tmp$y, xlab=parnames_all[[model]][p], ylab='Density', main='', xlim=bounds[p,], col=colors[match(gpd.exp,gpd.experiments)], lwd=2)
+        }
+    }
+    if(p==5) {plot.new()}
+}
+model <- 'gpd6'; bounds <- rbind( c(0, 0.015), c(-0.01, 0.02), c(4.4, 7), c(-2, 2), c(-0.7, 1), c(-1.5, 2))
+for (p in 1:length(parnames_all[[model]])) {
+    for (gpd.exp in gpd.experiments) {
+        tmp <- density(x=amcmc_prelim[[gpd.exp]][[model]]$samples[3e4:5e4,p], n=nnode, from=bounds[p,1], to=bounds[p,2])
+        if(gpd.exp == 'gpd30') {
+            plot(tmp$x, tmp$y, xlab=parnames_all[[model]][p], ylab='Density', main='', xlim=bounds[p,], col=colors[1], type='l', lwd=2, ylim=c(0, 4.5*max(tmp$y)))
+        } else {
+            lines(tmp$x, tmp$y, xlab=parnames_all[[model]][p], ylab='Density', main='', xlim=bounds[p,], col=colors[match(gpd.exp,gpd.experiments)], lwd=2)
+        }
+    }
+}
+
+} # end preliminary plots
+
 #
 #===============================================================================
 # set up and run PRODUCTION MCMC calibration
@@ -141,7 +222,7 @@ for (gpd.exp in gpd.experiments) {
 #
 
 # then use these initial estimates of step_mcmc to launch the parallel chains
-# (from amcmc_prelim[[model]]$cov.jump)
+# (from amcmc_prelim[[gpd.exp]][[model]]$cov.jump)
 
 nnode_mcmc <- nnode_mcmc_prod000
 niter_mcmc <- niter_mcmc_prod000
@@ -170,7 +251,7 @@ for (gpd.exp in gpd.experiments) {
         amcmc_out[[gpd.exp]][[model]] = MCMC(log_post_ppgpd, niter_mcmc, initial_parameters,
                                adapt=TRUE, acc.rate=accept_mcmc, scale=step_mcmc,
                                gamma=gamma_mcmc, list=TRUE, n.start=startadapt_mcmc,
-                               parnames=parnames_all[[model]], data_calib=data_calib,
+                               parnames=parnames_all[[model]], data_calib=data_calib[[gpd.exp]],
                                priors=priors, auxiliary=auxiliary, model=model)
         tend=proc.time()
       } else if(nnode_mcmc > 1) {
@@ -187,15 +268,13 @@ for (gpd.exp in gpd.experiments) {
     } else {print('error - unknown model type')}
     print(paste('... done. Took ',round(as.numeric(tend-tbeg)[3]/60,2),' minutes', sep=''))
   }
+  print(paste('saving production results (so far) as .RData file (',filename.everythingmcmc,') to read and use later...',sep=''))
+  save.image(file=filename.everythingmcmc)
+  print('...done.')
 }
 
 # for now, just save RData file so you can play around with the GR stats,
 # subtracting off burn-in, thinning (if needed), etc.
-
-
-# later, can actually turn this into a simple pipeline that will spit out a
-# calibrated parameters netcdf file
-
 
 #
 #===============================================================================
@@ -203,22 +282,17 @@ for (gpd.exp in gpd.experiments) {
 #===============================================================================
 #
 
-today=Sys.Date(); today=format(today,format="%d%b%Y")
-filename.everythingmcmc <- paste(output.dir,'kitchen_sink_mcmc_',appen,'_',today,'.RData', sep='')
-
-print(paste('saving results as .RData file (',filename.everythingmcmc,') to read and use later...',sep=''))
-
+print(paste('saving production results as .RData file (',filename.everythingmcmc,') to read and use later...',sep=''))
 save.image(file=filename.everythingmcmc)
-
 print('...done.')
 
 # test plot
 if (FALSE) {
-model <- 'gpd3'
+model <- 'gpd3'; gpd.exp <- 'gpd90'
 par(mfrow=c(3,2))
 for (p in 1:length(parnames_all[[model]])) {
-    plot(amcmc_out[[model]][[1]]$samples[,p], type='l', ylab=parnames_all[[model]][p])
-    hist(amcmc_out[[model]][[1]]$samples[round(0.5*niter_mcmc):niter_mcmc,p], xlab=parnames_all[[model]][p], main='')
+    plot(amcmc_out[[gpd.exp]][[model]][[1]]$samples[,p], type='l', ylab=parnames_all[[model]][p])
+    hist(amcmc_out[[gpd.exp]][[model]][[1]]$samples[round(0.5*niter_mcmc):niter_mcmc,p], xlab=parnames_all[[model]][p], main='')
 }
 }
 
@@ -230,47 +304,54 @@ for (p in 1:length(parnames_all[[model]])) {
 
 # Gelman and Rubin diagnostics - determine and chop off for burn-in
 niter.test <- seq(from=round(0.1*niter_mcmc), to=niter_mcmc, by=round(0.05*niter_mcmc))
-gr.test <- mat.or.vec(length(niter.test), nmodel)
+gr.test <- vector('list', length(gpd.experiments)); names(gr.test) <- gpd.experiments
+for (gpd.exp in gpd.experiments) {
+  gr.test[[gpd.exp]] <- mat.or.vec(length(niter.test), nmodel)
+  colnames(gr.test[[gpd.exp]]) <- types.of.model
+}
 gr.tmp <- rep(NA, length(niter.test))
-colnames(gr.test) <- types.of.model
 
-
-for (model in types.of.model) {
-  if(nnode_mcmc == 1) {
-    # don't do GR stats, just cut off first half of chains
-    print('only one chain; will lop off first half for burn-in instead of doing GR diagnostics')
-  } else if(nnode_mcmc > 1) {
-    # this case is FAR more fun
-    # accumulate the names of the soon-to-be mcmc objects
-    string.mcmc.list <- 'mcmc1'
-    for (m in 2:nnode_mcmc) {
-      string.mcmc.list <- paste(string.mcmc.list, ', mcmc', m, sep='')
-    }
-    for (i in 1:length(niter.test)) {
-      for (m in 1:nnode_mcmc) {
-        # convert each of the chains into mcmc object
-        eval(parse(text=paste('mcmc',m,' <- as.mcmc(amcmc_out[[model]][[m]]$samples[1:niter.test[i],])', sep='')))
+for (gpd.exp in gpd.experiments) {
+  for (model in types.of.model) {
+    if(nnode_mcmc == 1) {
+      # don't do GR stats, just cut off first half of chains
+      print('only one chain; will lop off first half for burn-in instead of doing GR diagnostics')
+    } else if(nnode_mcmc > 1) {
+      # this case is FAR more fun
+      # accumulate the names of the soon-to-be mcmc objects
+      string.mcmc.list <- 'mcmc1'
+      for (m in 2:nnode_mcmc) {
+        string.mcmc.list <- paste(string.mcmc.list, ', mcmc', m, sep='')
       }
-      eval(parse(text=paste('mcmc_chain_list = mcmc.list(list(', string.mcmc.list , '))', sep='')))
+      for (i in 1:length(niter.test)) {
+        for (m in 1:nnode_mcmc) {
+          # convert each of the chains into mcmc object
+          eval(parse(text=paste('mcmc',m,' <- as.mcmc(amcmc_out[[gpd.exp]][[model]][[m]]$samples[1:niter.test[i],])', sep='')))
+        }
+        eval(parse(text=paste('mcmc_chain_list = mcmc.list(list(', string.mcmc.list , '))', sep='')))
 
-      gr.test[i,model] <- as.numeric(gelman.diag(mcmc_chain_list)[2])
-    }
-  } else {print('error - nnode_mcmc < 1 makes no sense')}
+        gr.test[[gpd.exp]][i,model] <- as.numeric(gelman.diag(mcmc_chain_list)[2])
+      }
+    } else {print('error - nnode_mcmc < 1 makes no sense')}
+  }
 }
 
 # Monitor posterior 5, 50 and 95% quantiles for drift
 # Only checking for one of the chains
-quant <- vector('list', nmodel); names(quant) <- types.of.model
+quant <- vector('list', length(gpd.experiments)); names(quant) <- gpd.experiments
+for (gpd.exp in gpd.experiments) {quant[[gpd.exp]] <- vector('list', nmodel); names(quant[[gpd.exp]]) <- types.of.model}
 names.monitor <- c('q05', 'q50', 'q95')
-for (model in types.of.model) {
-  quant[[model]] <- vector('list', 3); names(quant[[model]]) <- names.monitor
-  for (q in names.monitor) {
-    quant[[model]][[q]] <- mat.or.vec(length(niter.test)-1, length(parnames_all[[model]]))
-    for (i in 1:(length(niter.test)-1)) {
-      if(nnode_mcmc==1) {
-        quant[[model]][[q]][i,] <- apply(X=amcmc_out[[model]]$samples[niter.test[i]:niter_mcmc,], MARGIN=2, FUN=quantile, probs=as.numeric(substr(q, 2,3))*0.01)
-      } else {
-        quant[[model]][[q]][i,] <- apply(X=amcmc_out[[model]][[1]]$samples[niter.test[i]:niter_mcmc,], MARGIN=2, FUN=quantile, probs=as.numeric(substr(q, 2,3))*0.01)
+for (gpd.exp in gpd.experiments) {
+  for (model in types.of.model) {
+    quant[[gpd.exp]][[model]] <- vector('list', 3); names(quant[[gpd.exp]][[model]]) <- names.monitor
+    for (q in names.monitor) {
+      quant[[gpd.exp]][[model]][[q]] <- mat.or.vec(length(niter.test)-1, length(parnames_all[[model]]))
+      for (i in 1:(length(niter.test)-1)) {
+        if(nnode_mcmc==1) {
+          quant[[gpd.exp]][[model]][[q]][i,] <- apply(X=amcmc_out[[gpd.exp]][[model]]$samples[niter.test[i]:niter_mcmc,], MARGIN=2, FUN=quantile, probs=as.numeric(substr(q, 2,3))*0.01)
+        } else {
+          quant[[gpd.exp]][[model]][[q]][i,] <- apply(X=amcmc_out[[gpd.exp]][[model]][[1]]$samples[niter.test[i]:niter_mcmc,], MARGIN=2, FUN=quantile, probs=as.numeric(substr(q, 2,3))*0.01)
+        }
       }
     }
   }
@@ -278,23 +359,14 @@ for (model in types.of.model) {
 
 if(FALSE) {
 # examples monitoring of stability of quantiles:
-model <- 'gpd3'
+model <- 'gpd3'; gpd.exp <- 'gpd30'
 par(mfrow=c(3,2))
 for (p in 1:length(parnames_all[[model]])) {
-  ran <- max(quant[[model]]$q95[,p])-min(quant[[model]]$q05[,p])
-  lb <- min(quant[[model]]$q05[,p]) - 0.05*ran; ub <- max(quant[[model]]$q95[,p]) + 0.05*ran
-  plot(niter.test[1:(length(niter.test)-1)], quant[[model]]$q50[,p], type='l',
+  ran <- max(quant[[gpd.exp]][[model]]$q95[,p])-min(quant[[gpd.exp]][[model]]$q05[,p])
+  lb <- min(quant[[gpd.exp]][[model]]$q05[,p]) - 0.05*ran; ub <- max(quant[[gpd.exp]][[model]]$q95[,p]) + 0.05*ran
+  plot(niter.test[1:(length(niter.test)-1)], quant[[gpd.exp]][[model]]$q50[,p], type='l',
     ylim=c(lb,ub), ylab=parnames_all[[model]][p], xlab='From HERE to end of chain')
-  lines(niter.test[1:(length(niter.test)-1)], quant[[model]]$q05[,p], lty=2); lines(niter.test[1:(length(niter.test)-1)], quant[[model]]$q95[,p], lty=2);
-}
-model <- 'nav5'
-par(mfrow=c(3,2))
-for (p in 1:length(parnames_all[[model]])) {
-  ran <- max(quant[[model]]$q95[,p])-min(quant[[model]]$q05[,p])
-  lb <- min(quant[[model]]$q05[,p]) - 0.05*ran; ub <- max(quant[[model]]$q95[,p]) + 0.05*ran
-  plot(niter.test[1:(length(niter.test)-1)], quant[[model]]$q50[,p], type='l',
-    ylim=c(lb,ub), ylab=parnames_all[[model]][p], xlab='From HERE to end of chain')
-  lines(niter.test[1:(length(niter.test)-1)], quant[[model]]$q05[,p], lty=2); lines(niter.test[1:(length(niter.test)-1)], quant[[model]]$q95[,p], lty=2);
+  lines(niter.test[1:(length(niter.test)-1)], quant[[gpd.exp]][[model]]$q05[,p], lty=2); lines(niter.test[1:(length(niter.test)-1)], quant[[gpd.exp]][[model]]$q95[,p], lty=2);
 }
 # the thing to note is that these stabilize as you include more members (i.e.,
 # as you move from right to left)
@@ -302,16 +374,29 @@ for (p in 1:length(parnames_all[[model]])) {
 
 
 # Heidelberger and Welch diagnostics?
-hw.diag <- vector('list', nmodel); names(hw.diag) <- types.of.model
-for (model in types.of.model) {
-  hw.diag[[model]] <- heidel.diag(as.mcmc(amcmc_out[[model]][[1]]$samples), eps=0.1, pvalue=0.05)
+hw.diag <- vector('list', length(gpd.experiments)); names(hw.diag) <- gpd.experiments
+for (gpd.exp in gpd.experiments) {
+  hw.diag[[gpd.exp]] <- vector('list', nmodel); names(hw.diag[[gpd.exp]]) <- types.of.model
+  for (model in types.of.model) {
+    hw.diag[[gpd.exp]][[model]] <- heidel.diag(as.mcmc(amcmc_out[[gpd.exp]][[model]][[1]]$samples), eps=0.1, pvalue=0.05)
+  }
 }
+# 30, 50 and 70-year experiments might need more iterations in order to pass
+# these diagnostics. can do that, but the ensemble statistics do not change
+# much (note the quantile monitoring results). so go with the shorter ensembles
+# for a fair comparison with the longer record experiments.
 
 #
 #===============================================================================
 # Chop off burn-in
 #===============================================================================
 #
+
+
+# HERE NOW <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HERE NOW!
+# HERE NOW <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HERE NOW!
+# HERE NOW <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HERE NOW!
+
 
 # Note: here, we are only using the Gelman and Rubin diagnostic. But this is
 # only after looking at the quantile stability as iterations increase, as well

@@ -234,11 +234,6 @@ for (model in types.of.model) {
 # for now, just save RData file so you can play around with the GR stats,
 # subtracting off burn-in, thinning (if needed), etc.
 
-
-# later, can actually turn this into a simple pipeline that will spit out a
-# calibrated parameters netcdf file
-
-
 #
 #===============================================================================
 # save raw results
