@@ -1,7 +1,19 @@
 #===============================================================================
+# Assess flood risk, optimal heightening strategy and (cross-model) regrets
+# using the Poisson-process/Generalized Pareto distribution model and daily
+# block maxima/peaks-over-thresholds approach.
+#
+# Needs to be run after calibration_dayPOT_driver.R (to get the control results
+# from calibration using all 137 years of data) and the
+# calibration_dayPOT-experiments_driver.R script (to get the results from
+# calibrating using only the last 30, 50, 70, 90, or 110 years of data). These
+# two routines, plus the fit_priors_dayPOT.R routine, should have yielded all of
+# the necessary files that are set below.
 #
 # questions? Tony Wong (twong@psu.edu)
 #===============================================================================
+
+rm(list=ls())
 
 #
 #===============================================================================
@@ -9,12 +21,11 @@
 #===============================================================================
 #
 
-filename.yearBM.parameters <- '../output/evt_models_calibratedParameters_gev-nav_21Jun2017.nc'
 filename.dayPOT.parameters <- '../output/evt_models_calibratedParameters_ppgpd_28Jun2017.nc'
+filename.dayPOT.experiments.parameters <- '../output/evt_models_calibratedParameters_ppgpd-experiments_05Jul2017.nc'
 filename.sealevelrise <- '../../BRICK/output_model/BRICK-fastdyn_physical_gamma_01Jun2017.nc'
-filename.datacalib <- 'datacalib_05Jul2017.rds'
+filename.datacalib <- '../output/datacalib_05Jul2017.rds'
 filename.priors.dayPOT <- '../output/surge_priors_ppgpd_28Jun2017.rds'
-filename.priors.yearBM <- '../output/surge_priors_gev_nav_19Jun2017.rds'
 
 time.beg <- 2015           # inital year, "present"
 time.end <- 2065           # final year (time horizon)
@@ -103,51 +114,62 @@ expected_cost_quad <- sapply(1:length(heightening), function(i) {cost(h0=0, dh=1
 #===============================================================================
 #
 
-types.of.gev <- c('gev3','gev4','gev5','gev6')
-types.of.nav <- c('nav3','nav4','nav5','nav6')
 types.of.gpd <- c('gpd3','gpd4','gpd5','gpd6')
-types.of.model <- c(types.of.gev, types.of.nav, types.of.gpd)
+types.of.model <- types.of.gpd
+gpd.experiments <- c('gpd30','gpd50','gpd70','gpd90','gpd110','gpd137')
 nmodel <- length(types.of.model)
-
-# annual block maxima models
-yearBM.models <- c(types.of.gev, types.of.nav)
-
-# monthly block maxima models <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO!
-#monthBM.models <- c(types.of.gev, types.of.nav)
+nexp <- length(gpd.experiments)
 
 # daily peaks-over-thresholds models
-dayPOT.models <- c(types.of.gpd) # c(types.of.gpd, types.of.nav)  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO!
+dayPOT.models <- c(types.of.gpd)
 
-
-parameters <- vector('list', nmodel); names(parameters) <- types.of.model
 parnames_all <- vector('list', nmodel); names(parnames_all) <- types.of.model
-covjump <- vector('list', nmodel); names(covjump) <- types.of.model
+n.ensemble <- vector('list', nmodel); names(n.ensemble) <- types.of.model
+parameters <- vector('list', nexp); names(parameters) <- gpd.experiments
+covjump <- vector('list', nexp); names(covjump) <- gpd.experiments
+for (gpd.exp in gpd.experiments) {
+  parameters[[gpd.exp]] <- vector('list', nmodel); names(parameters[[gpd.exp]]) <- types.of.model
+  covjump[[gpd.exp]] <- vector('list', nmodel); names(covjump[[gpd.exp]]) <- types.of.model
+}
 
-# get the annual block maxima model parameters
-ncdata <- nc_open(filename.yearBM.parameters)
+
+
+#parameters.gpd110.gpd5
+
+# get the daily peaks-over-thresholds model parameters - experiments < 137 years
+ncdata <- nc_open(filename.dayPOT.experiments.parameters)
   time_forc <- ncvar_get(ncdata, 'time')
   temperature_forc <- ncvar_get(ncdata, 'temperature')
-  for (model in yearBM.models) {
-    parameters[[model]]   <- t(ncvar_get(ncdata, paste('parameters.',model,sep='')))
+  for (model in dayPOT.models) {
     parnames_all[[model]] <- ncvar_get(ncdata, paste('parnames.',model,sep=''))
-    covjump[[model]]      <- ncvar_get(ncdata, paste('covjump.',model,sep=''))
+    n.ensemble[[model]] <- length(ncvar_get(ncdata, paste('n.ensemble.',model,sep='')))
+    for (gpd.exp in gpd.experiments[1:(nexp-1)]) {
+      parameters[[gpd.exp]][[model]] <- t(ncvar_get(ncdata, paste('parameters.',gpd.exp,'.',model,sep='')))
+      covjump[[gpd.exp]][[model]]    <- ncvar_get(ncdata, paste('covjump.',gpd.exp,'.',model,sep=''))
+    }
   }
 nc_close(ncdata)
 
-# get the daily peaks-over-thresholds model parameters
+# get the daily peaks-over-thresholds model parameters - control, all 137 years
 ncdata <- nc_open(filename.dayPOT.parameters)
   time_forc <- ncvar_get(ncdata, 'time')
   temperature_forc <- ncvar_get(ncdata, 'temperature')
   for (model in dayPOT.models) {
-    parameters[[model]]   <- t(ncvar_get(ncdata, paste('parameters.',model,sep='')))
     parnames_all[[model]] <- ncvar_get(ncdata, paste('parnames.',model,sep=''))
-    covjump[[model]]      <- ncvar_get(ncdata, paste('covjump.',model,sep=''))
+    for (gpd.exp in 'gpd137') {
+      parameters[[gpd.exp]][[model]] <- t(ncvar_get(ncdata, paste('parameters.',model,sep='')))
+      covjump[[gpd.exp]][[model]]    <- ncvar_get(ncdata, paste('covjump.',model,sep=''))
+    }
   }
 nc_close(ncdata)
 
 # calibration data, including GPD threshold
 data_calib <- readRDS(paste(filename.datacalib,sep=''))
 
+# the loops over GPD experiments will be a lot easier if the full data (control)
+# is formatted just like the rest
+data_calib$gpd137 <- data_calib$gpd
+data_calib$gpd137$year <- data_calib$gev_year$year
 
 #
 #===============================================================================
@@ -182,61 +204,16 @@ lsl_subsidence <- subsidence.rate * time_proj_rel
 
 # Set some preliminary stuff so you don't have to keep calculating them
 
-n.ensemble <- rep(NA, nmodel); names(n.ensemble) <- types.of.model
-for (model in types.of.model) {n.ensemble[[model]] <- nrow(parameters[[model]])}
-
 n.heightening <- length(heightening)
 n.time <- length(time_proj)
 names.vandantzig <- c('p_fail_tot','p_fail_avg','p_fail_max','expected_damage','expected_cost_exp','expected_cost_quad','total_loss_exp','total_loss_quad')
 length.vandantzig <- length(names.vandantzig)
-vandantzig.out <- vector('list', nmodel); names(vandantzig.out) <- types.of.model
-
 h.eff0 <- height.initial - lsl_subsidence - lsl_proj
 
 #===============================================================================
 # define the functions for Van Dantzig (Flood risk) outcomes under each model
 # structure (this saves a few minutes per model ensemble)
 #===============================================================================
-
-# GEV (annual block maxima)
-outcome_gev <- function(h, h.eff0, heightening, par,
-                        value.initial, hgtdamage.rate, econgrowth.rate, time_proj_rel,
-                        discount.rate, expected_cost_exp, expected_cost_quad, names.vandantzig) {
-    res <- NULL
-    hgt <- 1000*(h.eff0+heightening[h])
-    p_fail <- 1-gev_cdf(q=hgt, loc=par.tmp[,1], scale=par.tmp[,2], shape=par.tmp[,3])
-    p_fail_tot <- 1 - prod(1-p_fail)
-    p_fail_avg <- mean(p_fail)
-    p_fail_max <- max(p_fail)
-    # heightening costs are not discounted because they occur in present
-    expected_damage <- mean( p_fail * value.initial * exp(hgtdamage.rate*heightening[h]*10) *
-                                 exp(econgrowth.rate*time_proj_rel) / ((1+discount.rate)^time_proj_rel) )
-    total_loss_exp  <- expected_damage + expected_cost_exp[h]
-    total_loss_quad <- expected_damage + expected_cost_quad[h]
-    res <- c(p_fail_tot, p_fail_avg, p_fail_max, expected_damage, expected_cost_exp[h], expected_cost_quad[h], total_loss_exp, total_loss_quad)
-    names(res) <- names.vandantzig
-    return(res)
-}
-
-# Naveau-i (annual block maxima)
-outcome_nav <- function(h, h.eff0, heightening, par,
-                        value.initial, hgtdamage.rate, econgrowth.rate, time_proj_rel,
-                        discount.rate, expected_cost_exp, expected_cost_quad, names.vandantzig) {
-    res <- NULL
-    hgt <- 1000*(h.eff0+heightening[h])
-    p_fail <- 1-naveau_cdf(x=hgt, kappa=par.tmp[,1], sigma=par.tmp[,2], xi=par.tmp[,3])
-    p_fail_tot <- 1 - prod(1-p_fail)
-    p_fail_avg <- mean(p_fail)
-    p_fail_max <- max(p_fail)
-    # heightening costs are not discounted because they occur in present
-    expected_damage <- mean( p_fail * value.initial * exp(hgtdamage.rate*heightening[h]*10) *
-                                 exp(econgrowth.rate*time_proj_rel) / ((1+discount.rate)^time_proj_rel) )
-    total_loss_exp  <- expected_damage + expected_cost_exp[h]
-    total_loss_quad <- expected_damage + expected_cost_quad[h]
-    res <- c(p_fail_tot, p_fail_avg, p_fail_max, expected_damage, expected_cost_exp[h], expected_cost_quad[h], total_loss_exp, total_loss_quad)
-    names(res) <- names.vandantzig
-    return(res)
-}
 
 # PP-GPD
 outcome_gpd <- function(h, h.eff0, heightening, par, threshold, nmax.flood, time.length,
@@ -260,53 +237,34 @@ outcome_gpd <- function(h, h.eff0, heightening, par, threshold, nmax.flood, time
 }
 
 # and get the functions to project the model parameters
-source('likelihood_naveau.R')
-source('likelihood_gev.R')
 source('likelihood_ppgpd.R')
 
 #===============================================================================
 # actually do the flood risk analysis
 
-for (model in types.of.model) {
+vandantzig.out <- vector('list', nexp); names(vandantzig.out) <- gpd.experiments
+for (gpd.exp in gpd.experiments) {vandantzig.out[[gpd.exp]] <- vector('list', nmodel); names(vandantzig.out[[gpd.exp]]) <- types.of.model}
 
-  vandantzig.out[[model]] <- vector('list', n.ensemble[[model]])
-
-  print(paste('starting flood risk assessment for model ',model,'...',sep=''))
-  tbeg <- proc.time()
-  pb <- txtProgressBar(min=0,max=nrow(parameters[[model]]),initial=0,style=3)
-
-  for (i in 1:n.ensemble[[model]]) {
-
-    if(substr(model,1,3) == 'nav') {
+for (gpd.exp in gpd.experiments) {
+  for (model in types.of.model) {
+    vandantzig.out[[gpd.exp]][[model]] <- vector('list', n.ensemble[[model]])
+    print(paste('starting flood risk assessment for GPD experiment ',gpd.exp,' using model ',model,'...',sep=''))
+    tbeg <- proc.time()
+    pb <- txtProgressBar(min=0,max=n.ensemble[[model]],initial=0,style=3)
+    for (i in 1:n.ensemble[[model]]) {
       # project the particular model's parameters across the time horizon
-      par.tmp <- project_naveau(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], auxiliary=temperature_proj)
-      vandantzig.out[[model]][[i]] <- t(sapply(1:n.heightening, function(h) {outcome_nav(h, h.eff0=h.eff0, heightening=heightening,
-                                      par=par.tmp,
+      par.tmp <- project_ppgpd(parameters=parameters[[gpd.exp]][[model]][i,], parnames=parnames_all[[model]], auxiliary=temperature_proj)
+      vandantzig.out[[gpd.exp]][[model]][[i]] <- t(sapply(1:n.heightening, function(h) {outcome_gpd(h, h.eff0=h.eff0, heightening=heightening,
+                                      par=par.tmp, threshold=data_calib[[gpd.exp]]$threshold, nmax.flood=nmax.flood, time.length=time.length,
                                       value.initial=value.initial, hgtdamage.rate=hgtdamage.rate, econgrowth.rate=econgrowth.rate,
                                       time_proj_rel=time_proj_rel, discount.rate=discount.rate, expected_cost_exp=expected_cost_exp,
                                       expected_cost_quad=expected_cost_quad, names.vandantzig=names.vandantzig)}))
-    } else if(substr(model,1,3) == 'gev') {
-      # project the particular model's parameters across the time horizon
-      par.tmp <- project_gev(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], auxiliary=temperature_proj)
-      vandantzig.out[[model]][[i]] <- t(sapply(1:n.heightening, function(h) {outcome_gev(h, h.eff0=h.eff0, heightening=heightening,
-                                      par=par.tmp,
-                                      value.initial=value.initial, hgtdamage.rate=hgtdamage.rate, econgrowth.rate=econgrowth.rate,
-                                      time_proj_rel=time_proj_rel, discount.rate=discount.rate, expected_cost_exp=expected_cost_exp,
-                                      expected_cost_quad=expected_cost_quad, names.vandantzig=names.vandantzig)}))
-    } else if(substr(model,1,3) == 'gpd') {
-      # project the particular model's parameters across the time horizon
-      par.tmp <- project_ppgpd(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], auxiliary=temperature_proj)
-      vandantzig.out[[model]][[i]] <- t(sapply(1:n.heightening, function(h) {outcome_gpd(h, h.eff0=h.eff0, heightening=heightening,
-                                      par=par.tmp, threshold=data_calib$gpd$threshold, nmax.flood=nmax.flood, time.length=time.length,
-                                      value.initial=value.initial, hgtdamage.rate=hgtdamage.rate, econgrowth.rate=econgrowth.rate,
-                                      time_proj_rel=time_proj_rel, discount.rate=discount.rate, expected_cost_exp=expected_cost_exp,
-                                      expected_cost_quad=expected_cost_quad, names.vandantzig=names.vandantzig)}))
-    } else {print('error - unrecognized model type')}
-    setTxtProgressBar(pb, i)
+      setTxtProgressBar(pb, i)
+    }
+    close(pb)
+    tend <- proc.time()
+    print(paste(' ... done. That took ',(tend[3]-tbeg[3])/60,' minutes', sep=''))
   }
-  close(pb)
-  tend <- proc.time()
-  print(paste(' ... done. That took ',(tend[3]-tbeg[3])/60,' minutes', sep=''))
 }
 
 
@@ -317,7 +275,7 @@ for (model in types.of.model) {
 #
 
 # for now just save workspace image
-save.image(file='../output/floodrisk_inprog.RData')
+save.image(file='../output/floodrisk_ppgpdexperiments_inprog.RData')
 
 #
 #===============================================================================
@@ -332,35 +290,53 @@ cost.function <- 'quad'
 
 # For each ensemble, for each ensemble member, calculate the optimal heightening
 # Call P(s,x) the performance of strategy s in SOW x, and Popt(x) the best case
-iopt <- vector('list', nmodel); names(iopt) <- types.of.model
-Hopt <- vector('list', nmodel); names(Hopt) <- types.of.model
-Popt <- vector('list', nmodel); names(Popt) <- types.of.model
+iopt <- vector('list', nexp); names(iopt) <- gpd.experiments
+Hopt <- vector('list', nexp); names(Hopt) <- gpd.experiments
+Popt <- vector('list', nexp); names(Popt) <- gpd.experiments
+for (gpd.exp in gpd.experiments) {
+  iopt[[gpd.exp]] <- vector('list', nmodel); names(iopt[[gpd.exp]]) <- types.of.model
+  Hopt[[gpd.exp]] <- vector('list', nmodel); names(Hopt[[gpd.exp]]) <- types.of.model
+  Popt[[gpd.exp]] <- vector('list', nmodel); names(Popt[[gpd.exp]]) <- types.of.model
+}
 
 # Also calculate the ensemble median total cost at each hegihtening, and minimize
 # this, in order to develop an ensemble-optimal strategy to follow.
-loss.ens <- vector('list', nmodel); names(loss.ens) <- types.of.model
-loss.ens.med <- vector('list', nmodel); names(loss.ens.med) <- types.of.model
-iopt.ens <- rep(NA, nmodel); names(iopt.ens) <- types.of.model
-Hopt.ens <- rep(NA, nmodel); names(Hopt.ens) <- types.of.model
-Popt.ens <- rep(NA, nmodel); names(Popt.ens) <- types.of.model
-
-for (model in types.of.model) {
-  iopt[[model]] <- rep(NA, n.ensemble[[model]])
-  Hopt[[model]] <- rep(NA, n.ensemble[[model]])
-  Popt[[model]] <- rep(NA, n.ensemble[[model]])
-  loss.ens[[model]] <- mat.or.vec(n.heightening, n.ensemble[[model]])
-  loss.ens.med[[model]] <- rep(NA, n.heightening)
-  for (i in 1:n.ensemble[[model]]) {
-    loss.ens[[model]][,i] <- vandantzig.out[[model]][[i]][,paste('total_loss_',cost.function,sep='')]
-    iopt[[model]][i] <- which.min(vandantzig.out[[model]][[i]][,paste('total_loss_',cost.function,sep='')])
-    Hopt[[model]][i] <- heightening[iopt[[model]][i]]
-    Popt[[model]][i] <- vandantzig.out[[model]][[i]][iopt[[model]][i],paste('total_loss_',cost.function,sep='')]
-  }
-  loss.ens.med[[model]] <- apply(X=loss.ens[[model]], MARGIN=1, FUN=median)
-  iopt.ens[[model]] <- which.min(loss.ens.med[[model]])
-  Hopt.ens[[model]] <- heightening[iopt.ens[[model]]]
-  Popt.ens[[model]] <- loss.ens.med[[model]][iopt.ens[[model]]]
+loss.ens <- vector('list', nexp); names(loss.ens) <- gpd.experiments
+loss.ens.med <- vector('list', nexp); names(loss.ens.med) <- gpd.experiments
+iopt.ens <- vector('list', nexp); names(iopt.ens) <- gpd.experiments
+Hopt.ens <- vector('list', nexp); names(Hopt.ens) <- gpd.experiments
+Popt.ens <- vector('list', nexp); names(Popt.ens) <- gpd.experiments
+for (gpd.exp in gpd.experiments) {
+  loss.ens[[gpd.exp]] <- vector('list', nmodel); names(loss.ens[[gpd.exp]]) <- types.of.model
+  loss.ens.med[[gpd.exp]] <- vector('list', nmodel); names(loss.ens.med[[gpd.exp]]) <- types.of.model
+  iopt.ens[[gpd.exp]] <- rep(NA, nmodel); names(iopt.ens[[gpd.exp]]) <- types.of.model
+  Hopt.ens[[gpd.exp]] <- rep(NA, nmodel); names(Hopt.ens[[gpd.exp]]) <- types.of.model
+  Popt.ens[[gpd.exp]] <- rep(NA, nmodel); names(Popt.ens[[gpd.exp]]) <- types.of.model
 }
+
+for (gpd.exp in gpd.experiments) {
+  for (model in types.of.model) {
+    iopt[[gpd.exp]][[model]] <- rep(NA, n.ensemble[[model]])
+    Hopt[[gpd.exp]][[model]] <- rep(NA, n.ensemble[[model]])
+    Popt[[gpd.exp]][[model]] <- rep(NA, n.ensemble[[model]])
+    loss.ens[[gpd.exp]][[model]] <- mat.or.vec(n.heightening, n.ensemble[[model]])
+    loss.ens.med[[gpd.exp]][[model]] <- rep(NA, n.heightening)
+    for (i in 1:n.ensemble[[model]]) {
+      loss.ens[[gpd.exp]][[model]][,i] <- vandantzig.out[[gpd.exp]][[model]][[i]][,paste('total_loss_',cost.function,sep='')]
+      iopt[[gpd.exp]][[model]][i] <- which.min(vandantzig.out[[gpd.exp]][[model]][[i]][,paste('total_loss_',cost.function,sep='')])
+      Hopt[[gpd.exp]][[model]][i] <- heightening[iopt[[gpd.exp]][[model]][i]]
+      Popt[[gpd.exp]][[model]][i] <- vandantzig.out[[gpd.exp]][[model]][[i]][iopt[[gpd.exp]][[model]][i],paste('total_loss_',cost.function,sep='')]
+    }
+    loss.ens.med[[gpd.exp]][[model]] <- apply(X=loss.ens[[gpd.exp]][[model]], MARGIN=1, FUN=median)
+    iopt.ens[[gpd.exp]][[model]] <- which.min(loss.ens.med[[gpd.exp]][[model]])
+    Hopt.ens[[gpd.exp]][[model]] <- heightening[iopt.ens[[gpd.exp]][[model]]]
+    Popt.ens[[gpd.exp]][[model]] <- loss.ens.med[[gpd.exp]][[model]][iopt.ens[[gpd.exp]][[model]]]
+  }
+}
+
+## <<<<<<<<<<<<<<<<<<<<<<<<<## <<<<<<<<<<<<<<<<<<<<<<<<<## <<<<<<<<<<<<<<<<<<<<<<<<<## <<<<<<<<<<<<<<<<<<<<<<<<< TODO
+## calculation of regret where iopt.ens is based on minimum regret for that ensemble?
+
 
 # Regret for strategy s in SOW x is: R(s,x) = Popt(x) - P(s,x)
 # So calculate the expected regret of each strategy (heightening) as
@@ -368,15 +344,22 @@ for (model in types.of.model) {
 # So following Hopt.ens, how much worse does this perform for each SOW than the
 # optimal strategy for that SOW (Hopt[[model]][i]) ?
 
-Reg <- vector('list', nmodel); names(Reg) <- types.of.model
-Reg.med <- rep(NA, nmodel); names(Reg.med) <- types.of.model
-for (model in types.of.model) {
-  Reg[[model]] <- rep(NA, n.ensemble[[model]])
-  for (i in 1:n.ensemble[[model]]) {
-    Reg[[model]][i] <- vandantzig.out[[model]][[i]][iopt.ens[[model]],paste('total_loss_',cost.function,sep='')] -
-                       Popt[[model]][i]
+Reg <- vector('list', nexp); names(Reg) <- gpd.experiments
+Reg.med <- vector('list', nexp); names(Reg.med) <- gpd.experiments
+for (gpd.exp in gpd.experiments) {
+  Reg[[gpd.exp]] <- vector('list', nmodel); names(Reg[[gpd.exp]]) <- types.of.model
+  Reg.med[[gpd.exp]] <- rep(NA, nmodel); names(Reg.med[[gpd.exp]]) <- types.of.model
+}
+
+for (gpd.exp in gpd.experiments) {
+  for (model in types.of.model) {
+    Reg[[gpd.exp]][[model]] <- rep(NA, n.ensemble[[model]])
+    for (i in 1:n.ensemble[[model]]) {
+      Reg[[gpd.exp]][[model]][i] <- vandantzig.out[[gpd.exp]][[model]][[i]][iopt.ens[[gpd.exp]][[model]],paste('total_loss_',cost.function,sep='')] -
+                                       Popt[[gpd.exp]][[model]][i]
+    }
+    Reg.med[[gpd.exp]][[model]] <- median(Reg[[gpd.exp]][[model]])
   }
-  Reg.med[[model]] <- median(Reg[[model]])
 }
 
 
@@ -394,94 +377,106 @@ for (model in types.of.model) {
 
 # heighten by Hopt[[model_X]] but calculate regret using model_Y
 
-regret_matrix_avg <- matrix(nrow=nmodel, ncol=nmodel)
-rownames(regret_matrix_avg) <- types.of.model
-colnames(regret_matrix_avg) <- types.of.model
-regret_matrix_med <- matrix(nrow=nmodel, ncol=nmodel)
-rownames(regret_matrix_med) <- types.of.model
-colnames(regret_matrix_med) <- types.of.model
-RegX <- vector('list', nmodel); names(RegX) <- types.of.model
-for (model_assumed in types.of.model) {
-  RegX[[model_assumed]] <- vector('list', nmodel); names(RegX[[model_assumed]]) <- types.of.model
-  for (model_truth in types.of.model) {
-    RegX[[model_assumed]][[model_truth]] <- rep(NA, n.ensemble[[model]])
+regret_matrix_avg <- vector('list', nexp); names(regret_matrix_avg) <- gpd.experiments
+RegX <- vector('list', nexp); names(RegX) <- gpd.experiments # cross model regret
+for (gpd.exp in gpd.experiments) {
+  regret_matrix_avg[[gpd.exp]] <- matrix(nrow=nmodel, ncol=nmodel)
+  rownames(regret_matrix_avg[[gpd.exp]]) <- types.of.model
+  colnames(regret_matrix_avg[[gpd.exp]]) <- types.of.model
+  RegX[[gpd.exp]] <- vector('list', nmodel); names(RegX[[gpd.exp]]) <- types.of.model
+  for (model_assumed in types.of.model) {
+    RegX[[gpd.exp]][[model_assumed]] <- vector('list', nmodel); names(RegX[[gpd.exp]][[model_assumed]]) <- types.of.model
+    for (model_truth in types.of.model) {
+      RegX[[gpd.exp]][[model_assumed]][[model_truth]] <- rep(NA, n.ensemble[[model]])
+    }
   }
 }
 
-for (model_assumed in types.of.model) {
-  for (model_truth in types.of.model) {
-    RegX[[model_assumed]][[model_truth]] <- loss.ens[[model_truth]][iopt.ens[[model_assumed]],] -
-                                            Popt[[model_truth]]
-    regret_matrix_avg[model_assumed, model_truth] <- mean(RegX[[model_assumed]][[model_truth]])
-    regret_matrix_med[model_assumed, model_truth] <- median(RegX[[model_assumed]][[model_truth]])
+for (gpd.exp in gpd.experiments) {
+  for (model_assumed in types.of.model) {
+    for (model_truth in types.of.model) {
+      RegX[[gpd.exp]][[model_assumed]][[model_truth]] <- loss.ens[[gpd.exp]][[model_truth]][iopt.ens[[gpd.exp]][[model_assumed]],] -
+                                                         Popt[[gpd.exp]][[model_truth]]
+      regret_matrix_avg[[gpd.exp]][model_assumed, model_truth] <- mean(RegX[[gpd.exp]][[model_assumed]][[model_truth]])
+    }
   }
 }
 
 # need the priors?
 priors.dayPOT <- readRDS(filename.priors.dayPOT)
-priors.yearBM <- readRDS(filename.priors.yearBM)
 
-
+# need the forcing?
+source('read_data_temperature.R')
 
 # Calculate BIC for each model
 # Note: this is only based on the thinned ensembles currently. Can use the full
 # calibrated simulations from the MCMC if we want.
 
-bic <- rep(NA, nmodel); names(bic) <- types.of.model
-llik.mod <- rep(NA, nmodel); names(llik.mod) <- types.of.model
-llik.mod.all <- vector('list', nmodel); names(llik.mod.all) <- types.of.model
-lpost.mod.all <- vector('list', nmodel); names(lpost.mod.all) <- types.of.model
-for (model in types.of.model) {
-  if(substr(model,4,4)!='3') {auxiliary <- trimmed_forcing(data_calib$gev_year$year, time_forc, temperature_forc)$temperature}
-  lpri.tmp <- rep(NA, n.ensemble[[model]])
-  llik.tmp <- rep(NA, n.ensemble[[model]])
-  llik.mod.all[[model]] <- rep(NA, n.ensemble[[model]])
-  lpost.mod.all[[model]] <- rep(NA, n.ensemble[[model]])
-  for (i in 1:n.ensemble[[model]]) {
-    if(model %in% types.of.nav) {
-      lpri.tmp[i] <- log_prior_naveau(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], priors=priors.yearBM, model=model)
-      llik.tmp[i] <- log_like_naveau(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], data_calib=data_calib$gev_year$lsl_max, auxiliary=auxiliary, Tmax=Tmax)
-      ndata <- length(data_calib$gev_year$year)
-    } else if(model %in% types.of.gev) {
-      lpri.tmp[i] <- log_prior_gev(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], priors=priors.yearBM, model=model)
-      llik.tmp[i] <- log_like_gev(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], data_calib=data_calib$gev_year$lsl_max, auxiliary=auxiliary)
-      ndata <- length(data_calib$gev_year$year)
-    } else if(model %in% types.of.gpd) {
-      lpri.tmp[i] <- log_prior_ppgpd(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], priors=priors.dayPOT, model=model)
-      llik.tmp[i] <- log_like_ppgpd(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], data_calib=data_calib, auxiliary=auxiliary)
-      ndata <- data_calib$gpd$counts_all
+bic <- vector('list', nexp); names(bic) <- gpd.experiments
+llik.mod <- vector('list', nexp); names(llik.mod) <- gpd.experiments
+llik.mod.all <- vector('list', nexp); names(llik.mod.all) <- gpd.experiments
+lpost.mod.all <- vector('list', nexp); names(lpost.mod.all) <- gpd.experiments
+for (gpd.exp in gpd.experiments) {
+  bic[[gpd.exp]] <- rep(NA, nmodel); names(bic[[gpd.exp]]) <- types.of.model
+  llik.mod[[gpd.exp]] <- rep(NA, nmodel); names(llik.mod[[gpd.exp]]) <- types.of.model
+  llik.mod.all[[gpd.exp]] <- vector('list', nmodel); names(llik.mod.all[[gpd.exp]]) <- types.of.model
+  lpost.mod.all[[gpd.exp]] <- vector('list', nmodel); names(lpost.mod.all[[gpd.exp]]) <- types.of.model
+}
+
+for (gpd.exp in gpd.experiments) {
+  for (model in types.of.model) {
+    if(substr(model,4,4)!='3') {auxiliary <- trimmed_forcing(data_calib[[gpd.exp]]$year, time_forc, temperature_forc)$temperature}
+    lpri.tmp <- rep(NA, n.ensemble[[model]])
+    llik.tmp <- rep(NA, n.ensemble[[model]])
+    llik.mod.all[[gpd.exp]][[model]] <- rep(NA, n.ensemble[[model]])
+    lpost.mod.all[[gpd.exp]][[model]] <- rep(NA, n.ensemble[[model]])
+    for (i in 1:n.ensemble[[model]]) {
+      lpri.tmp[i] <- log_prior_ppgpd(parameters=parameters[[gpd.exp]][[model]][i,], parnames=parnames_all[[model]], priors=priors.dayPOT, model=model)
+      llik.tmp[i] <- log_like_ppgpd(parameters=parameters[[gpd.exp]][[model]][i,], parnames=parnames_all[[model]], data_calib=data_calib[[gpd.exp]], auxiliary=auxiliary)
+      ndata <- sum(data_calib[[gpd.exp]]$counts)
+      llik.mod.all[[gpd.exp]][[model]][i] <- llik.tmp[i]
+      lpost.mod.all[[gpd.exp]][[model]][i] <- llik.tmp[i] + lpri.tmp[i]
     }
-    llik.mod.all[[model]][i] <- llik.tmp[i]
-    lpost.mod.all[[model]][i] <- llik.tmp[i] + lpri.tmp[i]
+    imax <- which.max(llik.tmp)
+    bic[[gpd.exp]][[model]] <- -2*max(llik.tmp) + length(parnames_all[[model]])*log(ndata)
+    llik.mod[[gpd.exp]][[model]] <- mean(llik.tmp[is.finite(llik.tmp)])
   }
-  imax <- which.max(llik.tmp)
-  bic[[model]] <- -2*max(llik.tmp) + length(parnames_all[[model]])*log(ndata)
-  llik.mod[[model]] <- mean(llik.tmp[is.finite(llik.tmp)])
 }
 
 # a few different model averaging schemes
 # note that wgt_lik is actual BMA
-wgt_sf <- rep(NA, nmodel); names(wgt_sf) <- types.of.model
-wgt_bic <- rep(NA, nmodel); names(wgt_bic) <- types.of.model
-wgt_lik <- rep(NA, nmodel); names(wgt_lik) <- types.of.model
-
-reg_wgt_sf <- rep(NA, nmodel); names(reg_wgt_sf) <- types.of.model
-reg_wgt_bic <- rep(NA, nmodel); names(reg_wgt_bic) <- types.of.model
-reg_wgt_lik <- rep(NA, nmodel); names(reg_wgt_lik) <- types.of.model
-
-llik.ref <- median(llik.mod)
-
-wgt_bic <- min(bic)/bic; wgt_bic <- wgt_bic/sum(wgt_bic)
-wgt_sf  <- exp(-2*(bic-bic[1])) / sum(exp(-2*(bic-bic[1])))
-wgt_lik <- exp(llik.mod - llik.ref)/sum(exp(llik.mod - llik.ref))
-
-
-for (model in types.of.model) {
-  reg_wgt_bic[[model]] <- sum(regret_matrix_avg[match(model,types.of.model),]*wgt_bic)
-  reg_wgt_lik[[model]] <- sum(regret_matrix_avg[match(model,types.of.model),]*wgt_lik)
-  reg_wgt_sf[[model]] <- sum(regret_matrix_avg[match(model,types.of.model),]*wgt_sf)
+wgt_sf <- vector('list', nexp); names(wgt_sf) <- gpd.experiments
+wgt_bic <- vector('list', nexp); names(wgt_bic) <- gpd.experiments
+wgt_lik <- vector('list', nexp); names(wgt_lik) <- gpd.experiments
+reg_wgt_sf <- vector('list', nexp); names(reg_wgt_sf) <- gpd.experiments
+reg_wgt_bic <- vector('list', nexp); names(reg_wgt_bic) <- gpd.experiments
+reg_wgt_lik <- vector('list', nexp); names(reg_wgt_lik) <- gpd.experiments
+for (gpd.exp in gpd.experiments) {
+  wgt_sf[[gpd.exp]] <- rep(NA, nmodel); names(wgt_sf[[gpd.exp]]) <- types.of.model
+  wgt_bic[[gpd.exp]] <- rep(NA, nmodel); names(wgt_bic[[gpd.exp]]) <- types.of.model
+  wgt_lik[[gpd.exp]] <- rep(NA, nmodel); names(wgt_lik[[gpd.exp]]) <- types.of.model
+  reg_wgt_sf[[gpd.exp]] <- rep(NA, nmodel); names(reg_wgt_sf[[gpd.exp]]) <- types.of.model
+  reg_wgt_bic[[gpd.exp]] <- rep(NA, nmodel); names(reg_wgt_bic[[gpd.exp]]) <- types.of.model
+  reg_wgt_lik[[gpd.exp]] <- rep(NA, nmodel); names(reg_wgt_lik[[gpd.exp]]) <- types.of.model
 }
 
+llik.ref <- rep(NA, nexp); names(llik.ref) <- gpd.experiments
+for (gpd.exp in gpd.experiments) {
+  llik.ref[[gpd.exp]] <- median(llik.mod[[gpd.exp]])
+  wgt_bic[[gpd.exp]] <- min(bic[[gpd.exp]])/bic[[gpd.exp]]; wgt_bic[[gpd.exp]] <- wgt_bic[[gpd.exp]]/sum(wgt_bic[[gpd.exp]])
+  wgt_sf[[gpd.exp]]  <- exp(-2*(bic[[gpd.exp]]-bic[[gpd.exp]][1])) / sum(exp(-2*(bic[[gpd.exp]]-bic[[gpd.exp]][1])))
+  wgt_lik[[gpd.exp]] <- exp(llik.mod[[gpd.exp]] - llik.ref[[gpd.exp]])/sum(exp(llik.mod[[gpd.exp]] - llik.ref[[gpd.exp]]))
+}
+
+for (gpd.exp in gpd.experiments) {
+  for (model in types.of.model) {
+    reg_wgt_bic[[gpd.exp]][[model]] <- sum(regret_matrix_avg[[gpd.exp]][match(model,types.of.model),]*wgt_bic[[gpd.exp]])
+    reg_wgt_lik[[gpd.exp]][[model]] <- sum(regret_matrix_avg[[gpd.exp]][match(model,types.of.model),]*wgt_lik[[gpd.exp]])
+    reg_wgt_sf[[gpd.exp]][[model]] <- sum(regret_matrix_avg[[gpd.exp]][match(model,types.of.model),]*wgt_sf[[gpd.exp]])
+  }
+}
+
+## HERE NOW <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HERE NOW
 
 regret_comparison <- cbind(regret_matrix_avg, reg_wgt_lik, reg_wgt_bic, reg_wgt_sf)
 
@@ -492,7 +487,7 @@ regret_comparison <- cbind(regret_matrix_avg, reg_wgt_lik, reg_wgt_bic, reg_wgt_
 #
 
 # for now just save workspace image
-save.image(file='../output/floodrisk_inprog.RData')
+save.image(file='../output/floodrisk_ppgpdexperiments_inprog.RData')
 
 #
 #===============================================================================
@@ -502,6 +497,33 @@ save.image(file='../output/floodrisk_inprog.RData')
 #
 
 plot.dir <- '../figures/'
+
+
+#=====================
+# BIC comparison, how BIC evolves wrt. length of data record
+#=====================
+
+pdf(paste(plot.dir,'bic_comparison_time-experiments.pdf',sep=''),width=4,height=10,colormodel='cmyk')
+par(mfrow=c(6,1), mai=c(.55, .6, .05, .01))
+for (gpd.exp in gpd.experiments) {
+    range <- c(min(bic.matrix[gpd.exp,]), max(bic.matrix[gpd.exp,]))
+    range[1] <- range[1] - 0.05*diff(range)
+    range[2] <- range[2] + 0.05*diff(range)
+    barplot(height=bic.matrix[gpd.exp,], names.arg=types.of.model,
+            ylab='BIC', xlab='Model', ylim=range, xpd=FALSE, xlim = c(0,5), width=.8)
+    text(4.4, 0.5*diff(range)+range[1], paste(substr(gpd.exp, 4, nchar(gpd.exp)),' years', sep=''))
+    text(4.4, 0.35*diff(range)+range[1], 'of data')
+}
+dev.off()
+
+
+
+
+
+
+
+
+
 
 #=====================
 # BIC comparison, annual block maxima models

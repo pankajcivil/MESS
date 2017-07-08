@@ -12,7 +12,6 @@
 # note that this assumes you aren't a jerk and send in different length
 # arrays. so... don't do that.
 #===============================================================================
-# 44: In log(1 + shape * ((x - loc)/scale)) : NaNs produced
 
 gev_pdf <- function(x, loc, scale, shape, log=FALSE){
   p <- rep(NA,length(x))

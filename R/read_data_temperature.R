@@ -1,4 +1,6 @@
 #===============================================================================
+# read_data_temperature.R
+#
 # read temperature data
 # historical from NOAA:
 #   NOAA National Centers for Environmental information, Climate at a Glance:
@@ -56,6 +58,11 @@ ind_proj    <- which(time_proj==(max(time_hist)+1)):which(time_proj==max(time_fo
 temperature_forc <- c(temperature_hadcrut[ind_hadcrut],
                       temperature_hist[ind_hist]      ,
                       temperature_proj[ind_proj]      )
+
+# maximum temperature serves as an additinoal prior constraint on kappa0, kappa1
+# that is, kappa1 > -kappa0/Tmax (otherwise, kappa = kappa0 + kappa1*T might be
+# negative)
+Tmax <- max(temperature_forc)
 
 # Useful:
 
