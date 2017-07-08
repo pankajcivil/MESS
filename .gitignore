@@ -1,2 +1,4 @@
+*.log
+*.pbs.*
 figures
 *.RData

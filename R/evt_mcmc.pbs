@@ -1,0 +1,16 @@
+#!/bin/bash
+#PBS -l walltime=00:24:00
+#PBS -l nodes=1:ppn=10
+#PBS -j oe
+#PBS -m abe
+#PBS -M twong@psu.edu
+
+###source /usr/usc/sas/default/setup.sh
+####module load R
+
+####R CMD BATCH --no-save --quiet --slave /storage/home/axw322/work/codes/EVT/R/calibration_driver.R
+
+###R < /storage/home/axw322/work/codes/EVT/R/calibration_driver.R > /storage/home/axw322/work/codes/EVT/R/calib_mcmc.log
+R --vanilla < /home/scrim/axw322/codes/EVT/R/calibration_driver.R > /home/scrim/axw322/codes/EVT/R/calib_mcmc.log
+####./R CMD BATCH calibration_driver.R
+####sh ./execute_mcmc.sh
