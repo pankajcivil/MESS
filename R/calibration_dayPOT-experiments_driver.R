@@ -403,40 +403,41 @@ for (gpd.exp in gpd.experiments) {
 # as the Heidelberger and Welch diagnostics, which suggest the chains are okay.
 # 'ifirst' is the first spot where the GR stat gets to and stays below gr.max
 # for all of the models.
-if(nnode_mcmc==1) {
-  ifirst <- round(0.5*niter_mcmc)
-} else {
-  gr.max <- 1.1
-  lgr <- rep(NA, length(niter.test))
-  for (i in 1:length(niter.test)) {lgr[i] <- all(gr.test[i,] < gr.max)}
-  ifirst <- NULL
-  for (i in seq(from=length(niter.test), to=1, by=-1)) {
-    if( all(lgr[i:length(lgr)]) ) {ifirst <- niter.test[i]}
-  }
-}
-
-chains_burned <- vector('list', nmodel); names(chains_burned) <- types.of.model
-for (model in types.of.model) {
-  if(nnode_mcmc > 1) {
-    chains_burned[[model]] <- vector('list', nnode_mcmc)
-    for (m in 1:nnode_mcmc) {
-      chains_burned[[model]][[m]] <- amcmc_out[[model]][[m]]$samples[(ifirst+1):niter_mcmc,]
-    }
+# save a separate ifirst for each experiment
+ifirst <- rep(NA, length(gpd.experiments)); names(ifirst) <- gpd.experiments
+for (gpd.exp in gpd.experiments) {
+  if(nnode_mcmc==1) {
+    ifirst[[gpd.exp]] <- round(0.5*niter_mcmc)
   } else {
-    chains_burned[[model]] <- amcmc_out[[model]]$samples[(ifirst+1):niter_mcmc,]
+    gr.max <- 1.1
+    lgr <- rep(NA, length(niter.test))
+    for (i in 1:length(niter.test)) {lgr[i] <- all(gr.test[[gpd.exp]][i,] < gr.max)}
+    for (i in seq(from=length(niter.test), to=1, by=-1)) {
+      if( all(lgr[i:length(lgr)]) ) {ifirst[[gpd.exp]] <- niter.test[i]}
+    }
   }
 }
 
+chains_burned <- vector('list', length(gpd.experiments)); names(chains_burned) <- gpd.experiments
+for (gpd.exp in gpd.experiments) {
+  chains_burned[[gpd.exp]] <- vector('list', nmodel); names(chains_burned[[gpd.exp]]) <- types.of.model
+  for (model in types.of.model) {
+    if(nnode_mcmc > 1) {
+      chains_burned[[gpd.exp]][[model]] <- vector('list', nnode_mcmc)
+      for (m in 1:nnode_mcmc) {
+        chains_burned[[gpd.exp]][[model]][[m]] <- amcmc_out[[gpd.exp]][[model]][[m]]$samples[(ifirst[[gpd.exp]]+1):niter_mcmc,]
+      }
+    } else {
+      chains_burned[[gpd.exp]][[model]] <- amcmc_out[[gpd.exp]][[model]]$samples[(ifirst[[gpd.exp]]+1):niter_mcmc,]
+    }
+  }
+}
 
 #
 #===============================================================================
 # possible thinning?
 #===============================================================================
 #
-
-
-# TODO
-# TODO
 
 # If no thinning, then this initialization will remain
 chains_burned_thinned <- chains_burned
@@ -470,23 +471,25 @@ if(TRUE) {#===========================
 
 n.sample <- 10000   # dike ring 15 safety standard is 1/2000, so at least 2000...
 
-for (model in types.of.model) {
-  if(nnode_mcmc == 1) {
-    ind.sample <- sample(x=1:nrow(chains_burned[[model]]), size=n.sample, replace=FALSE)
-    chains_burned_thinned[[model]] <- chains_burned[[model]][ind.sample,]
-  } else {
-    n.sample.sub <- rep(NA, nnode_mcmc)
-    # the case where desired sample size is divisible by the number of chains
-    if(round(n.sample/nnode_mcmc) == n.sample/nnode_mcmc) {
-      n.sample.sub[1:nnode_mcmc] <- n.sample/nnode_mcmc
+for (gpd.exp in gpd.experiments) {
+  for (model in types.of.model) {
+    if(nnode_mcmc == 1) {
+      ind.sample <- sample(x=1:nrow(chains_burned[[gpd.exp]][[model]]), size=n.sample, replace=FALSE)
+      chains_burned_thinned[[gpd.exp]][[model]] <- chains_burned[[gpd.exp]][[model]][ind.sample,]
     } else {
-    # the case where it is not
-      n.sample.sub[2:nnode_mcmc] <- round(n.sample/nnode_mcmc)
-      n.sample.sub[1] <- n.sample - sum(n.sample.sub[2:nnode_mcmc])
-    }
-    for (m in 1:nnode_mcmc) {
-      ind.sample <- sample(x=1:nrow(chains_burned[[model]][[m]]), size=n.sample.sub[m], replace=FALSE)
-      chains_burned_thinned[[model]][[m]] <- chains_burned[[model]][[m]][ind.sample,]
+      n.sample.sub <- rep(NA, nnode_mcmc)
+      # the case where desired sample size is divisible by the number of chains
+      if(round(n.sample/nnode_mcmc) == n.sample/nnode_mcmc) {
+        n.sample.sub[1:nnode_mcmc] <- n.sample/nnode_mcmc
+      } else {
+      # the case where it is not
+        n.sample.sub[2:nnode_mcmc] <- round(n.sample/nnode_mcmc)
+        n.sample.sub[1] <- n.sample - sum(n.sample.sub[2:nnode_mcmc])
+      }
+      for (m in 1:nnode_mcmc) {
+        ind.sample <- sample(x=1:nrow(chains_burned[[gpd.exp]][[model]][[m]]), size=n.sample.sub[m], replace=FALSE)
+        chains_burned_thinned[[gpd.exp]][[model]][[m]] <- chains_burned[[gpd.exp]][[model]][[m]][ind.sample,]
+      }
     }
   }
 }
@@ -497,18 +500,21 @@ for (model in types.of.model) {
 # Combine all of the chains from 'ifirst' to 'niter_mcmc' into a potpourri of
 # [alleged] samples from the posterior. Only saving the transition covariance
 # matrix for one of the chains (if in parallel).
-parameters.posterior <- vector('list', nmodel); names(parameters.posterior) <- types.of.model
-covjump.posterior <- vector('list', nmodel); names(covjump.posterior) <- types.of.model
-
-for (model in types.of.model) {
-  if(nnode_mcmc==1) {
-    parameters.posterior[[model]] <- chains_burned_thinned[[model]]
-    covjump.posterior[[model]] <- amcmc_out[[model]]$cov.jump
-  } else {
-    parameters.posterior[[model]] <- chains_burned_thinned[[model]][[1]]
-    covjump.posterior[[model]] <- amcmc_out[[model]][[1]]$cov.jump
-    for (m in 2:nnode_mcmc) {
-      parameters.posterior[[model]] <- rbind(parameters.posterior[[model]], chains_burned_thinned[[model]][[m]])
+parameters.posterior <- vector('list', length(gpd.experiments)); names(parameters.posterior) <- gpd.experiments
+covjump.posterior <- vector('list', length(gpd.experiments)); names(covjump.posterior) <- gpd.experiments
+for (gpd.exp in gpd.experiments) {
+  parameters.posterior[[gpd.exp]] <- vector('list', nmodel); names(parameters.posterior[[gpd.exp]]) <- types.of.model
+  covjump.posterior[[gpd.exp]]    <- vector('list', nmodel); names(covjump.posterior[[gpd.exp]])    <- types.of.model
+  for (model in types.of.model) {
+    if(nnode_mcmc==1) {
+      parameters.posterior[[gpd.exp]][[model]] <- chains_burned_thinned[[gpd.exp]][[model]]
+      covjump.posterior[[gpd.exp]][[model]] <- amcmc_out[[gpd.exp]][[model]]$cov.jump
+    } else {
+      parameters.posterior[[gpd.exp]][[model]] <- chains_burned_thinned[[gpd.exp]][[model]][[1]]
+      covjump.posterior[[gpd.exp]][[model]] <- amcmc_out[[gpd.exp]][[model]][[1]]$cov.jump
+      for (m in 2:nnode_mcmc) {
+        parameters.posterior[[gpd.exp]][[model]] <- rbind(parameters.posterior[[gpd.exp]][[model]], chains_burned_thinned[[gpd.exp]][[model]][[m]])
+      }
     }
   }
 }
@@ -527,9 +533,13 @@ for (model in types.of.model) {for (i in 1:length(parnames_all[[model]])){lmax=m
 
 dim.parameters <- vector('list', nmodel); names(dim.parameters) <- types.of.model
 dim.parnames   <- vector('list', nmodel); names(dim.parnames)   <- types.of.model
-var.parameters <- vector('list', nmodel); names(var.parameters) <- types.of.model
 var.parnames   <- vector('list', nmodel); names(var.parnames)   <- types.of.model
-var.covjump    <- vector('list', nmodel); names(var.covjump)    <- types.of.model
+var.parameters <- vector('list', length(gpd.experiments)); names(var.parameters) <- gpd.experiments
+var.covjump    <- vector('list', length(gpd.experiments)); names(var.covjump)    <- gpd.experiments
+for (gpd.exp in gpd.experiments) {
+  var.parameters[[gpd.exp]] <- vector('list', nmodel); names(var.parameters[[gpd.exp]]) <- types.of.model
+  var.covjump[[gpd.exp]]    <- vector('list', nmodel); names(var.covjump[[gpd.exp]])    <- types.of.model
+}
 dim.ensemble   <- vector('list', nmodel); names(dim.ensemble)   <- types.of.model
 dim.name <- ncdim_def('name.len', '', 1:lmax, unlim=FALSE)
 dim.time <- ncdim_def('ntime', '', (time_forc), unlim=FALSE)
@@ -537,29 +547,38 @@ var.time <- ncvar_def('time', '', dim.time, -999)
 var.temperature <- ncvar_def('temperature', 'Global mean temperature relative to 1901-2000', dim.time, -999)
 for (model in types.of.model) {
   dim.parameters[[model]] <- ncdim_def(paste('n.parameters.',model,sep=''), '', 1:length(parnames_all[[model]]), unlim=FALSE)
-  dim.ensemble[[model]]   <- ncdim_def(paste('n.ensemble.',model,sep=''), 'ensemble member', 1:nrow(parameters.posterior[[model]]), unlim=FALSE)
-  var.parameters[[model]] <- ncvar_def(paste('parameters.',model,sep=''), '', list(dim.parameters[[model]],dim.ensemble[[model]]), -999)
+  dim.ensemble[[model]]   <- ncdim_def(paste('n.ensemble.',model,sep=''), 'ensemble member', 1:nrow(parameters.posterior[[gpd.exp]][[model]]), unlim=FALSE)
   var.parnames[[model]]   <- ncvar_def(paste('parnames.',model,sep=''), '', list(dim.name,dim.parameters[[model]]), prec='char')
-  var.covjump[[model]]    <- ncvar_def(paste('covjump.',model,sep=''), '', list(dim.parameters[[model]],dim.parameters[[model]]), -999)
+  for (gpd.exp in gpd.experiments) {
+    var.parameters[[gpd.exp]][[model]] <- ncvar_def(paste('parameters.',gpd.exp,'.',model,sep=''), '', list(dim.parameters[[model]],dim.ensemble[[model]]), -999)
+    var.covjump[[gpd.exp]][[model]] <- ncvar_def(paste('covjump.',gpd.exp,'.',model,sep=''), '', list(dim.parameters[[model]],dim.parameters[[model]]), -999)
+  }
 }
-output.to.file <- vector('list', length(var.parameters) + length(var.parnames) + length(var.covjump) + 2)
+# length(gpd.experiments) * nmodel * 2 accounts for sizes of var.parmaeters and var.covjump
+output.to.file <- vector('list', (length(gpd.experiments)*nmodel*2) + length(var.parnames) + 2)
 output.to.file[[1]] <- var.time
 output.to.file[[2]] <- var.temperature
+# this counter will keep track of how many items are on the output.to.file list so far
 cnt <- 3
 for (model in types.of.model) {
-  output.to.file[[cnt]] <- var.parameters[[model]]
-  output.to.file[[cnt+1]] <- var.parnames[[model]]
-  output.to.file[[cnt+2]] <- var.covjump[[model]]
-  cnt <- cnt + 3
+  output.to.file[[cnt]] <- var.parnames[[model]]
+  cnt <- cnt + 1
+  for (gpd.exp in gpd.experiments) {
+    output.to.file[[cnt]] <- var.parameters[[gpd.exp]][[model]]
+    output.to.file[[cnt+1]] <- var.covjump[[gpd.exp]][[model]]
+    cnt <- cnt + 2
+  }
 }
 #outnc <- nc_create(filename.parameters, list(var.parameters, var.parnames, var.covjump))
 outnc <- nc_create(filename.parameters, output.to.file)
 ncvar_put(outnc, var.time, time_forc)
 ncvar_put(outnc, var.temperature, temperature_forc)
 for (model in types.of.model) {
-  ncvar_put(outnc, var.parameters[[model]], t(parameters.posterior[[model]]))
   ncvar_put(outnc, var.parnames[[model]], parnames_all[[model]])
-  ncvar_put(outnc, var.covjump[[model]], covjump.posterior[[model]])
+  for (gpd.exp in gpd.experiments) {
+    ncvar_put(outnc, var.parameters[[gpd.exp]][[model]], t(parameters.posterior[[gpd.exp]][[model]]))
+    ncvar_put(outnc, var.covjump[[gpd.exp]][[model]], covjump.posterior[[gpd.exp]][[model]])
+  }
 }
 nc_close(outnc)
 

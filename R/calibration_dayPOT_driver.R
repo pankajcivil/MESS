@@ -342,10 +342,6 @@ for (model in types.of.model) {
 #===============================================================================
 #
 
-
-# TODO
-# TODO
-
 # If no thinning, then this initialization will remain
 chains_burned_thinned <- chains_burned
 

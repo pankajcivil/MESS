@@ -269,6 +269,11 @@ log_like_ppgpd <- function(parameters,
     llik <- sum(llik.bin)
   }
 
+  # constraint on lambda0, lambda1 and Tmax
+  if( exists('lambda0') & exists('lambda1') ) {
+    if( lambda1[1] < (-lambda0[1]/Tmax) ) {llik <- -Inf}
+  }
+
 # this way works, but cannot take nonstationarity in the poisson process
 #if(data_calib$counts_all > 0) {
 #  llik <- dpois(x=data_calib$counts_all, lambda=(lambda*data_calib$time_length_all), log=TRUE) +
