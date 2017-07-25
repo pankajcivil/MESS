@@ -17,10 +17,69 @@ if(l.installpackages) {
   install.packages('date')
   install.packages('zoo')
   install.packages('Hmisc')
+  install.packages('ncdf4')
 }
 library(date)
 library(zoo)
 library(Hmisc)
+library(ncdf4)
+
+#
+#===============================================================================
+# whoops, extRemes package has a function for this, and it works better for
+# the EVT analysis. ah well.
+decluster_timeseries <- function(time, year, time.series, min.dt) {
+  decluster <- vector('list',3)
+  names(decluster) <- c('time','year','time.series')
+  tdiff <- diff(time)
+  ind.too.close <- which(tdiff <= min.dt)
+  if(length(ind.too.close) > 0) {
+    # go through the places where there are time.series values too close together,
+    # and set to throw the smaller value away.
+    # need to account for the possibility that there are more than two values in
+    # a 'cluster'.
+    # indices where new clusters begin: (tack on first one manually)
+    ind.clusters <- c(ind.too.close[1] , ind.too.close[which(diff(ind.too.close) > 1) + 1])
+    if(length(ind.clusters) > 1) {
+      # case where there are multiple clusters to consider
+      # initialize by fixing to remove all of the spots that are too close. then
+      # we will remove the indices of each cluster's maximum
+      irem <- unique(c(ind.too.close, ind.too.close + 1))
+      for (i in 1:length(ind.clusters)) {
+        # how long is this cluster?
+        if(i < length(ind.clusters)) {
+          first <- ind.clusters[i]
+          last  <- ind.too.close[which(ind.too.close==ind.clusters[i+1]) -1]+1
+        } else {
+          first <- ind.clusters[i]
+          if (length(which(ind.too.close > first))==0) {last <- first + 1
+          } else {last <- first+length(which(ind.too.close > first)) + 1}
+        }
+        ind.this.cluster <- first:last
+        isave <- ind.this.cluster[which.max(time.series[first:last])]
+        # remove this cluster's maximum from irem; they might be out of order
+        isave <- which(irem==isave)
+        irem <- irem[-isave]
+      }
+    } else {
+      # case with only one cluster
+      # initialize by fixing to remove all of the cluster. then we will remove
+      # the index of the cluster maximum from this
+      irem <- unique(c(ind.too.close, ind.too.close + 1))
+      irem <- irem[-which.max(time.series[irem])]
+    }
+    decluster$time <- time[-irem]
+    decluster$year <- year[-irem]
+    decluster$time.series <- time.series[-irem]
+  } else {
+    decluster$time <- time
+    decluster$year <- year
+    decluster$time.series <- time.series
+  }
+  return(decluster)
+}
+#===============================================================================
+#
 
 print('starting to process many tide gauge stations data')
 
@@ -141,48 +200,39 @@ for (dd in 1:length(files.tg)) {
   data_set[[dd]]$sl.detrended <- data_set[[dd]]$sl - slr.trend.1hour
   print('  ... done.')
 
-  ## <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO HERE NOW!
-  ## <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO HERE NOW!
-  ##
-  ## This needs to be modified such that we use only the information available from each
-  ## unique year, and save the length of time from that year (for the PP rate calculation).
-  ## Have a "data_calib$time_length" element in "likelihood_ppgpd.R", so use it!
-  ##
-  ## <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO HERE NOW!
-  ## <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO HERE NOW!
-
   #===
   #=== daily block maxima; calculate 99% quantile as GPD threshold
   #===
 
   # how many days in each year have at least 90% of their values?
-  days.unique <- unique(floor(data_set[[dd]]$time.days))
+  days.all <- floor(data_set[[dd]]$time.days)
+  days.unique <- unique(days.all)
+  ind.days.to.remove <- NULL
+  print('... filtering down to do a daily maxima time series of only the days with at least 90% of data ...')
+  pb <- txtProgressBar(min=min(days.unique),max=max(days.unique),initial=0,style=3)
   for (day in days.unique) {
     ind.today <- which(floor(data_set[[dd]]$time.days) == day)
-  }
-  sl.daily.max <- rep(NA, n.days)
-
-
-
-  year.daily.max <- rep(NA, n.days) # save which year each came from to organize into blocks
-  time.daily <- seq(from=0.5+floor(min(data_set[[dd]]$time.days)), to=0.5+floor(max(data_set[[dd]]$time.days)))
-  cnt <- 1
-  print('getting time series of daily maxima...')
-  pb <- txtProgressBar(min=0,max=n.days,initial=0,style=3)
-  for (ttmp in time.daily) {
-    ind.today <- which( abs(data_set[[dd]]$time.days-ttmp) < 0.5 )
-    if(length(ind.today) > 0) {
-      sl.daily.max[cnt] <- max(data_set[[dd]]$sl.detrended[ind.today], na.rm=TRUE)
-      year.daily.max[cnt] <- median(data_set[[dd]]$year[ind.today], na.rm=TRUE)
-    } else {
-      sl.daily.max[cnt] <- NA
-      year.daily.max[cnt] <- NA
-    }
-    setTxtProgressBar(pb, cnt)
-    cnt <- cnt+1
+    perc.data.today <- length(ind.today)/24
+    if(perc.data.today < 0.9) {ind.days.to.remove <- c(ind.days.to.remove, match(day, days.unique))}
+    setTxtProgressBar(pb, day)
   }
   close(pb)
-  print('  ... done.')
+  days.daily.max <- days.unique[-ind.days.to.remove]
+  n.days <- length(days.daily.max)
+
+  # calculate the daily maximum sea levels on the days of 'days.daily.max'
+  sl.daily.max <- rep(NA, n.days)
+  years.daily.max <- rep(NA, n.days)
+  print('... calculating time series of daily maxima ...')
+  pb <- txtProgressBar(min=0,max=n.days,initial=0,style=3)
+  for (day in days.daily.max) {
+    cnt <- match(day,days.daily.max)
+    ind.today <- which(days.all == day)
+    sl.daily.max[cnt] <- max(data_set[[dd]]$sl.detrended[ind.today])
+    years.daily.max[cnt] <- data_set[[dd]]$year[ind.today][1]
+    setTxtProgressBar(pb, cnt)
+  }
+  close(pb)
 
   #===
   #=== find all the excesses, "declustering" = if two are within a day of each
@@ -190,7 +240,7 @@ for (dd in 1:length(files.tg)) {
   #=== of each excess)
   #===
 
-  print('getting threshold excesses...')
+  print('... getting threshold excesses ...')
 
   # threshold is 99% quantile of tide gauge's observed values.
   # Buchanan et al (2016) use the 99% quantile of the daily maximum time series.
@@ -198,41 +248,40 @@ for (dd in 1:length(files.tg)) {
   gpd.threshold <- as.numeric(quantile(sl.daily.max, .99, na.rm=TRUE))
 
   ind.exceed <- which(sl.daily.max > gpd.threshold)
-  time.exceed <- time.daily[ind.exceed]
+  days.exceed <- days.daily.max[ind.exceed]
   sl.exceed <- sl.daily.max[ind.exceed]
-  year.exceed <- year.daily.max[ind.exceed]
+  years.exceed <- years.daily.max[ind.exceed]
 
-  declustered.exceed <- decluster_timeseries(time=time.exceed, year=year.exceed, time.series=sl.exceed, min.dt=1)
-  time.exceed.decl <- declustered.exceed$time
-  year.exceed.decl <- declustered.exceed$year
+  declustered.exceed <- decluster_timeseries(time=days.exceed, year=years.exceed, time.series=sl.exceed, min.dt=1)
+  days.exceed.decl <- declustered.exceed$time
+  years.exceed.decl <- declustered.exceed$year
   sl.exceed.decl <- declustered.exceed$time.series
 
   #===
   #=== sub-list object on 'data_many' to store what is needed to calbirate PP-GPD
   #===
 
-  year.unique <- unique(data_set[[dd]]$year)
-  year.unique <- year.unique[order(year.unique)]
-  data_many[[dd]]$gpd <- vector('list', 4)
-  names(data_many[[dd]]$gpd) <- c('counts','time_length','excesses','threshold')
+  data_many[[dd]]$gpd <- vector('list', 5)
+  names(data_many[[dd]]$gpd) <- c('counts','year','time_length','excesses','threshold')
   # initialize
   data_many[[dd]]$gpd$threshold <- gpd.threshold
-  data_many[[dd]]$gpd$counts <- data_many[[dd]]$gpd$time_length <- rep(NA, length(year.unique))
-  data_many[[dd]]$gpd$excesses <- vector('list', length(year.unique))
-  for (y in 1:length(year.unique)) {
-    hits.this.year <- which(year.exceed.decl==year.unique[y])
-    data_many[[dd]]$gpd$counts[y] <- length(hits.this.year)
-    data_many[[dd]]$gpd$time_length[y] <- max(time.daily[which(year.daily.max==year.unique[y])]) -
-                                     min(time.daily[which(year.daily.max==year.unique[y])]) + 1
-    if(length(hits.this.year) > 0) {data_many[[dd]]$gpd$excesses[[y]] <- sl.exceed.decl[hits.this.year]
-    } else                         {data_many[[dd]]$gpd$excesses[[y]] <- NA}
+  data_many[[dd]]$gpd$counts <- data_many[[dd]]$gpd$year <- data_many[[dd]]$gpd$time_length <- rep(NA, length(years.unique))
+  data_many[[dd]]$gpd$excesses <- vector('list', length(years.unique))
+
+  for (ind.year in 1:length(years.unique)) {
+    ind.hits.this.year <- which(years.exceed.decl == years.unique[ind.year])
+    data_many[[dd]]$gpd$counts[ind.year] <- length(ind.hits.this.year)
+    data_many[[dd]]$gpd$year[ind.year]   <- years.unique[ind.year]
+    data_many[[dd]]$gpd$time_length[ind.year] <- length(which(years.daily.max == years.unique[ind.year]))
+    if(length(ind.hits.this.year) > 0) {data_many[[dd]]$gpd$excesses[[ind.year]] <- sl.exceed.decl[ind.hits.this.year]
+    } else                             {data_many[[dd]]$gpd$excesses[[ind.year]] <- NA}
   }
 
   # alternatively, could bin em all together. but this won't allow for potential
   # non-stationary behavior in the poisson process
   data_many[[dd]]$gpd$excesses_all <- sl.exceed.decl
   data_many[[dd]]$gpd$counts_all <- length(sl.exceed.decl)
-  data_many[[dd]]$gpd$time_length_all <- max(time.daily) - min(time.daily) + 1
+  data_many[[dd]]$gpd$time_length_all <- length(days.daily.max)
 
   # that takes some time, so save the workspace image after each data set
   save.image(file='../output/preprocessing.RData')
@@ -240,7 +289,6 @@ for (dd in 1:length(files.tg)) {
   print('  ... done.')
 
 }
-
 
 #
 #===============================================================================
@@ -266,21 +314,20 @@ for (dd in 1:length(data_set)) {
   }
 }
 
-
 # trim before 1850 (or whenever is time_forc[1]), which is when the temperature
 # forcing starts. also make a note of how long each record is
 nyear <- rep(NA, length(data_many))
 for (dd in 1:length(data_many)) {
   if(data_many[[dd]]$gev_year$year[1] < time_forc[1]) {
     icut <- which(data_many[[dd]]$gev_year$year < time_forc[1])
-    data_many[[dd]]$gev_year$year_unique <- data_many[[dd]]$gev_year$year_unique[-icut]
+    data_many[[dd]]$gev_year$year <- data_many[[dd]]$gev_year$year[-icut]
     data_many[[dd]]$gev_year$lsl_max <- data_many[[dd]]$gev_year$lsl_max[-icut]
   }
-  nyear[dd] <- length(data_many[[dd]]$gev_year$year_unique)
+  nyear[dd] <- length(data_many[[dd]]$gev_year$year)
 }
 
 # that doesn't take as long... so just save it once for good measure
-save.image(file='../output/preprocessing.RData')
+save.image(file='../output/processing_priors.RData')
 
 
 #
