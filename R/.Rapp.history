@@ -1,0 +1,32 @@
+6*8
+f[x]=x^2;
+x<-10;
+x
+pp<-.15;
+pp<-.15; ppall<-(1-pp)^4
+ppall
+50000/60
+50000/60/3600
+50000/60/60
+exit
+quit
+exit()
+quit()
+q()
+library(stats)
+gamma(2)
+gamma(3)
+pgamma(q=1, shape=2, scale=1)
+pgamma(q=1, shape=2, rate=1)
+pgamma(1,2)
+1/exp(1)
+1-2*exp(-1)
+q()
+setwd('~/codes/EVT/R')
+load('../output/preprocessing.RData')
+source('read_data_temperature.R')
+library(ncdf4)
+source('read_data_temperature.R')
+time_forc
+save.image('../output/preprocessing.RData')
+q()

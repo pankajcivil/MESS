@@ -322,21 +322,13 @@ print('  ... done.')
 
 #
 #===============================================================================
-# now do the GEV/Naveau monthyl block maxima
-#===============================================================================
-#
-
-# TODO
-
-#
-#===============================================================================
 # save 'data_calib' object as RDS for use later
 #===============================================================================
 #
 
 output.dir <- '../output/'
 today=Sys.Date(); today=format(today,format="%d%b%Y")
-filename.datacalib <- paste(output.dir,'datacalib_',today,'.rds', sep='')
+filename.datacalib <- paste(output.dir,'datacalib_delfzijl',today,'.rds', sep='')
 saveRDS(data_calib, file=filename.datacalib)
 
 save.image(file='../output/preprocessing.RData')

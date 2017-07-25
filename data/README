@@ -1,3 +1,13 @@
-Tide gauge data from Hook of Holland
+data/ directory
 
-and maybe some synthetic tide gauge data for a positive contorl experiment
+incldues:
+
+tide_gauge_long -- directory with all tide gauge stations from University of Hawaii Sea Level Center database (http://uhslc.soest.hawaii.edu/data/?rq) with at least 90 years of available data. We use this as a somewhat arbitrary minimum length of data to get MLE parameter estimates.
+
+tide_gauge_europe -- all tide gauge stations within +-15 deg lat/lon of Delfzijl
+
+HadCRUT.4.4.0.0.annual_ns_avg.txt -- global mean surface temperature data for 1850 - beginning of NOAA record, for calibration
+
+global.tas.aann.CNRM-CM5.historical+rcp85.r1i1p1.18500101-21001231.nc -- CNRM projections of global mean surface temperature to 2100
+
+noaa_temperature_1880-2017.csv -- NOAA historical temperatures for calibration
