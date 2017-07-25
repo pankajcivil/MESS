@@ -7,10 +7,10 @@
 
 rm(list=ls())
 
-niter_mcmc_prelim000 <- 5e4      # number of MCMC iterations (PRELIMINARY chains)
+niter_mcmc_prelim000 <- 1e3      # number of MCMC iterations (PRELIMINARY chains)
 nnode_mcmc_prelim000 <- 1        # number of CPUs to use (PRELIMINARY chains)
-niter_mcmc_prod000 <- 1e5        # number of MCMC iterations (PRODUCTION chains)
-nnode_mcmc_prod000 <- 4          # number of CPUs to use (PRODUCTION chains)
+niter_mcmc_prod000 <- 2e3        # number of MCMC iterations (PRODUCTION chains)
+nnode_mcmc_prod000 <- 2          # number of CPUs to use (PRODUCTION chains)
 gamma_mcmc000 <- 0.5             # speed of adaptation (0.5=faster, 1=slowest)
 
 filename.priors   <- 'surge_priors_gev_nav_19Jun2017.rds'  # file holding the 'priors' object
@@ -22,7 +22,8 @@ filename.datacalib <- 'datacalib_05Jul2017.rds' # file holding the 'data_calib' 
 output.dir <- '../output/'
 
 #setwd('/storage/home/axw322/work/codes/EVT/R')
-setwd('/Users/axw322/codes/EVT/R')
+setwd('/home/scrim/axw322/codes/EVT/R')
+#setwd('/Users/axw322/codes/EVT/R')
 appen <- 'gev_nav'
 
 # Name the calibrated parameters output file
