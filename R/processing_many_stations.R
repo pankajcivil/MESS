@@ -11,75 +11,7 @@
 # Questions? Tony Wong (twong@psu.edu)
 #===============================================================================
 
-l.installpackages <- FALSE
-
-if(l.installpackages) {
-  install.packages('date')
-  install.packages('zoo')
-  install.packages('Hmisc')
-  install.packages('ncdf4')
-}
-library(date)
-library(zoo)
-library(Hmisc)
-library(ncdf4)
-
-#
-#===============================================================================
-# whoops, extRemes package has a function for this, and it works better for
-# the EVT analysis. ah well.
-decluster_timeseries <- function(time, year, time.series, min.dt) {
-  decluster <- vector('list',3)
-  names(decluster) <- c('time','year','time.series')
-  tdiff <- diff(time)
-  ind.too.close <- which(tdiff <= min.dt)
-  if(length(ind.too.close) > 0) {
-    # go through the places where there are time.series values too close together,
-    # and set to throw the smaller value away.
-    # need to account for the possibility that there are more than two values in
-    # a 'cluster'.
-    # indices where new clusters begin: (tack on first one manually)
-    ind.clusters <- c(ind.too.close[1] , ind.too.close[which(diff(ind.too.close) > 1) + 1])
-    if(length(ind.clusters) > 1) {
-      # case where there are multiple clusters to consider
-      # initialize by fixing to remove all of the spots that are too close. then
-      # we will remove the indices of each cluster's maximum
-      irem <- unique(c(ind.too.close, ind.too.close + 1))
-      for (i in 1:length(ind.clusters)) {
-        # how long is this cluster?
-        if(i < length(ind.clusters)) {
-          first <- ind.clusters[i]
-          last  <- ind.too.close[which(ind.too.close==ind.clusters[i+1]) -1]+1
-        } else {
-          first <- ind.clusters[i]
-          if (length(which(ind.too.close > first))==0) {last <- first + 1
-          } else {last <- first+length(which(ind.too.close > first)) + 1}
-        }
-        ind.this.cluster <- first:last
-        isave <- ind.this.cluster[which.max(time.series[first:last])]
-        # remove this cluster's maximum from irem; they might be out of order
-        isave <- which(irem==isave)
-        irem <- irem[-isave]
-      }
-    } else {
-      # case with only one cluster
-      # initialize by fixing to remove all of the cluster. then we will remove
-      # the index of the cluster maximum from this
-      irem <- unique(c(ind.too.close, ind.too.close + 1))
-      irem <- irem[-which.max(time.series[irem])]
-    }
-    decluster$time <- time[-irem]
-    decluster$year <- year[-irem]
-    decluster$time.series <- time.series[-irem]
-  } else {
-    decluster$time <- time
-    decluster$year <- year
-    decluster$time.series <- time.series
-  }
-  return(decluster)
-}
-#===============================================================================
-#
+filename.saveprogress <- '../output/processing_many_sites.RData'
 
 print('starting to process many tide gauge stations data')
 
@@ -128,6 +60,7 @@ names(data_many) <- names(data_set)
 # difference between time stamps (in units of days)
 for (dd in 1:length(files.tg)) {
 
+  tbeg <- proc.time()
   print(paste('now processing for pp-gpd data set ',dd,' / ',length(files.tg),sep=''))
 
   time.diff <- diff(data_set[[dd]]$time.days)
@@ -164,6 +97,7 @@ for (dd in 1:length(files.tg)) {
   # in each year, what are the months with at least 90% of the data?
   months.this.year <- vector('list', length(years.unique))
   names(months.this.year) <- years.unique
+  years.to.remove <- NULL
   for (year in years.unique) {
     ind.this.year <- which(dates.new$year == year)
     months.to.keep <- NULL
@@ -174,8 +108,10 @@ for (dd in 1:length(files.tg)) {
       perc.data.this.month <- length(ind.this.month)/hours.this.month
       if (perc.data.this.month >= 0.9) {months.to.keep <- c(months.to.keep, month)}
     }
-    months.this.year[[year]] <- months.to.keep
+    if(length(months.to.keep)>0) {months.this.year[[year]] <- months.to.keep }
+    else                         {years.to.remove <- c(years.to.remove, year)}
   }
+  if(length(years.to.remove)>0) {years.unique <- years.unique[-match(years.to.remove, years.unique)]}
 
   # get the mean time (in days releative to 1 Jan 1960) of the observations of
   # each month we are using to fit the trend for SLR
@@ -284,9 +220,10 @@ for (dd in 1:length(files.tg)) {
   data_many[[dd]]$gpd$time_length_all <- length(days.daily.max)
 
   # that takes some time, so save the workspace image after each data set
-  save.image(file='../output/preprocessing.RData')
+  save.image(file=filename.saveprogress)
 
-  print('  ... done.')
+  tend <- proc.time()
+  print(paste('  ... done. Took ', (tend[3]-tbeg[3])/60, ' minutes.',sep=''))
 
 }
 
@@ -327,21 +264,11 @@ for (dd in 1:length(data_many)) {
 }
 
 # that doesn't take as long... so just save it once for good measure
-save.image(file='../output/processing_priors.RData')
-
-
-#
-#===============================================================================
-# now do the GEV/Naveau monthyl block maxima
-#===============================================================================
-#
-
-# TODO
-
+save.image(file=filename.saveprogress)
 
 #===============================================================================
 
-print('done processing the European data sets')
+print('done processing the long tide gauge data sets')
 
 #===============================================================================
 # End
