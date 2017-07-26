@@ -182,15 +182,6 @@ for (dd in 1:length(data_all)) {
   print(paste('... done. Took ',round(as.numeric(tend0-tbeg0)[3]/60,2),' minutes', sep=''))
 }
 
-
-
-## TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO HERE NOW
-## TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO HERE NOW
-## TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO HERE NOW
-# mle.fits <=> deoptim.all
-
-
-
 print('...done.')
 
 #
@@ -212,24 +203,24 @@ gamma.priors <- c('lambda','lambda0','sigma','sigma0')
 normal.priors <- c('lambda1','sigma1','xi','xi0','xi1')
 uniform.priors <- NULL
 
-priors <- vector('list', nmodel); names(priors) <- types.of.model
+priors_normalgamma <- vector('list', nmodel); names(priors_normalgamma) <- types.of.model
 for (model in types.of.model) {
-  priors[[model]] <- vector('list', length(parnames_all[[model]])); names(priors[[model]]) <- parnames_all[[model]]
+  priors_normalgamma[[model]] <- vector('list', length(parnames_all[[model]])); names(priors_normalgamma[[model]]) <- parnames_all[[model]]
   for (par in parnames_all[[model]]) {
-    priors[[model]][[par]] <- vector('list', 3) # type, and 2 distribution parameters
+    priors_normalgamma[[model]][[par]] <- vector('list', 3) # type, and 2 distribution parameters
     if(!is.na(match(par, uniform.priors))) {
-       names(priors[[model]][[par]]) <- c('type','shape','rate'); priors[[model]][[par]]$type <- 'uniform'
-       priors[[model]][[par]]$lower <- bound_lower_set[[model]][match(par,parnames_all[[model]])]
-       priors[[model]][[par]]$upper <- bound_upper_set[[model]][match(par,parnames_all[[model]])]
+       names(priors_normalgamma[[model]][[par]]) <- c('type','shape','rate'); priors_normalgamma[[model]][[par]]$type <- 'uniform'
+       priors_normalgamma[[model]][[par]]$lower <- bound_lower_set[[model]][match(par,parnames_all[[model]])]
+       priors_normalgamma[[model]][[par]]$upper <- bound_upper_set[[model]][match(par,parnames_all[[model]])]
     } else if(!is.na(match(par, gamma.priors))) { # shape=alpha, rate=beta, mean=shape/rate, var=shape/rate^2
-      names(priors[[model]][[par]]) <- c('type','shape','rate'); priors[[model]][[par]]$type <- 'gamma'
-      priors[[model]][[par]]$rate <- median(deoptim.all[[model]][,par]) / (0.5*(max(deoptim.all[[model]][,par])-min(deoptim.all[[model]][,par])))^2
-      priors[[model]][[par]]$shape <- median(deoptim.all[[model]][,par]) * priors[[model]][[par]]$rate
+      names(priors_normalgamma[[model]][[par]]) <- c('type','shape','rate'); priors_normalgamma[[model]][[par]]$type <- 'gamma'
+      priors_normalgamma[[model]][[par]]$rate <- median(deoptim.all[[model]][,par]) / (0.5*(max(deoptim.all[[model]][,par])-min(deoptim.all[[model]][,par])))^2
+      priors_normalgamma[[model]][[par]]$shape <- median(deoptim.all[[model]][,par]) * priors_normalgamma[[model]][[par]]$rate
     } else if(!is.na(match(par, normal.priors))) {
-      names(priors[[model]][[par]]) <- c('type','mean','sd'); priors[[model]][[par]]$type <- 'normal'
-      priors[[model]][[par]]$mean <- median(deoptim.all[[model]][,par])
-      priors[[model]][[par]]$sd   <- 0.5*(max(deoptim.all[[model]][,par])-min(deoptim.all[[model]][,par]))
-      #priors[[model]][[par]]$sd   <- sd(deoptim.all[[model]][,par])
+      names(priors_normalgamma[[model]][[par]]) <- c('type','mean','sd'); priors_normalgamma[[model]][[par]]$type <- 'normal'
+      priors_normalgamma[[model]][[par]]$mean <- median(deoptim.all[[model]][,par])
+      priors_normalgamma[[model]][[par]]$sd   <- 0.5*(max(deoptim.all[[model]][,par])-min(deoptim.all[[model]][,par]))
+      #priors_normalgamma[[model]][[par]]$sd   <- sd(deoptim.all[[model]][,par])
     }
   }
 }
@@ -251,17 +242,17 @@ for (model in types.of.model) {
       upper <- max(log(deoptim.all[[model]][,p])) + 0.05*range
     }
     x.tmp <- seq(from=lower, to=upper, length.out=1000)
-    if(priors[[model]][[p]]$type=='normal') {
-      pdf.tmp <- dnorm(x=x.tmp, mean=priors[[model]][[p]]$mean, sd=priors[[model]][[p]]$sd)
-    } else if(priors[[model]][[p]]$type=='gamma') {
-      pdf.tmp <- dgamma(x=x.tmp, shape=priors[[model]][[p]]$shape, rate=priors[[model]][[p]]$rate)
+    if(priors_normalgamma[[model]][[p]]$type=='normal') {
+      pdf.tmp <- dnorm(x=x.tmp, mean=priors_normalgamma[[model]][[p]]$mean, sd=priors_normalgamma[[model]][[p]]$sd)
+    } else if(priors_normalgamma[[model]][[p]]$type=='gamma') {
+      pdf.tmp <- dgamma(x=x.tmp, shape=priors_normalgamma[[model]][[p]]$shape, rate=priors_normalgamma[[model]][[p]]$rate)
     }
     if(parnames_all[[model]][p] == 'lkappa0' | parnames_all[[model]][p] == 'lkappa') {
       hist(log(deoptim.all[[model]][,p]), xlab=parnames_all[[model]][p], main=model, freq=FALSE)
-      lines(log(c(deoptim.all[[model]][length(data_set)+1,p],deoptim.all[[model]][length(data_set)+1,p])), c(-1000,1000), type='l', col='red', lwd=2)
+      lines(log(c(deoptim.all[[model]][length(data_all),p],deoptim.all[[model]][length(data_all),p])), c(-1000,1000), type='l', col='red', lwd=2)
     } else {
       hist(deoptim.all[[model]][,p], xlab=parnames_all[[model]][p], main=model, freq=FALSE)
-      lines(c(deoptim.all[[model]][length(data_set)+1,p],deoptim.all[[model]][length(data_set)+1,p]), c(-1000,1000), type='l', col='red', lwd=2)
+      lines(c(deoptim.all[[model]][length(data_all),p],deoptim.all[[model]][length(data_all),p]), c(-1000,1000), type='l', col='red', lwd=2)
     }
     lines(x.tmp, pdf.tmp, lwd=2, col='blue')
   }
@@ -270,24 +261,47 @@ for (model in types.of.model) {
 
 #
 #===============================================================================
-# save priors and initial values (from Delfzijl DE optim.) and read later when
-# calibrating with MCMC
+# "fit" wide uniform priors (just using the bounds for the DE optim search)
+#===============================================================================
+#
+
+print('fitting prior distributions to the uniform bounds for MLE search...')
+
+# all parameters have uniform bounds, given by bound_lower_set and bound_upper_set
+priors_uniform <- vector('list', nmodel); names(priors_uniform) <- types.of.model
+for (model in types.of.model) {
+  priors_uniform[[model]] <- vector('list', length(parnames_all[[model]])); names(priors_uniform[[model]]) <- parnames_all[[model]]
+  for (par in parnames_all[[model]]) {
+    priors_uniform[[model]][[par]] <- vector('list', 3) # type, and 2 distribution parameters
+    names(priors_uniform[[model]][[par]]) <- c('type','lower','upper'); priors_uniform[[model]][[par]]$type <- 'uniform'
+    priors_uniform[[model]][[par]]$lower <- bound_lower_set[[model]][match(par,parnames_all[[model]])]
+    priors_uniform[[model]][[par]]$upper <- bound_upper_set[[model]][match(par,parnames_all[[model]])]
+  }
+}
+
+print('...done.')
+
+#
+#===============================================================================
+# save priors and initial values (from DE optim for Delfzijl, Balboa, and Norfolk)
+# and read later when calibrating with MCMC
 #===============================================================================
 #
 
 # rds -> save single object; the only one we need is 'priors'
 today=Sys.Date(); today=format(today,format="%d%b%Y")
-filename.priors <- paste(output.dir,'surge_priors_',appen,'_',today,'.rds', sep='')
+filename.priors.normalgamma <- paste(output.dir,'surge_priors_normalgamma_',appen,'_',today,'.rds', sep='')
+filename.priors.uniform <- paste(output.dir,'surge_priors_uniform_',appen,'_',today,'.rds', sep='')
 filename.mles <- paste(output.dir,'surge_MLEs_',appen,'_',today,'.rds', sep='')
-filename.initvals <- paste(output.dir,'surge_initialvalues_',appen,'_',today,'.rds', sep='')
-filename.everything <- paste(output.dir,'kitchen_sink_priors_',appen,'_',today,'.RData', sep='')
+filename.everything <- paste(output.dir,'everything_priors_',appen,'_',today,'.RData', sep='')
 
-print(paste('saving priors and initial values as .rds files (',filename.priors,', ',filename.initvals,') to read and use later...',sep=''))
+print(paste('saving priors and DE optim output as .rds files to read and use later...',sep=''))
 
 save.image(file=filename.everything)
-saveRDS(priors, file=filename.priors)
+saveRDS(priors_normalgamma, file=filename.priors.normalgamma)
+saveRDS(priors_uniform, file=filename.priors.uniform)
 saveRDS(deoptim.all, file=filename.mles)
-saveRDS(deoptim.delfzijl, file=filename.initvals)
+
 
 print('...done.')
 

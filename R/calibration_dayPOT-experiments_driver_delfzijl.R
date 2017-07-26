@@ -7,23 +7,43 @@
 
 rm(list=ls())
 
-niter_mcmc_prelim000 <- 5e4      # number of MCMC iterations (PRELIMINARY chains)
+niter_mcmc_prelim000 <- 5e2      # number of MCMC iterations (PRELIMINARY chains)
 nnode_mcmc_prelim000 <- 1        # number of CPUs to use (PRELIMINARY chains)
-niter_mcmc_prod000 <- 1e5        # number of MCMC iterations (PRODUCTION chains)
-nnode_mcmc_prod000 <- 4          # number of CPUs to use (PRODUCTION chains)
+niter_mcmc_prod000 <- 1e3        # number of MCMC iterations (PRODUCTION chains)
+nnode_mcmc_prod000 <- 1          # number of CPUs to use (PRODUCTION chains)
 gamma_mcmc000 <- 0.5             # speed of adaptation (0.5=faster, 1=slowest)
 
-filename.priors   <- 'surge_priors_ppgpd_28Jun2017.rds'  # file holding the 'priors' object
-filename.initvals <- 'surge_initialvalues_ppgpd_28Jun2017.rds'  # file holding the 'deoptim.delfzijl' object
-filename.mles <- 'surge_MLEs_ppgpd_28Jun2017.rds' # file holding the 'mle.fits' object
-filename.datacalib <- 'datacalib_05Jul2017.rds' # file holding the 'data_calib' object (calibration data)
+filename.priors   <- 'surge_priors_normalgamma_ppgpd_26Jul2017.rds'  # file holding the 'priors' object
+filename.mles <- 'surge_MLEs_ppgpd_26Jul2017.rds'  # file holding the 'deoptim.all' object with the MLEs (for initial parameters)
 
 output.dir <- '../output/'
+dat.dir <- '../data/'
 
 #setwd('/storage/home/axw322/work/codes/EVT/R')
-setwd('/Users/axw322/codes/EVT/R')
-appen <- 'ppgpd-experiments'
-gpd.experiments <- c('gpd30','gpd50','gpd70','gpd90','gpd110')
+setwd('/Users/tony/codes/EVT/R')
+
+# IMPORTANT vvv SET WHICH STATION YOU WANT TO CALIBRATE HERE
+
+station <- 'delfzijl' # can be 'delfzijl', 'balboa', or 'norfolk'
+
+# IMPORTANT ^^^
+
+if (station=='delfzijl') {
+  appen <- 'ppgpd-experiments_delfzijl'
+  gpd.experiments <- c('gpd30','gpd50','gpd70','gpd90','gpd110','gpd137')
+  filename.datacalib <- 'tidegauge_processed_delfzijl_26Jul2017.rds' # file holding the calibration data object for Delfzijl
+  ind.in.mles <- 29
+} else if (station=='norfolk') {
+  appen <- 'ppgpd-experiments_norfolk'
+  #FIX THIS gpd.experiments <- c('gpd30','gpd50','gpd70','gpd90','gpd110','gpd137')
+  filename.datacalib <- 'tidegauge_processed_norfolk_26Jul2017.rds' # file holding the calibration data object for Norfolk
+  ind.in.mles <- 30
+} else if (station=='balboa') {
+  appen <- 'ppgpd-experiments_balboa'
+  #FIX THIS gpd.experiments <- c('gpd30','gpd50','gpd70','gpd90','gpd110','gpd137')
+  filename.datacalib <- 'tidegauge_processed_balboa_26Jul2017.rds' # file holding the calibration data object for Balboa
+  ind.in.mles <- 10
+}
 
 # Name the calibrated parameters output file
 today <- Sys.Date(); today=format(today,format="%d%b%Y")
@@ -64,14 +84,13 @@ print('...done.')
 
 #
 #===============================================================================
-# read and process data for Dutch station (Delfzijl)
+# read processed data object
 #===============================================================================
 #
 
-print('reading Delfzijl, Netherlands, tide gauge data...')
+print('reading processed tide gauge data...')
 
-#source('read_data_tidegauge_delfzijl.R')
-data_calib <- readRDS(paste(output.dir,filename.datacalib,sep=''))
+data_calib <- readRDS(paste(dat.dir,filename.datacalib,sep=''))
 
 print('...done.')
 
@@ -81,17 +100,18 @@ print('...done.')
 #===============================================================================
 #
 
-print('setting up PP-GPD model parameters for DE optimization...')
-
-priors <- readRDS(paste(output.dir,filename.priors,sep=''))
-deoptim.delfzijl <- readRDS(paste(output.dir,filename.initvals,sep=''))
-mle.fits <- readRDS(paste(output.dir,filename.mles,sep=''))
+print('setting up PP-GPD model parameters from DE optimization...')
 
 source('parameter_setup_dayPOT.R')
+source('likelihood_ppgpd.R')
+
+priors <- readRDS(paste(output.dir,filename.priors,sep=''))
+mle.fits <- readRDS(paste(output.dir,filename.mles,sep=''))
+
+initial.values <- vector('list', nmodel); names(initial.values) <- types.of.gpd
+for (model in types.of.gpd) {initial.values[[model]] <- mle.fits[[model]][ind.in.mles,]}
 
 print('...done.')
-
-source('likelihood_ppgpd.R')
 
 #
 #===============================================================================
@@ -101,6 +121,12 @@ source('likelihood_ppgpd.R')
 
 # first, do a set of single-chain preliminary calibrations to get estimates of
 # the jump covariance matrix
+
+
+## TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO HERE NOW
+## TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO HERE NOW
+## TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO HERE NOW
+
 
 nnode_mcmc <- nnode_mcmc_prelim000
 niter_mcmc <- niter_mcmc_prelim000

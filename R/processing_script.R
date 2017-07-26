@@ -92,9 +92,9 @@ decluster_timeseries <- function(time, year, time.series, min.dt) {
 
 #
 #===============================================================================
-# Read tide gauge data for Delfzijl, The Netherlands (site that is the focus of
-# the flood risk analysis) and a variety of European tide gauge stations that
-# are nearby.
+# Read tide gauge data for in-depth analyses at three sites, and for 27 other
+# stations that will be used to derive prior probability distributions for the
+# model parameters.
 #===============================================================================
 #
 

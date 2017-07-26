@@ -290,6 +290,34 @@ data_delfzijl$gpd$time_length_all <- length(days.daily.max)
 # that takes some time, so save the workspace image after each data set
 save.image(file=filename.saveprogress)
 
+#
+#===============================================================================
+# subsample smaller sets of the POT/GPD data
+#===============================================================================
+#
+
+## TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO HERE NOW
+## TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO HERE NOW
+## TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO HERE NOW
+## TODO <<<<<<<<<<< and then do this for the norfolk and balboa scripts
+## TODO
+
+# initialize, and create list elements for these GPD experiments. then later
+# remove from each sub-list item the years the experiment will not use
+gpd.experiments <- c('gpd30','gpd50','gpd70','gpd90','gpd110')
+years.gpd.experiments <- c(30,50,70,90,110); names(years.gpd.experiments) <- gpd.experiments
+for (gpd.exp in gpd.experiments) {
+  data_calib[[gpd.exp]] <- data_calib$gpd
+  ind.experiment <- (length(data_calib$gev_year$year)-years.gpd.experiments[[gpd.exp]]+1):length(data_calib$gev_year$year)
+  data_calib[[gpd.exp]]$counts <- data_calib[[gpd.exp]]$counts[ind.experiment]
+  data_calib[[gpd.exp]]$time_length <- data_calib[[gpd.exp]]$time_length[ind.experiment]
+  data_calib[[gpd.exp]]$excesses <- data_calib[[gpd.exp]]$excesses[ind.experiment]
+  data_calib[[gpd.exp]]$year <- data_calib$gev_year$year[ind.experiment]
+  data_calib[[gpd.exp]]$counts_all <- NULL
+  data_calib[[gpd.exp]]$time_length_all <- NULL
+  data_calib[[gpd.exp]]$excesses_all <- NULL
+}
+
 tend <- proc.time()
 print(paste('  ... done. Took ', (tend[3]-tbeg[3])/60, ' minutes.',sep=''))
 
