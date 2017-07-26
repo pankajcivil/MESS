@@ -18,11 +18,18 @@ if(l.installpackages) {
   install.packages('zoo')
   install.packages('Hmisc')
   install.packages('ncdf4')
+  install.packages('extRemes')
+  install.packages('adaptMCMC')
+  install.packages('lhs')
+  install.packages('DEoptim')
 }
 library(date)
 library(zoo)
 library(Hmisc)
 library(ncdf4)
+library(extRemes)
+library(adaptMCMC)
+library(DEoptim)
 
 #
 #===============================================================================
@@ -91,17 +98,17 @@ decluster_timeseries <- function(time, year, time.series, min.dt) {
 #===============================================================================
 #
 
-# Delfzijl
+# many long record stations
+source('processing_many_stations.R')
+
+# Delfzijl, the Netherlands
 source('processing_delfzijl.R')
 
-# save your work! (done periodically within each script, but you would rather not re-do all that, right?)
-save.image(file='../output/preprocessing.RData')
+# Norfolk, Virgina, United State
+source('processing_norfolk.R')
 
-# Other European stations
-source('processing_europe.R')
-
-# save your work! (done periodically within each script, but you would rather not re-do all that, right?)
-save.image(file='../output/preprocessing.RData')
+# Balboa, Panama
+source('processing_balboa.R')
 
 #
 #===============================================================================

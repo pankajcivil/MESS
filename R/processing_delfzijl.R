@@ -1,19 +1,40 @@
 #===============================================================================
-# processing of Delfzijl, The Netherlands, data.
+# processing of Delfzijl, the Netherlands tide gauge station data
+#
+# leads to the list object 'data_delfzijl', analogous to the 'data_many' object
+# that contains the many tide gauge stations from UHSLC database;
+# has all of the necessary information to estimate (MLE) the PP/GPD parameters
+# for each of the 4 candidate model structures.
 #
 # Questions? Tony Wong (twong@psu.edu)
 #===============================================================================
 
-print('starting to process Delfzijl data')
+filename.saveprogress <- '../output/processing_delfzijl.RData'
+
+print('starting to process Delfzijl tide gauge data')
 
 #===
-#=== convert Delfzijl tide gauge data to 3-hourly series
+#=== read in tide gauge data
 #===
 
-dat.dir <- '~/codes/EVT/data/tide_gauge_Europe/Delfzijl_Oddo_data/'
+#=====================
+# function to read the tide gauge data set(s)
+read_data <- function(dat.dir, filetype, septype){
+  files.tg <- list.files(path=dat.dir, pattern=filetype)
+  data <- read.table(paste(dat.dir,files.tg[1],sep=''), header = TRUE, sep=septype)
+  if(length(files.tg) > 1) {
+    for (ff in 2:length(files.tg)) {
+      data <- rbind(data, read.table(paste(dat.dir,files.tg[ff],sep=''), header = TRUE, sep=septype))
+    }
+  }
+  return(data)
+}
+#=====================
+
+dat.dir <- '~/codes/EVT/data/Delfzijl_Oddo_data/'
 data <- read_data(dat.dir=dat.dir, filetype='txt', septype='\t')
 
-# convert sea levels from cm to mm, consistent with the other European data
+# convert sea levels from cm to mm, consistent with the other data
 data$sl <- 10* data$sl
 
 data$year   <- as.numeric(substr(as.character(data$date), start=1, stop=4))
@@ -23,7 +44,13 @@ data$hour   <- as.numeric(substr(data$time, 1,2))
 data$minute <- as.numeric(substr(data$time, 4,5))
 
 # time in days since 01 January 1960
-data$time.days <- as.numeric(mdy.date(month=month, day=day, year=year)) + hour/24 + minute/(24*60)
+data$time.days <- as.numeric(mdy.date(month=data$month, day=data$day, year=data$year)) + data$hour/24 + data$minute/(24*60)
+
+# create the object to hold the calibration information for the Delfzijl site
+# 2 dimensions, one for 'gev_year' experiment information, and one for 'gpd'
+# experiment information
+data_delfzijl <- vector('list', 2)
+names(data_delfzijl) <- c('gpd','gev_year')
 
 #
 #===============================================================================
@@ -31,8 +58,11 @@ data$time.days <- as.numeric(mdy.date(month=month, day=day, year=year)) + hour/2
 #===============================================================================
 #
 
+
+tbeg <- proc.time()
+
 # difference between time stamps (in units of days)
-time.diff <- diff(time.days)
+time.diff <- diff(data$time.days)
 
 # check that they are in the proper order, ascending
 print(paste('Are there any times out of order? ',any(time.diff < 0), sep=''))
@@ -42,6 +72,10 @@ print(paste('Are there any times out of order? ',any(time.diff < 0), sep=''))
 # which you will need for averaging
 data <- data[order(data$time.days),]
 time.diff <- diff(data$time.days)
+
+#===
+#=== first, need to average up to 3-hourly time series
+#===
 
 # what is three hours? in units of days
 three.hours <- 3/24
@@ -111,76 +145,98 @@ sl.3hour[(length(tnew.3hour)+length(tnew.1hour)+1):length(sl.3hour)] <- sl.tmp
 year.3hour[(length(tnew.3hour)+length(tnew.1hour)+1):length(sl.3hour)] <- year.tmp
 
 # that takes a long time, so save the workspace image
-save.image(file='../output/preprocessing.RData')
-
+save.image(file=filename.saveprogress)
 
 #===
 #=== subtract linear sea-level trend (from fit to monthly means)
 #===
 
-# calcualte monthly means
+# calculate monthly means
 
 dates.new <- date.mdy(time.days.3hour)
 date.beg <- date.mdy(min(time.days.3hour))
 date.end <- date.mdy(max(time.days.3hour))
 
-# how many months are there?
-months.firstyear <- 12-date.beg$month+1
-if(date.end$day > 15) {months.lastyear  <- date.end$month
-} else {months.lastyear <- date.end$month-1}
-# the -1 makes sure we don't count the first or last years
-n.months <- 12*(date.end$year - date.beg$year - 1) + months.firstyear + months.lastyear
+# what the years in which we have data?
+years.unique <- unique(dates.new$year)
 
-sl.month <- rep(NA, length(n.months))
-time.month <- rep(NA, length(n.months))
+# in each year, what are the months with at least 90% of the data?
+months.this.year <- vector('list', length(years.unique))
+names(months.this.year) <- years.unique
+years.to.remove <- NULL
+for (year in years.unique) {
+  ind.this.year <- which(dates.new$year == year)
+  months.to.keep <- NULL
+  for (month in 1:12) {
+    ind.this.month <- which(dates.new$month[ind.this.year] == month)
+    days.this.month <- monthDays(paste(year,'-',month,'-','1', sep=''))
+    hours.this.month <- days.this.month * 24
+    # *3 because these are 3-hourly blocks
+    perc.data.this.month <- 3*length(ind.this.month)/hours.this.month
+    if (perc.data.this.month >= 0.9) {months.to.keep <- c(months.to.keep, month)}
+  }
+  if(length(months.to.keep)>0) {months.this.year[[year]] <- months.to.keep }
+  else                         {years.to.remove <- c(years.to.remove, year)}
+}
+if(length(years.to.remove)>0) {years.unique <- years.unique[-match(years.to.remove, years.unique)]}
+
+# get the mean time (in days releative to 1 Jan 1960) of the observations of
+# each month we are using to fit the trend for SLR
+times.month <- rep(NA, length(unlist(months.this.year)))
+sl.month    <- rep(NA, length(unlist(months.this.year)))
 cnt <- 1
-print('getting time series of monthly means, to calculate sea-level rise trend...')
-pb <- txtProgressBar(min=0,max=n.months,initial=0,style=3)
-for (yy in date.beg$year:date.end$year) {
-  ind.this.year <- which(dates.new$year == yy)
-  for (mm in min(dates.new$month[ind.this.year]):max(dates.new$month[ind.this.year])) {
-    ind.this.month <- which( (dates.new$year == yy) & (dates.new$month == mm) )
-    sl.month[cnt] <- mean(sl.3hour[ind.this.month], na.rm=TRUE)
-    time.month[cnt] <- mean(time.days.3hour[ind.this.month], na.rm=TRUE)
-    cnt <- cnt+1
-    setTxtProgressBar(pb, cnt)
+for (year in years.unique) {
+  ind.this.year <- which(dates.new$year == year)
+  for (month in months.this.year[[year]]) {
+    ind.this.month <- which(dates.new$month[ind.this.year] == month)
+    times.month[cnt] <- mean(data$time.days[ind.this.year[ind.this.month]])
+    sl.month[cnt]    <- mean(data$sl[ind.this.year[ind.this.month]])
+    cnt <- cnt + 1
   }
 }
-close(pb)
 
 # fit trend
-slr.trend <- lm(sl.month ~ time.month)
-slr.trend.3hour <- slr.trend$coefficients[1] + slr.trend$coefficients[2]*time.days.3hour
+slr.trend <- lm(sl.month ~ times.month)
+slr.trend.3hour <- slr.trend$coefficients[1] + slr.trend$coefficients[2]*data$time.days
 
-# subtract off from the 3-hourly data
-sl.3hour.detrended <- sl.3hour - slr.trend.3hour
+# subtract off from the 1-hourly data
+data$sl.detrended <- data$sl - slr.trend.3hour
 print('  ... done.')
-
 
 #===
 #=== daily block maxima; calculate 99% quantile as GPD threshold
 #===
 
-n.days <- ceiling(max(time.days.3hour) - min(time.days.3hour))
-sl.daily.max <- rep(NA, n.days)
-year.daily.max <- rep(NA, n.days) # save which year each came from to organize into blocks
-time.daily <- seq(from=0.5+floor(min(time.days.3hour)), to=0.5+floor(max(time.days.3hour))
-cnt <- 1
-print('getting time series of daily maxima...')
-pb <- txtProgressBar(min=0,max=n.days,initial=0,style=3)
-for (ttmp in time.daily) {
-  ind.today <- which( abs(time.days.3hour-ttmp) < 0.5 )
-  sl.daily.max[cnt] <- max(sl.3hour.detrended[ind.today], na.rm=TRUE)
-  year.daily.max[cnt] <- median(year.3hour[ind.today], na.rm=TRUE)
-  setTxtProgressBar(pb, cnt)
-  cnt <- cnt+1
+# how many days in each year have at least 90% of their values?
+days.all <- floor(data$time.days)
+days.unique <- unique(days.all)
+ind.days.to.remove <- NULL
+print('... filtering down to do a daily maxima time series of only the days with at least 90% of data ...')
+pb <- txtProgressBar(min=min(days.unique),max=max(days.unique),initial=0,style=3)
+for (day in days.unique) {
+  ind.today <- which(floor(data$time.days) == day)
+  # *3 because 3-hourly series instead of 1-hourly
+  perc.data.today <- 3*length(ind.today)/24
+  if(perc.data.today < 0.9) {ind.days.to.remove <- c(ind.days.to.remove, match(day, days.unique))}
+  setTxtProgressBar(pb, day)
 }
 close(pb)
-print('  ... done.')
+days.daily.max <- days.unique[-ind.days.to.remove]
+n.days <- length(days.daily.max)
 
-# that takes a long time, so save the workspace image
-save.image(file='../output/preprocessing.RData')
-
+# calculate the daily maximum sea levels on the days of 'days.daily.max'
+sl.daily.max <- rep(NA, n.days)
+years.daily.max <- rep(NA, n.days)
+print('... calculating time series of daily maxima ...')
+pb <- txtProgressBar(min=0,max=n.days,initial=0,style=3)
+for (day in days.daily.max) {
+  cnt <- match(day,days.daily.max)
+  ind.today <- which(days.all == day)
+  sl.daily.max[cnt] <- max(data$sl.detrended[ind.today])
+  years.daily.max[cnt] <- data$year[ind.today][1]
+  setTxtProgressBar(pb, cnt)
+}
+close(pb)
 
 #===
 #=== find all the excesses, "declustering" = if two are within a day of each
@@ -188,159 +244,99 @@ save.image(file='../output/preprocessing.RData')
 #=== of each excess)
 #===
 
+print('... getting threshold excesses ...')
+
 # threshold is 99% quantile of tide gauge's observed values.
 # Buchanan et al (2016) use the 99% quantile of the daily maximum time series.
-#gpd.threshold <- as.numeric(quantile(sl.3hour.detrended, .99, na.rm=TRUE))
+#gpd.threshold <- as.numeric(quantile(data$sl.detrended, .99, na.rm=TRUE))
 gpd.threshold <- as.numeric(quantile(sl.daily.max, .99, na.rm=TRUE))
 
 ind.exceed <- which(sl.daily.max > gpd.threshold)
-time.exceed <- time.daily[ind.exceed]
+days.exceed <- days.daily.max[ind.exceed]
 sl.exceed <- sl.daily.max[ind.exceed]
-year.exceed <- year.daily.max[ind.exceed]
+years.exceed <- years.daily.max[ind.exceed]
 
-declustered.exceed <- decluster_timeseries(time=time.exceed, year=year.exceed, time.series=sl.exceed, min.dt=1)
-time.exceed.decl <- declustered.exceed$time
-year.exceed.decl <- declustered.exceed$year
+declustered.exceed <- decluster_timeseries(time=days.exceed, year=years.exceed, time.series=sl.exceed, min.dt=1)
+days.exceed.decl <- declustered.exceed$time
+years.exceed.decl <- declustered.exceed$year
 sl.exceed.decl <- declustered.exceed$time.series
 
-
-# TODO - decluster and then reinsert
-sl.daily.max.declustered <- decluster(sl.daily.max, threshold=gpd.threshold, r=1 )
-data.tmp <- data.frame( cbind(1:n.days, time.daily, sl.daily.max.declustered))
-data.tmp$time.daily <- data.tmp$time.daily/365.25
-names(data.tmp) <- c('obs','year','sl')
-
-# try initial MLE fit for GP-PP model with extRemes package
-fit0 <- fevd(sl, data.tmp, threshold=gpd.threshold, type="PP", units="mm", time.units='days')
-
-# note that 'rate' is giving you estimate of
-# [total number of exceedances] / [total time span]
-
-# also note that devd does not have support for type='PP', so need to code the
-# likelihood functions yourself. but let's be honest, you'd do that anyway.
-
-# and finally, note that this MLE fit is pretty terrible! so code your own
-# likelihood functions and MLE fit and see if you and old friend DE optimization
-# can do better. probably some weird assumption in the model...
-
-# non-stationary GP-PP model: lambda, scale, shape
-
-data.gpd <- data.frame(cbind(1:length(sl.exceed.decl), time.exceed.decl/365.25, sl.exceed.decl))
-names(data.gpd) <- c('obs','year_exceedance','sl_exceedance')
-
-# note that data.gpd$year_exceedance has units of years after 1 Jan 1960
-
 #===
-#=== sub-list object on 'data_calib' to store what is needed to calbirate PP-GPD
+#=== sub-list object on 'data_delfzijl' to store what is needed to calbirate PP-GPD
 #===
 
-data_calib$gpd <- vector('list', 4)
-names(data_calib$gpd) <- c('counts','time_length','excesses','threshold')
+data_delfzijl$gpd <- vector('list', 5)
+names(data_delfzijl$gpd) <- c('counts','year','time_length','excesses','threshold')
 # initialize
-data_calib$gpd$threshold <- gpd.threshold
-data_calib$gpd$counts <- data_calib$gpd$time_length <- rep(NA, length(year.unique))
-data_calib$gpd$excesses <- vector('list', length(year.unique))
-for (y in 1:length(year.unique)) {
-  hits.this.year <- which(year.exceed.decl==year.unique[y])
-  data_calib$gpd$counts[y] <- length(hits.this.year)
-    data_calib$gpd$time_length[y] <- max(time.daily[which(year.daily.max==year.unique[y])]) -
-                                     min(time.daily[which(year.daily.max==year.unique[y])]) + 1
-  if(length(hits.this.year) > 0) {data_calib$gpd$excesses[[y]] <- sl.exceed.decl[hits.this.year]
-  } else                         {data_calib$gpd$excesses[[y]] <- NA}
+data_delfzijl$gpd$threshold <- gpd.threshold
+data_delfzijl$gpd$counts <- data_delfzijl$gpd$year <- data_delfzijl$gpd$time_length <- rep(NA, length(years.unique))
+data_delfzijl$gpd$excesses <- vector('list', length(years.unique))
+
+for (ind.year in 1:length(years.unique)) {
+  ind.hits.this.year <- which(years.exceed.decl == years.unique[ind.year])
+  data_delfzijl$gpd$counts[ind.year] <- length(ind.hits.this.year)
+  data_delfzijl$gpd$year[ind.year]   <- years.unique[ind.year]
+  data_delfzijl$gpd$time_length[ind.year] <- length(which(years.daily.max == years.unique[ind.year]))
+  if(length(ind.hits.this.year) > 0) {data_delfzijl$gpd$excesses[[ind.year]] <- sl.exceed.decl[ind.hits.this.year]
+  } else                             {data_delfzijl$gpd$excesses[[ind.year]] <- NA}
 }
 
 # alternatively, could bin em all together. but this won't allow for potential
 # non-stationary behavior in the poisson process
-data_calib$gpd$excesses_all <- sl.exceed.decl
-data_calib$gpd$counts_all <- length(sl.exceed.decl)
-data_calib$gpd$time_length_all <- max(time.daily) - min(time.daily) + 1
+data_delfzijl$gpd$excesses_all <- sl.exceed.decl
+data_delfzijl$gpd$counts_all <- length(sl.exceed.decl)
+data_delfzijl$gpd$time_length_all <- length(days.daily.max)
+
+# that takes some time, so save the workspace image after each data set
+save.image(file=filename.saveprogress)
+
+tend <- proc.time()
+print(paste('  ... done. Took ', (tend[3]-tbeg[3])/60, ' minutes.',sep=''))
 
 #
 #===============================================================================
-# subsample smaller sets of the POT/GPD data
+# now do the GEV/Naveau annual block maxima. calculate based on the 3-hourly time
+# series (data$sl.detrended)
 #===============================================================================
 #
 
-# initialize, and create list elements for these GPD experiments. then later
-# remove from each sub-list item the years the experiment will not use
-gpd.experiments <- c('gpd30','gpd50','gpd70','gpd90','gpd110')
-years.gpd.experiments <- c(30,50,70,90,110); names(years.gpd.experiments) <- gpd.experiments
-for (gpd.exp in gpd.experiments) {
-  data_calib[[gpd.exp]] <- data_calib$gpd
-  ind.experiment <- (length(data_calib$gev_year$year)-years.gpd.experiments[[gpd.exp]]+1):length(data_calib$gev_year$year)
-  data_calib[[gpd.exp]]$counts <- data_calib[[gpd.exp]]$counts[ind.experiment]
-  data_calib[[gpd.exp]]$time_length <- data_calib[[gpd.exp]]$time_length[ind.experiment]
-  data_calib[[gpd.exp]]$excesses <- data_calib[[gpd.exp]]$excesses[ind.experiment]
-  data_calib[[gpd.exp]]$year <- data_calib$gev_year$year[ind.experiment]
-  data_calib[[gpd.exp]]$counts_all <- NULL
-  data_calib[[gpd.exp]]$time_length_all <- NULL
-  data_calib[[gpd.exp]]$excesses_all <- NULL
+# give an update to the screen
+print('starting to process annual block maxima for Delfzijl data set')
+
+# set up object for passing through calibration routines
+data_delfzijl$gev_year <- vector('list', 2)
+names(data_delfzijl$gev_year) <- c('year','lsl_max')
+
+data_delfzijl$gev_year$year <- unique(data$year)
+data_delfzijl$gev_year$year <- data_delfzijl$gev_year$year[order(data_delfzijl$gev_year$year)]
+data_delfzijl$gev_year$lsl_max <- rep(NA, length(data_delfzijl$gev_year$year))
+for (t in 1:length(data_delfzijl$gev_year$year)) {
+  ind_this_year <- which(data$year==data_delfzijl$gev_year$year[t])
+  data_delfzijl$gev_year$lsl_max[t] <- max(data$sl.detrended[ind_this_year])
 }
 
-#
-#===============================================================================
-# now do the GEV/Naveau annual block maxima. calculate based on the 3-houlry
-# time series (sl.3hour.detrended)
-#===============================================================================
-#
-
-print('starting to process Delfzijl data to annual block maxima...')
-
-year.unique <- unique(year.3hour)
-year.unique <- year.unique[order(year.unique)]
-lsl.mean <- rep(NA, length(year.unique))
-lsl.max <- rep(NA, length(year.unique))
-
-for (t in 1:length(year.unique)) {
-  ind.this.year <- which(year.3hour==year.unique[t])
-  lsl.mean[t] <- mean(sl.3hour.detrended[ind.this.year])
-  lsl.max[t] <- max(sl.3hour.detrended[ind.this.year])
+# trim before 1850 (or whenever is time_forc[1]), which is when the temperature
+# forcing starts. also make a note of how long each record is
+nyear.delfzijl <- NA
+if(data_delfzijl$gev_year$year[1] < time_forc[1]) {
+  icut <- which(data_delfzijl$gev_year$year < time_forc[1])
+  data_delfzijl$gev_year$year <- data_delfzijl$gev_year$year[-icut]
+  data_delfzijl$gev_year$lsl_max <- data_delfzijl$gev_year$lsl_max[-icut]
 }
+nyear.delfzijl <- length(data_delfzijl$gev_year$year)
 
-# skip this for now and clip before calibration, like the other Euro. stations
-if(FALSE) {
-# clip to only the years that overlap with the historical temperature forcing
-# (1880-2016) only clip beginning; have projection at other end.
-if(year.unique[1] <= time_forc[1]) {
-  ind.clip <- which(year.unique < time_forc[1])
-  year.unique <- year.unique[-ind.clip]
-  lsl.max <- lsl.max[-ind.clip]
-} else if(year.unique[1] > time_forc[1]) {
-  ind.clip <- which(time_forc < year.unique[1])
-  time_forc <- time_forc[-ind.clip]
-  temperature_forc <- temperature_forc[-ind.clip]
-}
-} # end skip
+# that doesn't take as long... so just save it once for good measure
+save.image(file=filename.saveprogress)
 
-# set up object for passing through aclibration routines
-data_calib$gev_year <- vector('list', 2)
-names(data_calib$gev_year) <- c('year','lsl_max')
-data_calib$gev_year$year <- year.unique
-data_calib$gev_year$lsl_max <- lsl.max
-
-print('  ... done.')
-
-#
-#===============================================================================
-# save 'data_calib' object as RDS for use later
-#===============================================================================
-#
-
-output.dir <- '../output/'
+# save final 'data_delfzijl' object to RDS to use later
 today=Sys.Date(); today=format(today,format="%d%b%Y")
-filename.datacalib <- paste(output.dir,'datacalib_delfzijl',today,'.rds', sep='')
-saveRDS(data_calib, file=filename.datacalib)
+filename.output <- paste('../data/tidegauge_processed_delfzijl_',today,'.rds', sep='')
+saveRDS(data_delfzijl, file=filename.output)
 
-save.image(file='../output/preprocessing.RData')
-
-#
 #===============================================================================
-#
 
-print('done processing Delfzijl data')
+print('done processing the Delfzijl tide gauge data set')
 
-#
 #===============================================================================
 # End
 #===============================================================================
-#

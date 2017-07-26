@@ -266,6 +266,11 @@ for (dd in 1:length(data_many)) {
 # that doesn't take as long... so just save it once for good measure
 save.image(file=filename.saveprogress)
 
+# save final 'data_many' object to RDS to use later
+today=Sys.Date(); today=format(today,format="%d%b%Y")
+filename.output <- paste('../data/tidegauge_processed_manystations_',today,'.rds', sep='')
+saveRDS(data_many, file=filename.output)
+
 #===============================================================================
 
 print('done processing the long tide gauge data sets')
