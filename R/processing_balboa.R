@@ -27,6 +27,28 @@ data_many <- readRDS('../data/tidegauge_processed_manystations_26Jul2017.rds')
 
 data_balboa <- data_many$rqh0302
 
+#
+#===============================================================================
+# subsample smaller sets of the POT/GPD data
+#===============================================================================
+#
+
+# initialize, and create list elements for these GPD experiments. then later
+# remove from each sub-list item the years the experiment will not use
+gpd.experiments <- c('gpd30','gpd50','gpd70','gpd90','gpd107')
+years.gpd.experiments <- c(30,50,70,90,107); names(years.gpd.experiments) <- gpd.experiments
+for (gpd.exp in gpd.experiments) {
+  data_balboa[[gpd.exp]] <- data_balboa$gpd
+  ind.experiment <- (length(data_balboa$gpd$year)-years.gpd.experiments[[gpd.exp]]+1):length(data_balboa$gpd$year)
+  data_balboa[[gpd.exp]]$counts <- data_balboa[[gpd.exp]]$counts[ind.experiment]
+  data_balboa[[gpd.exp]]$time_length <- data_balboa[[gpd.exp]]$time_length[ind.experiment]
+  data_balboa[[gpd.exp]]$excesses <- data_balboa[[gpd.exp]]$excesses[ind.experiment]
+  data_balboa[[gpd.exp]]$year <- data_balboa$gpd$year[ind.experiment]
+  data_balboa[[gpd.exp]]$counts_all <- NULL
+  data_balboa[[gpd.exp]]$time_length_all <- NULL
+  data_balboa[[gpd.exp]]$excesses_all <- NULL
+}
+
 # that doesn't take as long... but lets be consistent I guess and save it.
 save.image(file=filename.saveprogress)
 

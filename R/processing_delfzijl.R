@@ -296,26 +296,20 @@ save.image(file=filename.saveprogress)
 #===============================================================================
 #
 
-## TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO HERE NOW
-## TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO HERE NOW
-## TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO HERE NOW
-## TODO <<<<<<<<<<< and then do this for the norfolk and balboa scripts
-## TODO
-
 # initialize, and create list elements for these GPD experiments. then later
 # remove from each sub-list item the years the experiment will not use
-gpd.experiments <- c('gpd30','gpd50','gpd70','gpd90','gpd110')
-years.gpd.experiments <- c(30,50,70,90,110); names(years.gpd.experiments) <- gpd.experiments
+gpd.experiments <- c('gpd30','gpd50','gpd70','gpd90','gpd110','gpd137')
+years.gpd.experiments <- c(30,50,70,90,110,137); names(years.gpd.experiments) <- gpd.experiments
 for (gpd.exp in gpd.experiments) {
-  data_calib[[gpd.exp]] <- data_calib$gpd
-  ind.experiment <- (length(data_calib$gev_year$year)-years.gpd.experiments[[gpd.exp]]+1):length(data_calib$gev_year$year)
-  data_calib[[gpd.exp]]$counts <- data_calib[[gpd.exp]]$counts[ind.experiment]
-  data_calib[[gpd.exp]]$time_length <- data_calib[[gpd.exp]]$time_length[ind.experiment]
-  data_calib[[gpd.exp]]$excesses <- data_calib[[gpd.exp]]$excesses[ind.experiment]
-  data_calib[[gpd.exp]]$year <- data_calib$gev_year$year[ind.experiment]
-  data_calib[[gpd.exp]]$counts_all <- NULL
-  data_calib[[gpd.exp]]$time_length_all <- NULL
-  data_calib[[gpd.exp]]$excesses_all <- NULL
+  data_delfzijl[[gpd.exp]] <- data_delfzijl$gpd
+  ind.experiment <- (length(data_delfzijl$gpd$year)-years.gpd.experiments[[gpd.exp]]+1):length(data_delfzijl$gpd$year)
+  data_delfzijl[[gpd.exp]]$counts <- data_delfzijl[[gpd.exp]]$counts[ind.experiment]
+  data_delfzijl[[gpd.exp]]$time_length <- data_delfzijl[[gpd.exp]]$time_length[ind.experiment]
+  data_delfzijl[[gpd.exp]]$excesses <- data_delfzijl[[gpd.exp]]$excesses[ind.experiment]
+  data_delfzijl[[gpd.exp]]$year <- data_delfzijl$gpd$year[ind.experiment]
+  data_delfzijl[[gpd.exp]]$counts_all <- NULL
+  data_delfzijl[[gpd.exp]]$time_length_all <- NULL
+  data_delfzijl[[gpd.exp]]$excesses_all <- NULL
 }
 
 tend <- proc.time()

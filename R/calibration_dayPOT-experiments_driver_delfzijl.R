@@ -2,6 +2,9 @@
 # Calibration of PP-GPD model(s) for storm surge at Delfzijl, The Netherlands.
 # This version does the varying record length experiments.
 #
+# To get the data length experiment elements of data_deflzijl object:
+#   intersect(which(nchar(names(data_norfolk))>3) , grep('gpd', names(data_norfolk)))
+#
 # Questions? Tony Wong (twong@psu.edu)
 #===============================================================================
 
@@ -9,8 +12,8 @@ rm(list=ls())
 
 niter_mcmc_prelim000 <- 5e2      # number of MCMC iterations (PRELIMINARY chains)
 nnode_mcmc_prelim000 <- 1        # number of CPUs to use (PRELIMINARY chains)
-niter_mcmc_prod000 <- 1e3        # number of MCMC iterations (PRODUCTION chains)
-nnode_mcmc_prod000 <- 1          # number of CPUs to use (PRODUCTION chains)
+niter_mcmc_prod000 <- 5e3        # number of MCMC iterations (PRODUCTION chains)
+nnode_mcmc_prod000 <- 2          # number of CPUs to use (PRODUCTION chains)
 gamma_mcmc000 <- 0.5             # speed of adaptation (0.5=faster, 1=slowest)
 
 filename.priors   <- 'surge_priors_normalgamma_ppgpd_26Jul2017.rds'  # file holding the 'priors' object
@@ -30,24 +33,21 @@ station <- 'delfzijl' # can be 'delfzijl', 'balboa', or 'norfolk'
 
 if (station=='delfzijl') {
   appen <- 'ppgpd-experiments_delfzijl'
-  gpd.experiments <- c('gpd30','gpd50','gpd70','gpd90','gpd110','gpd137')
   filename.datacalib <- 'tidegauge_processed_delfzijl_26Jul2017.rds' # file holding the calibration data object for Delfzijl
   ind.in.mles <- 29
 } else if (station=='norfolk') {
   appen <- 'ppgpd-experiments_norfolk'
-  #FIX THIS gpd.experiments <- c('gpd30','gpd50','gpd70','gpd90','gpd110','gpd137')
   filename.datacalib <- 'tidegauge_processed_norfolk_26Jul2017.rds' # file holding the calibration data object for Norfolk
   ind.in.mles <- 30
 } else if (station=='balboa') {
   appen <- 'ppgpd-experiments_balboa'
-  #FIX THIS gpd.experiments <- c('gpd30','gpd50','gpd70','gpd90','gpd110','gpd137')
   filename.datacalib <- 'tidegauge_processed_balboa_26Jul2017.rds' # file holding the calibration data object for Balboa
   ind.in.mles <- 10
 }
 
 # Name the calibrated parameters output file
 today <- Sys.Date(); today=format(today,format="%d%b%Y")
-filename.parameters <- paste(output.dir,'evt_models_calibratedParameters_',appen,'_',today,'.nc',sep='')
+filename.parameters <- paste(output.dir,'calibratedParameters_',appen,'_',today,'.nc',sep='')
 
 #
 #===============================================================================
@@ -91,6 +91,7 @@ print('...done.')
 print('reading processed tide gauge data...')
 
 data_calib <- readRDS(paste(dat.dir,filename.datacalib,sep=''))
+gpd.experiments <- names(data_calib)[intersect(which(nchar(names(data_calib))>3) , grep('gpd', names(data_calib)))]
 
 print('...done.')
 
@@ -122,12 +123,6 @@ print('...done.')
 # first, do a set of single-chain preliminary calibrations to get estimates of
 # the jump covariance matrix
 
-
-## TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO HERE NOW
-## TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO HERE NOW
-## TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO HERE NOW
-
-
 nnode_mcmc <- nnode_mcmc_prelim000
 niter_mcmc <- niter_mcmc_prelim000
 gamma_mcmc <- gamma_mcmc000
@@ -142,14 +137,12 @@ for (gpd.exp in gpd.experiments) {
   print(paste('Starting preliminary calibration for experiment ',gpd.exp,'...', sep=''))
   for (model in types.of.gpd) {
     print(paste('Starting preliminary calibration for model ',model,' (',nnode_mcmc,' cores x ',niter_mcmc,' iterations)...', sep=''))
-
-    initial_parameters <- as.numeric(deoptim.delfzijl[[model]])
     if(model=='gpd3') {auxiliary <- NULL
     } else {auxiliary <- trimmed_forcing(data_calib[[gpd.exp]]$year, time_forc, temperature_forc)$temperature}
     accept_mcmc <- accept_mcmc_many + (accept_mcmc_few - accept_mcmc_many)/length(parnames_all[[model]])
     step_mcmc <- as.numeric(0.05*apply(X=mle.fits[[model]], MARGIN=2, FUN=sd))
     tbeg=proc.time()
-    amcmc_prelim[[gpd.exp]][[model]] = MCMC(log_post_ppgpd, niter_mcmc, initial_parameters,
+    amcmc_prelim[[gpd.exp]][[model]] = MCMC(log_post_ppgpd, niter_mcmc, initial.values[[model]],
                               adapt=TRUE, acc.rate=accept_mcmc, scale=step_mcmc,
                               gamma=gamma_mcmc, list=TRUE, n.start=startadapt_mcmc,
                               parnames=parnames_all[[model]], data_calib=data_calib[[gpd.exp]],
@@ -160,8 +153,12 @@ for (gpd.exp in gpd.experiments) {
   }
 }
 
+## TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO HERE NOW
+## TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO HERE NOW
+## TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO HERE NOW
+
 today=Sys.Date(); today=format(today,format="%d%b%Y")
-filename.everythingmcmc <- paste(output.dir,'kitchen_sink_mcmc_',appen,'_',today,'.RData', sep='')
+filename.everythingmcmc <- paste(output.dir,'everything_mcmc_',appen,'_',today,'.RData', sep='')
 
 print(paste('saving preliminary results as .RData file (',filename.everythingmcmc,') to read and use later...',sep=''))
 save.image(file=filename.everythingmcmc)
@@ -284,7 +281,7 @@ for (gpd.exp in gpd.experiments) {
         # do parallel chains
         tbeg <- proc.time()
         amcmc_out[[gpd.exp]][[model]] <- MCMC.parallel(log_post_ppgpd, niter_mcmc, initial_parameters,
-                               n.chain=4, n.cpu=4, packages='extRemes',
+                               n.chain=nnode_mcmc, n.cpu=nnode_mcmc, packages='extRemes',
                                scale=step_mcmc, adapt=TRUE, acc.rate=accept_mcmc,
                                gamma=gamma_mcmc, list=TRUE, n.start=startadapt_mcmc,
                                parnames=parnames_all[[model]], data_calib=data_calib[[gpd.exp]],
@@ -298,19 +295,6 @@ for (gpd.exp in gpd.experiments) {
   save.image(file=filename.everythingmcmc)
   print('...done.')
 }
-
-# for now, just save RData file so you can play around with the GR stats,
-# subtracting off burn-in, thinning (if needed), etc.
-
-#
-#===============================================================================
-# save raw results
-#===============================================================================
-#
-
-print(paste('saving production results as .RData file (',filename.everythingmcmc,') to read and use later...',sep=''))
-save.image(file=filename.everythingmcmc)
-print('...done.')
 
 # test plot
 if (FALSE) {
@@ -418,12 +402,6 @@ for (gpd.exp in gpd.experiments) {
 #===============================================================================
 #
 
-
-# HERE NOW <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HERE NOW!
-# HERE NOW <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HERE NOW!
-# HERE NOW <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HERE NOW!
-
-
 # Note: here, we are only using the Gelman and Rubin diagnostic. But this is
 # only after looking at the quantile stability as iterations increase, as well
 # as the Heidelberger and Welch diagnostics, which suggest the chains are okay.
@@ -495,7 +473,7 @@ for (model in types.of.model) {
 # thin to a target number of samples?
 if(TRUE) {#===========================
 
-n.sample <- 10000   # dike ring 15 safety standard is 1/2000, so at least 2000...
+n.sample <- 10000
 
 for (gpd.exp in gpd.experiments) {
   for (model in types.of.model) {

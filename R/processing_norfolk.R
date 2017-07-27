@@ -222,6 +222,28 @@ data_norfolk$gpd$time_length_all <- length(days.daily.max)
 # that takes some time, so save the workspace image after each data set
 save.image(file=filename.saveprogress)
 
+#
+#===============================================================================
+# subsample smaller sets of the POT/GPD data
+#===============================================================================
+#
+
+# initialize, and create list elements for these GPD experiments. then later
+# remove from each sub-list item the years the experiment will not use
+gpd.experiments <- c('gpd30','gpd50','gpd70','gpd89')
+years.gpd.experiments <- c(30,50,70,89); names(years.gpd.experiments) <- gpd.experiments
+for (gpd.exp in gpd.experiments) {
+  data_norfolk[[gpd.exp]] <- data_norfolk$gpd
+  ind.experiment <- (length(data_norfolk$gpd$year)-years.gpd.experiments[[gpd.exp]]+1):length(data_norfolk$gpd$year)
+  data_norfolk[[gpd.exp]]$counts <- data_norfolk[[gpd.exp]]$counts[ind.experiment]
+  data_norfolk[[gpd.exp]]$time_length <- data_norfolk[[gpd.exp]]$time_length[ind.experiment]
+  data_norfolk[[gpd.exp]]$excesses <- data_norfolk[[gpd.exp]]$excesses[ind.experiment]
+  data_norfolk[[gpd.exp]]$year <- data_norfolk$gpd$year[ind.experiment]
+  data_norfolk[[gpd.exp]]$counts_all <- NULL
+  data_norfolk[[gpd.exp]]$time_length_all <- NULL
+  data_norfolk[[gpd.exp]]$excesses_all <- NULL
+}
+
 tend <- proc.time()
 print(paste('  ... done. Took ', (tend[3]-tbeg[3])/60, ' minutes.',sep=''))
 
