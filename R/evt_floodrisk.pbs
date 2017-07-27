@@ -1,0 +1,12 @@
+#!/bin/bash
+#PBS -l walltime=96:00:00
+#PBS -l nodes=1:ppn=1
+#PBS -j oe
+#PBS -m abe
+#PBS -M twong@psu.edu
+
+####R CMD BATCH --no-save --quiet --slave /storage/home/axw322/work/codes/EVT/R/calibration_driver.R
+###R < /storage/home/axw322/work/codes/EVT/R/calibration_driver.R > /storage/home/axw322/work/codes/EVT/R/calib_mcmc.log
+R --vanilla < /home/scrim/axw322/codes/EVT/R/flood_risk_dayPOT-experiments.R > /home/scrim/axw322/codes/EVT/R/floodrisk_dayPOT-experiments_mcmc.log
+####./R CMD BATCH calibration_driver.R
+####sh ./execute_mcmc.sh

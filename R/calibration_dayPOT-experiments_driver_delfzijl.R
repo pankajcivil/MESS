@@ -22,8 +22,8 @@ filename.mles <- 'surge_MLEs_ppgpd_26Jul2017.rds'  # file holding the 'deoptim.a
 output.dir <- '../output/'
 dat.dir <- '../data/'
 
-#setwd('/storage/home/axw322/work/codes/EVT/R')
-setwd('/Users/tony/codes/EVT/R')
+setwd('/home/scrim/axw322/codes/EVT/R')
+#setwd('/Users/tony/codes/EVT/R')
 
 # IMPORTANT vvv SET WHICH STATION YOU WANT TO CALIBRATE HERE
 
@@ -61,7 +61,7 @@ library(zoo)
 library(adaptMCMC)
 library(lhs)
 library(DEoptim)
-#library(ncdf4)
+library(ncdf4)
 
 #
 #===============================================================================
@@ -152,10 +152,6 @@ for (gpd.exp in gpd.experiments) {
     print(paste('... done. Took ',round(as.numeric(tend-tbeg)[3]/60,2),' minutes', sep=''))
   }
 }
-
-## TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO HERE NOW
-## TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO HERE NOW
-## TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< TODO HERE NOW
 
 today=Sys.Date(); today=format(today,format="%d%b%Y")
 filename.everythingmcmc <- paste(output.dir,'everything_mcmc_',appen,'_',today,'.RData', sep='')
