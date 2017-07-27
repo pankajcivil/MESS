@@ -1,8 +1,8 @@
 #!/bin/bash
-#PBS -l walltime=00:24:00
+#PBS -l walltime=24:00:00
 #PBS -l nodes=1:ppn=10
 #PBS -j oe
 #PBS -m abe
 #PBS -M twong@psu.edu
 
-R --vanilla < /home/scrim/axw322/codes/EVT/R/calibration_dayPOT-experiments_driver_delfzijl.R > /home/scrim/axw322/codes/EVT/R/calib_mcmc_delfzijl.log
+R --vanilla < /home/scrim/axw322/codes/EVT/R/calibration_dayPOT-experiments_driver.R > /home/scrim/axw322/codes/EVT/R/calib_mcmc_norfolk.log

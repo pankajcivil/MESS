@@ -1,19 +1,19 @@
 #===============================================================================
-# Calibration of PP-GPD model(s) for storm surge at Delfzijl, The Netherlands.
-# This version does the varying record length experiments.
-#
-# To get the data length experiment elements of data_deflzijl object:
-#   intersect(which(nchar(names(data_norfolk))>3) , grep('gpd', names(data_norfolk)))
+# Calibration of PP-GPD model(s) for storm surge at Delfzijl, The Netherlands;
+# Balboa, Panama; and Norfolk, Virgina, USA.
+# This version does the varying record length experiments and includes the
+# experiment using all of the data for each site, eliminating the need for a
+# separate script.
 #
 # Questions? Tony Wong (twong@psu.edu)
 #===============================================================================
 
 rm(list=ls())
 
-niter_mcmc_prelim000 <- 5e2      # number of MCMC iterations (PRELIMINARY chains)
+niter_mcmc_prelim000 <- 5e3      # number of MCMC iterations (PRELIMINARY chains)
 nnode_mcmc_prelim000 <- 1        # number of CPUs to use (PRELIMINARY chains)
-niter_mcmc_prod000 <- 5e3        # number of MCMC iterations (PRODUCTION chains)
-nnode_mcmc_prod000 <- 2          # number of CPUs to use (PRODUCTION chains)
+niter_mcmc_prod000 <- 5e5        # number of MCMC iterations (PRODUCTION chains)
+nnode_mcmc_prod000 <- 10          # number of CPUs to use (PRODUCTION chains)
 gamma_mcmc000 <- 0.5             # speed of adaptation (0.5=faster, 1=slowest)
 
 filename.priors   <- 'surge_priors_normalgamma_ppgpd_26Jul2017.rds'  # file holding the 'priors' object
@@ -26,9 +26,7 @@ setwd('/home/scrim/axw322/codes/EVT/R')
 #setwd('/Users/tony/codes/EVT/R')
 
 # IMPORTANT vvv SET WHICH STATION YOU WANT TO CALIBRATE HERE
-
-station <- 'delfzijl' # can be 'delfzijl', 'balboa', or 'norfolk'
-
+station <- 'norfolk' # can be 'delfzijl', 'balboa', or 'norfolk'
 # IMPORTANT ^^^
 
 if (station=='delfzijl') {
@@ -48,6 +46,19 @@ if (station=='delfzijl') {
 # Name the calibrated parameters output file
 today <- Sys.Date(); today=format(today,format="%d%b%Y")
 filename.parameters <- paste(output.dir,'calibratedParameters_',appen,'_',today,'.nc',sep='')
+
+# Name the saved progress RData workspace image file
+filename.everythingmcmc <- paste(output.dir,'everything_mcmc_',appen,'_',today,'.RData', sep='')
+
+#
+#===============================================================================
+# Nothing below here should need to be modified. And really, all you ought to
+# need to do is adjust the name of the station to calibrate, or the set of prior
+# distributions for a supplementary experiment.
+#===============================================================================
+#
+
+# On with the show!
 
 #
 #===============================================================================
@@ -153,9 +164,7 @@ for (gpd.exp in gpd.experiments) {
   }
 }
 
-today=Sys.Date(); today=format(today,format="%d%b%Y")
-filename.everythingmcmc <- paste(output.dir,'everything_mcmc_',appen,'_',today,'.RData', sep='')
-
+# save progress
 print(paste('saving preliminary results as .RData file (',filename.everythingmcmc,') to read and use later...',sep=''))
 save.image(file=filename.everythingmcmc)
 print('...done.')
@@ -519,6 +528,11 @@ for (gpd.exp in gpd.experiments) {
   }
 }
 
+# save results in case you need to revisit later
+print(paste('saving MCMC workspace results as .RData file (',filename.everythingmcmc,') to read and use later...',sep=''))
+save.image(file=filename.everythingmcmc)
+print('...done.')
+
 #
 #===============================================================================
 # write output file
@@ -582,8 +596,10 @@ for (model in types.of.model) {
 }
 nc_close(outnc)
 
-# link straight into flood risk
-parameters <- parameters.posterior
+# save results in case you need to revisit later
+print(paste('saving MCMC workspace results as .RData file (',filename.everythingmcmc,') to read and use later...',sep=''))
+save.image(file=filename.everythingmcmc)
+print('...done.')
 
 #
 #===============================================================================
