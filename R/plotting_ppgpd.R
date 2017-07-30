@@ -1,17 +1,280 @@
 #===============================================================================
-# plotting for wong and keller pp/gpd analysis.
-# If this is value and you have questions, email me. Seriously.
+# analysis_and_plotting.R
+#
+# Analysis and plotting for wong, klufas and keller pp/gpd analysis.
+# This assumes you've downloaded the Github repo and are running from the
+# 'R' directory.
+#
+# If any this is vague/confusing and you have questions, email me. Seriously.
 #
 # Questions? Tony Wong (twong@psu.edu)
 #===============================================================================
 
-plot.dir <- '../figures/'
 
 #===============================================================================
+# Some preliminaries
+
+setwd('~/codes/EVT/R')
+
+library(ncdf4)
+library(extRemes)
+
 # get some colorblind-friendly colors to plot with
 source('colorblindPalette.R')
 
+# set useful directories -- assumes you are in the 'R' directory within the repo
+# directory structure
+plot.dir <- '../figures/'
+output.dir <- '../output/'
+
+# calibrated parameter sets (samples; all should be same size)
+# these are the results from 'calibration_dayPOT-experiments_driver.R'
+filename.norfolk.normalgamma <-  paste(output.dir,'calibratedParameters_ppgpd-experiments_norfolk_normalgamma_27Jul2017.nc', sep='')
+filename.norfolk.uniform <-      paste(output.dir,'calibratedParameters_ppgpd-experiments_norfolk_uniform_27Jul2017.nc',     sep='')
+filename.balboa.normalgamma <-   paste(output.dir,'calibratedParameters_ppgpd-experiments_balboa_normalgamma_28Jul2017.nc',  sep='')
+filename.balboa.uniform <-       paste(output.dir,'calibratedParameters_ppgpd-experiments_balboa_uniform_28Jul2017.nc',      sep='')
+filename.delfzijl.normalgamma <- paste(output.dir,'calibratedParameters_ppgpd-experiments_delfzijl_normalgamma_29Jul2017.nc',sep='')
+filename.delfzijl.uniform <-     paste(output.dir,'calibratedParameters_ppgpd-experiments_delfzijl_uniform_29Jul2017.nc',    sep='')
+
+filename.norfolk.data <- '../data/tidegauge_processed_norfolk_26Jul2017.rds'
+filename.balboa.data <- '../data/tidegauge_processed_balboa_26Jul2017.rds'
+filename.delfzijl.data <- '../data/tidegauge_processed_delfzijl_26Jul2017.rds'
 #===============================================================================
+
+
+
+#===============================================================================
+#===============================================================================
+# ANALYSIS
+#===============================================================================
+#===============================================================================
+
+
+
+
+#===============================================================================
+# read temperature data for projecting surge levels covarying with global mean
+# surface temperature
+#===============================================================================
+
+# yields 'temperature_forc' and 'time_forc', between 1850 and 2100
+# temperatures are relative to 1901-2000 mean temperature.
+
+source('read_data_temperature.R')
+
+# check the normalization
+temperature.check <- mean(temperature_forc[which(time_forc==1901):which(time_forc==2000)])
+print(paste('mean(temperature_forc between 1901 and 2000) is: ', temperature.check, sep=''))
+print('(should be normalized to 0 during that period)')
+
+#===============================================================================
+# read parameter sets
+#===============================================================================
+
+# create list objects to store the parameters
+site.names <- c('Balboa','Delfzijl','Norfolk'); nsites <- length(site.names)
+data.lengths <- c(30,50,70,90,110,130); ndata.exp <- length(data.lengths)
+data.experiment.names <- rep(NA, length(data.lengths)); for (dd in 1:length(data.lengths)) {data.experiment.names[dd] <- paste('y',data.lengths[dd],sep='')}
+types.of.gpd <- c('gpd3','gpd4','gpd5','gpd6'); nmodel <- length(types.of.gpd)
+
+# define a generic list object that will have values for (i) each site,
+# (ii) each data length experiment and (iii) each GPD model structure. (in that
+# order)
+list.init <- vector('list', nsites); names(list.init) <- site.names
+for (site in site.names) {
+  list.init[[site]] <- vector('list', length(data.lengths)); names(list.init[[site]]) <- data.experiment.names
+  for (data.exp in data.experiment.names) {
+    list.init[[site]][[data.exp]] <- vector('list', nmodel); names(list.init[[site]][[data.exp]]) <- types.of.gpd
+  }
+}
+
+# initialize anything you would like to be defined for each site, for each data
+# length and for each GPD model structure
+gpd.parameters <- list.init
+rl100 <- list.init
+
+# index to store within the list level [[data.experiments]] which of the
+# experiments corresponds to using all of the data. so you would use:
+#    gpd.parameters$delfzijl[[all.data]]$gpd3
+# for example to get at the calibrated gpd3 (stationary model) parameters for
+# Delfzijl.
+all.data <- rep(NA, nsites); names(all.data) <- site.names
+
+# hard-coding here, even though it is bad practice. the different sites ahve
+# different lengths of record, making things a bit complicated.
+
+# need the thresholds for exceedances used
+threshold <- vector('list', nsites); names(threshold) <- site.names
+
+# parameter nmaes
+parnames <- vector('list', nmodel); names(parnames) <- types.of.gpd
+
+for (site in site.names) {
+  if(site=='Norfolk') {
+    ncdata <- nc_open(filename.norfolk.normalgamma)
+    for (model in types.of.gpd) {
+      gpd.parameters[[site]]$y30[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd30.',model,sep='')))
+      gpd.parameters[[site]]$y50[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd50.',model,sep='')))
+      gpd.parameters[[site]]$y70[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd70.',model,sep='')))
+      gpd.parameters[[site]]$y90[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd89.',model,sep='')))
+      all.data[[site]] <- 4
+      parnames[[model]] <- ncvar_get(ncdata, paste('parnames.',model,sep=''))
+    }
+    n.ensemble <- nrow(gpd.parameters[[site]]$y30$gpd3)
+    data.tmp <- readRDS(filename.norfolk.data); threshold[[site]] <- data.tmp$gpd$threshold
+  } else if(site=='Balboa') {ncdata <- nc_open(filename.balboa.normalgamma)
+    for (model in types.of.gpd) {
+      gpd.parameters[[site]]$y30[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd30.',model,sep='')))
+      gpd.parameters[[site]]$y50[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd50.',model,sep='')))
+      gpd.parameters[[site]]$y70[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd70.',model,sep='')))
+      gpd.parameters[[site]]$y90[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd90.',model,sep='')))
+      gpd.parameters[[site]]$y110[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd107.',model,sep='')))
+      all.data[[site]] <- 5
+      data.tmp <- readRDS(filename.balboa.data); threshold[[site]] <- data.tmp$gpd$threshold
+    }
+    if(nrow(gpd.parameters[[site]]$y30$gpd3) != n.ensemble) {print('ERROR - all sites ensembles must be the same size')}
+  } else if(site=='Delfzijl') {ncdata <- nc_open(filename.delfzijl.normalgamma)
+    for (model in types.of.gpd) {
+      gpd.parameters[[site]]$y30[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd30.',model,sep='')))
+      gpd.parameters[[site]]$y50[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd50.',model,sep='')))
+      gpd.parameters[[site]]$y70[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd70.',model,sep='')))
+      gpd.parameters[[site]]$y90[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd90.',model,sep='')))
+      gpd.parameters[[site]]$y110[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd110.',model,sep='')))
+      gpd.parameters[[site]]$y130[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd137.',model,sep='')))
+      all.data[[site]] <- 6
+      data.tmp <- readRDS(filename.delfzijl.data); threshold[[site]] <- data.tmp$gpd$threshold
+    }
+    if(nrow(gpd.parameters[[site]]$y30$gpd3) != n.ensemble) {print('ERROR - all sites ensembles must be the same size')}
+  } else {print('ERROR - unrecognized site name')}
+}
+
+
+
+#===============================================================================
+# calculate return levels
+#===============================================================================
+
+TODO
+
+# years to grab the reutrn levels
+rl.years <- c(2000, 2016, 2065); nyears <- length(rl.years)
+year.names <- rep(NA, length(rl.years)); for (year in 1:length(rl.years)) {year.names[year] <- paste('y',rl.years[year],sep='')}
+temperature.years <- temperature_forc[which(time_forc == rl.years)]
+print('you probably just got an error message - dont worry about it, probably')
+
+
+# need the functions to project the PP/GPD parameters
+source('likelihood_ppgpd.R')
+
+# this is definitely coded like a neanderthal. can come back and code it more
+# efficiently..?
+for (site in site.names) {
+  for (data.len in data.experiment.names[1:all.data[[site]]]) {
+    for (model in types.of.gpd) {
+      rl100[[site]][[data.len]][[model]] <- vector('list', nyears); names(rl100[[site]][[data.len]][[model]]) <- year.names
+      for (year in year.names) {
+        rl100[[site]][[data.len]][[model]][[year]] <- rep(NA, n.ensemble)
+        print(paste('calculating return levels...',site,data.len,model,year,sep=' - '))
+        tbeg <- proc.time()
+        pb <- txtProgressBar(min=0,max=n.ensemble, initial=0,style=3)
+        for (sow in 1:n.ensemble) {
+
+          sigma <- gpd.parameters[[site]][[data.len]][[model]][sow,3]
+
+          rl100[[site]][[data.len]][[model]][[year]][sow] <- rlevd(100, scale=)
+
+# TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HERE NOW
+
+          rlevd(period, loc = 0, scale = 1, shape = 0, threshold = 0,
+          type = c("GEV", "GP", "PP", "Gumbel", "Frechet", "Weibull",
+          "Exponential", "Beta", "Pareto"),
+          npy = 365.25, rate = 0.01)
+
+
+
+          setTxtProgressBar(pb, sow)
+        }
+        close(pb)
+      }
+    }
+  }
+}
+
+
+
+
+
+
+#===============================================================================
+# Bayesian model averaging ensemble
+#===============================================================================
+
+TODO - modify below as needed
+
+
+bic <- vector('list', nexp); names(bic) <- gpd.experiments
+llik.mod <- vector('list', nexp); names(llik.mod) <- gpd.experiments
+llik.mod.all <- vector('list', nexp); names(llik.mod.all) <- gpd.experiments
+lpost.mod.all <- vector('list', nexp); names(lpost.mod.all) <- gpd.experiments
+for (gpd.exp in gpd.experiments) {
+  bic[[gpd.exp]] <- rep(NA, nmodel); names(bic[[gpd.exp]]) <- types.of.model
+  llik.mod[[gpd.exp]] <- rep(NA, nmodel); names(llik.mod[[gpd.exp]]) <- types.of.model
+  llik.mod.all[[gpd.exp]] <- vector('list', nmodel); names(llik.mod.all[[gpd.exp]]) <- types.of.model
+  lpost.mod.all[[gpd.exp]] <- vector('list', nmodel); names(lpost.mod.all[[gpd.exp]]) <- types.of.model
+}
+
+for (gpd.exp in gpd.experiments) {
+  for (model in types.of.model) {
+    if(substr(model,4,4)!='3') {auxiliary <- trimmed_forcing(data_calib[[gpd.exp]]$year, time_forc, temperature_forc)$temperature}
+    lpri.tmp <- rep(NA, n.ensemble[[model]])
+    llik.tmp <- rep(NA, n.ensemble[[model]])
+    llik.mod.all[[gpd.exp]][[model]] <- rep(NA, n.ensemble[[model]])
+    lpost.mod.all[[gpd.exp]][[model]] <- rep(NA, n.ensemble[[model]])
+    for (i in 1:n.ensemble[[model]]) {
+      lpri.tmp[i] <- log_prior_ppgpd(parameters=parameters[[gpd.exp]][[model]][i,], parnames=parnames_all[[model]], priors=priors.dayPOT, model=model)
+      llik.tmp[i] <- log_like_ppgpd(parameters=parameters[[gpd.exp]][[model]][i,], parnames=parnames_all[[model]], data_calib=data_calib[[gpd.exp]], auxiliary=auxiliary)
+      ndata <- sum(data_calib[[gpd.exp]]$counts)
+      llik.mod.all[[gpd.exp]][[model]][i] <- llik.tmp[i]
+      lpost.mod.all[[gpd.exp]][[model]][i] <- llik.tmp[i] + lpri.tmp[i]
+    }
+    imax <- which.max(llik.tmp)
+    bic[[gpd.exp]][[model]] <- -2*max(llik.tmp) + length(parnames_all[[model]])*log(ndata)
+    llik.mod[[gpd.exp]][[model]] <- mean(llik.tmp[is.finite(llik.tmp)])
+  }
+}
+
+# a few different model averaging schemes
+# note that wgt_lik is actual BMA
+wgt_bic <- vector('list', nexp); names(wgt_bic) <- gpd.experiments
+wgt_lik <- vector('list', nexp); names(wgt_lik) <- gpd.experiments
+reg_wgt_bic <- vector('list', nexp); names(reg_wgt_bic) <- gpd.experiments
+reg_wgt_lik <- vector('list', nexp); names(reg_wgt_lik) <- gpd.experiments
+for (gpd.exp in gpd.experiments) {
+  wgt_bic[[gpd.exp]] <- rep(NA, nmodel); names(wgt_bic[[gpd.exp]]) <- types.of.model
+  wgt_lik[[gpd.exp]] <- rep(NA, nmodel); names(wgt_lik[[gpd.exp]]) <- types.of.model
+  reg_wgt_bic[[gpd.exp]] <- rep(NA, nmodel); names(reg_wgt_bic[[gpd.exp]]) <- types.of.model
+  reg_wgt_lik[[gpd.exp]] <- rep(NA, nmodel); names(reg_wgt_lik[[gpd.exp]]) <- types.of.model
+}
+
+llik.ref <- rep(NA, nexp); names(llik.ref) <- gpd.experiments
+for (gpd.exp in gpd.experiments) {
+  llik.ref[[gpd.exp]] <- median(llik.mod[[gpd.exp]])
+  wgt_bic[[gpd.exp]] <- min(bic[[gpd.exp]])/bic[[gpd.exp]]; wgt_bic[[gpd.exp]] <- wgt_bic[[gpd.exp]]/sum(wgt_bic[[gpd.exp]])
+  wgt_lik[[gpd.exp]] <- exp(llik.mod[[gpd.exp]] - llik.ref[[gpd.exp]])/sum(exp(llik.mod[[gpd.exp]] - llik.ref[[gpd.exp]]))
+}
+#===============================================================================
+
+
+
+
+#===============================================================================
+#===============================================================================
+# PLOTTING
+#===============================================================================
+#===============================================================================
+
+
+
 
 
 #
