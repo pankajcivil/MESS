@@ -154,17 +154,11 @@ for (site in site.names) {
 # calculate return levels
 #===============================================================================
 
-TODO
-
 # years to grab the reutrn levels
 rl.years <- c(2000, 2016, 2065); nyears <- length(rl.years)
 year.names <- rep(NA, length(rl.years)); for (year in 1:length(rl.years)) {year.names[year] <- paste('y',rl.years[year],sep='')}
-temperature.years <- temperature_forc[which(time_forc == rl.years)]
+temperature.years <- temperature_forc[which(time_forc == rl.years)]; names(temperature.years) <- year.names
 print('you probably just got an error message - dont worry about it, probably')
-
-
-# need the functions to project the PP/GPD parameters
-source('likelihood_ppgpd.R')
 
 # this is definitely coded like a neanderthal. can come back and code it more
 # efficiently..?
@@ -178,20 +172,34 @@ for (site in site.names) {
         tbeg <- proc.time()
         pb <- txtProgressBar(min=0,max=n.ensemble, initial=0,style=3)
         for (sow in 1:n.ensemble) {
-
-          sigma <- gpd.parameters[[site]][[data.len]][[model]][sow,3]
-
-          rl100[[site]][[data.len]][[model]][[year]][sow] <- rlevd(100, scale=)
-
-# TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HERE NOW
-
-          rlevd(period, loc = 0, scale = 1, shape = 0, threshold = 0,
-          type = c("GEV", "GP", "PP", "Gumbel", "Frechet", "Weibull",
-          "Exponential", "Beta", "Pareto"),
-          npy = 365.25, rate = 0.01)
-
-
-
+          if (length(parnames[[model]])==3) {
+            lambda <- gpd.parameters[[site]][[data.len]][[model]][sow,match('lambda', parnames[[model]])]
+            sigma <- gpd.parameters[[site]][[data.len]][[model]][sow,match('sigma', parnames[[model]])]
+            xi <- gpd.parameters[[site]][[data.len]][[model]][sow,match('xi', parnames[[model]])]
+          } else if(length(parnames[[model]])==4) {
+            lambda <- gpd.parameters[[site]][[data.len]][[model]][sow,match('lambda0', parnames[[model]])] +
+                      gpd.parameters[[site]][[data.len]][[model]][sow,match('lambda1', parnames[[model]])]*temperature.years[[year]]
+            sigma <- gpd.parameters[[site]][[data.len]][[model]][sow,match('sigma', parnames[[model]])]
+            xi <- gpd.parameters[[site]][[data.len]][[model]][sow,match('xi', parnames[[model]])]
+          } else if(length(parnames[[model]])==5) {
+            lambda <- gpd.parameters[[site]][[data.len]][[model]][sow,match('lambda0', parnames[[model]])] +
+                      gpd.parameters[[site]][[data.len]][[model]][sow,match('lambda1', parnames[[model]])]*temperature.years[[year]]
+            sigma <- exp(gpd.parameters[[site]][[data.len]][[model]][sow,match('sigma0', parnames[[model]])] +
+                         gpd.parameters[[site]][[data.len]][[model]][sow,match('sigma1', parnames[[model]])]*temperature.years[[year]])
+            xi <- gpd.parameters[[site]][[data.len]][[model]][sow,match('xi', parnames[[model]])]
+          } else if(length(parnames[[model]])==6) {
+            lambda <- gpd.parameters[[site]][[data.len]][[model]][sow,match('lambda0', parnames[[model]])] +
+                      gpd.parameters[[site]][[data.len]][[model]][sow,match('lambda1', parnames[[model]])]*temperature.years[[year]]
+            sigma <- exp(gpd.parameters[[site]][[data.len]][[model]][sow,match('sigma0', parnames[[model]])] +
+                         gpd.parameters[[site]][[data.len]][[model]][sow,match('sigma1', parnames[[model]])]*temperature.years[[year]])
+            xi <- gpd.parameters[[site]][[data.len]][[model]][sow,match('xi0', parnames[[model]])] +
+                  gpd.parameters[[site]][[data.len]][[model]][sow,match('xi1', parnames[[model]])]*temperature.years[[year]]
+          }
+          rl100[[site]][[data.len]][[model]][[year]][sow] <- rlevd(100, scale=sigma, shape=xi,
+                                                                   threshold=threshold[[site]],
+                                                                   type='GP',
+                                                                   npy=365.25,
+                                                                   rate=lambda)
           setTxtProgressBar(pb, sow)
         }
         close(pb)
@@ -199,9 +207,6 @@ for (site in site.names) {
     }
   }
 }
-
-
-
 
 
 
