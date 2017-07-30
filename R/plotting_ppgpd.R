@@ -39,6 +39,10 @@ filename.delfzijl.uniform <-     paste(output.dir,'calibratedParameters_ppgpd-ex
 filename.norfolk.data <- '../data/tidegauge_processed_norfolk_26Jul2017.rds'
 filename.balboa.data <- '../data/tidegauge_processed_balboa_26Jul2017.rds'
 filename.delfzijl.data <- '../data/tidegauge_processed_delfzijl_26Jul2017.rds'
+
+# file to save progress as you run
+filename.saveprogress <- '../output/analysis_inprogress.RData'
+
 #===============================================================================
 
 
@@ -206,6 +210,7 @@ for (site in site.names) {
       }
     }
   }
+  save.image(file=filename.saveprogress)
 }
 
 
