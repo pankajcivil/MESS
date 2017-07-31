@@ -40,6 +40,8 @@ filename.norfolk.data <- '../data/tidegauge_processed_norfolk_26Jul2017.rds'
 filename.balboa.data <- '../data/tidegauge_processed_balboa_26Jul2017.rds'
 filename.delfzijl.data <- '../data/tidegauge_processed_delfzijl_26Jul2017.rds'
 
+filename.priors <- '../output/surge_priors_normalgamma_ppgpd_26Jul2017.rds'
+
 # file to save progress as you run
 filename.saveprogress <- '../output/analysis_inprogress.RData'
 
@@ -103,12 +105,11 @@ rl100 <- list.init
 # for example to get at the calibrated gpd3 (stationary model) parameters for
 # Delfzijl.
 all.data <- rep(NA, nsites); names(all.data) <- site.names
+data.lengths <- vector('list', nsites); names(data.lengths) <- site.names
+data.sites <- vector('list', nsites); names(data.sites) <- site.names
 
 # hard-coding here, even though it is bad practice. the different sites ahve
 # different lengths of record, making things a bit complicated.
-
-# need the thresholds for exceedances used
-threshold <- vector('list', nsites); names(threshold) <- site.names
 
 # parameter nmaes
 parnames <- vector('list', nmodel); names(parnames) <- types.of.gpd
@@ -121,11 +122,12 @@ for (site in site.names) {
       gpd.parameters[[site]]$y50[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd50.',model,sep='')))
       gpd.parameters[[site]]$y70[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd70.',model,sep='')))
       gpd.parameters[[site]]$y90[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd89.',model,sep='')))
-      all.data[[site]] <- 4
       parnames[[model]] <- ncvar_get(ncdata, paste('parnames.',model,sep=''))
     }
     n.ensemble <- nrow(gpd.parameters[[site]]$y30$gpd3)
-    data.tmp <- readRDS(filename.norfolk.data); threshold[[site]] <- data.tmp$gpd$threshold
+    data.sites[[site]] <- readRDS(filename.norfolk.data)
+    data.lengths[[site]] <- names(data.sites[[site]])[intersect(which(nchar(names(data.sites[[site]]))>3) , grep('gpd', names(data.sites[[site]])))]
+    all.data[[site]] <- length(data.lengths[[site]])
   } else if(site=='Balboa') {ncdata <- nc_open(filename.balboa.normalgamma)
     for (model in types.of.gpd) {
       gpd.parameters[[site]]$y30[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd30.',model,sep='')))
@@ -133,9 +135,10 @@ for (site in site.names) {
       gpd.parameters[[site]]$y70[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd70.',model,sep='')))
       gpd.parameters[[site]]$y90[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd90.',model,sep='')))
       gpd.parameters[[site]]$y110[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd107.',model,sep='')))
-      all.data[[site]] <- 5
-      data.tmp <- readRDS(filename.balboa.data); threshold[[site]] <- data.tmp$gpd$threshold
     }
+    data.sites[[site]] <- readRDS(filename.balboa.data)
+    data.lengths[[site]] <- names(data.sites[[site]])[intersect(which(nchar(names(data.sites[[site]]))>3) , grep('gpd', names(data.sites[[site]])))]
+    all.data[[site]] <- length(data.lengths[[site]])
     if(nrow(gpd.parameters[[site]]$y30$gpd3) != n.ensemble) {print('ERROR - all sites ensembles must be the same size')}
   } else if(site=='Delfzijl') {ncdata <- nc_open(filename.delfzijl.normalgamma)
     for (model in types.of.gpd) {
@@ -145,20 +148,19 @@ for (site in site.names) {
       gpd.parameters[[site]]$y90[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd90.',model,sep='')))
       gpd.parameters[[site]]$y110[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd110.',model,sep='')))
       gpd.parameters[[site]]$y130[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd137.',model,sep='')))
-      all.data[[site]] <- 6
-      data.tmp <- readRDS(filename.delfzijl.data); threshold[[site]] <- data.tmp$gpd$threshold
     }
+    data.sites[[site]] <- readRDS(filename.delfzijl.data)
+    data.lengths[[site]] <- names(data.sites[[site]])[intersect(which(nchar(names(data.sites[[site]]))>3) , grep('gpd', names(data.sites[[site]])))]
+    all.data[[site]] <- length(data.lengths[[site]])
     if(nrow(gpd.parameters[[site]]$y30$gpd3) != n.ensemble) {print('ERROR - all sites ensembles must be the same size')}
   } else {print('ERROR - unrecognized site name')}
 }
-
-
 
 #===============================================================================
 # calculate return levels
 #===============================================================================
 
-# years to grab the reutrn levels
+# years to grab the return levels
 rl.years <- c(2000, 2016, 2065); nyears <- length(rl.years)
 year.names <- rep(NA, length(rl.years)); for (year in 1:length(rl.years)) {year.names[year] <- paste('y',rl.years[year],sep='')}
 temperature.years <- temperature_forc[which(time_forc == rl.years)]; names(temperature.years) <- year.names
@@ -200,7 +202,7 @@ for (site in site.names) {
                   gpd.parameters[[site]][[data.len]][[model]][sow,match('xi1', parnames[[model]])]*temperature.years[[year]]
           }
           rl100[[site]][[data.len]][[model]][[year]][sow] <- rlevd(100, scale=sigma, shape=xi,
-                                                                   threshold=threshold[[site]],
+                                                                   threshold=data.sites[[site]]$gpd$threshold,
                                                                    type='GP',
                                                                    npy=365.25,
                                                                    rate=lambda)
@@ -213,65 +215,60 @@ for (site in site.names) {
   save.image(file=filename.saveprogress)
 }
 
-
-
 #===============================================================================
 # Bayesian model averaging ensemble
 #===============================================================================
 
-TODO - modify below as needed
+# need the likelihood functions and the priors
+source('likelihood_ppgpd.R')
+priors <- readRDS(filename.priors)
 
+bic <- list.init
+llik <- list.init
+lpri <- list.init
+lpost <- list.init
+llik.mod <- list.init
+bma.weight <- list.init
+llik.ref <- vector('list', nsites); names(llik.ref) <- site.names
+for (site in site.names) {llik.ref[[site]] <- vector('list', ndata.exp); names(llik.ref[[site]]) <- data.experiment.names}
 
-bic <- vector('list', nexp); names(bic) <- gpd.experiments
-llik.mod <- vector('list', nexp); names(llik.mod) <- gpd.experiments
-llik.mod.all <- vector('list', nexp); names(llik.mod.all) <- gpd.experiments
-lpost.mod.all <- vector('list', nexp); names(lpost.mod.all) <- gpd.experiments
-for (gpd.exp in gpd.experiments) {
-  bic[[gpd.exp]] <- rep(NA, nmodel); names(bic[[gpd.exp]]) <- types.of.model
-  llik.mod[[gpd.exp]] <- rep(NA, nmodel); names(llik.mod[[gpd.exp]]) <- types.of.model
-  llik.mod.all[[gpd.exp]] <- vector('list', nmodel); names(llik.mod.all[[gpd.exp]]) <- types.of.model
-  lpost.mod.all[[gpd.exp]] <- vector('list', nmodel); names(lpost.mod.all[[gpd.exp]]) <- types.of.model
-}
-
-for (gpd.exp in gpd.experiments) {
-  for (model in types.of.model) {
-    if(substr(model,4,4)!='3') {auxiliary <- trimmed_forcing(data_calib[[gpd.exp]]$year, time_forc, temperature_forc)$temperature}
-    lpri.tmp <- rep(NA, n.ensemble[[model]])
-    llik.tmp <- rep(NA, n.ensemble[[model]])
-    llik.mod.all[[gpd.exp]][[model]] <- rep(NA, n.ensemble[[model]])
-    lpost.mod.all[[gpd.exp]][[model]] <- rep(NA, n.ensemble[[model]])
-    for (i in 1:n.ensemble[[model]]) {
-      lpri.tmp[i] <- log_prior_ppgpd(parameters=parameters[[gpd.exp]][[model]][i,], parnames=parnames_all[[model]], priors=priors.dayPOT, model=model)
-      llik.tmp[i] <- log_like_ppgpd(parameters=parameters[[gpd.exp]][[model]][i,], parnames=parnames_all[[model]], data_calib=data_calib[[gpd.exp]], auxiliary=auxiliary)
-      ndata <- sum(data_calib[[gpd.exp]]$counts)
-      llik.mod.all[[gpd.exp]][[model]][i] <- llik.tmp[i]
-      lpost.mod.all[[gpd.exp]][[model]][i] <- llik.tmp[i] + lpri.tmp[i]
+for (site in site.names) {
+  for (ind.data in 1:all.data[[site]]) {
+    for (model in types.of.gpd) {
+      print(paste('calculating log-posts/-likelihoods/-priors ',site,data.experiment.names[ind.data],model, sep=' - '))
+      if(model=='gpd3') {auxiliary <- NULL
+      } else {auxiliary <- trimmed_forcing(data.sites[[site]][[data.lengths[[site]][ind.data]]]$year, time_forc, temperature_forc)$temperature}
+      ndata <- sum(data.sites[[site]][[data.lengths[[site]][ind.data]]]$counts)
+      lpri[[site]][[ind.data]][[model]] <- sapply(1:n.ensemble, function(sow) {log_prior_ppgpd(parameters=gpd.parameters[[site]][[ind.data]][[model]][sow,], parnames=parnames[[model]], priors=priors, model=model)})
+      llik[[site]][[ind.data]][[model]] <- sapply(1:n.ensemble, function(sow) {log_like_ppgpd(parameters=gpd.parameters[[site]][[ind.data]][[model]][sow,], parnames=parnames[[model]], data_calib=data.sites[[site]][[data.lengths[[site]][ind.data]]], auxiliary=auxiliary)})
+      lpost[[site]][[ind.data]][[model]] <- lpri[[site]][[ind.data]][[model]] + llik[[site]][[ind.data]][[model]]
+      imax <- which.max(llik[[site]][[ind.data]][[model]])
+      bic[[site]][[ind.data]][[model]] <- -2*max(llik[[site]][[ind.data]][[model]]) + length(parnames[[model]])*log(ndata)
+      llik.mod[[site]][[ind.data]][[model]] <- mean(llik[[site]][[ind.data]][[model]][is.finite(llik[[site]][[ind.data]][[model]])])
     }
-    imax <- which.max(llik.tmp)
-    bic[[gpd.exp]][[model]] <- -2*max(llik.tmp) + length(parnames_all[[model]])*log(ndata)
-    llik.mod[[gpd.exp]][[model]] <- mean(llik.tmp[is.finite(llik.tmp)])
+    llik.ref[[site]][[ind.data]] <- median(unlist(llik.mod[[site]][[ind.data]]))
+    bma.weight[[site]][[ind.data]][[model]] <- exp(llik.mod[[site]][[ind.data]][[model]] - llik.ref[[site]][[ind.data]])/sum(exp(llik.mod[[site]][[ind.data]][[model]] - llik.ref[[site]][[ind.data]]))
   }
 }
+save.image(file=filename.saveprogress)
 
-# a few different model averaging schemes
-# note that wgt_lik is actual BMA
-wgt_bic <- vector('list', nexp); names(wgt_bic) <- gpd.experiments
-wgt_lik <- vector('list', nexp); names(wgt_lik) <- gpd.experiments
-reg_wgt_bic <- vector('list', nexp); names(reg_wgt_bic) <- gpd.experiments
-reg_wgt_lik <- vector('list', nexp); names(reg_wgt_lik) <- gpd.experiments
-for (gpd.exp in gpd.experiments) {
-  wgt_bic[[gpd.exp]] <- rep(NA, nmodel); names(wgt_bic[[gpd.exp]]) <- types.of.model
-  wgt_lik[[gpd.exp]] <- rep(NA, nmodel); names(wgt_lik[[gpd.exp]]) <- types.of.model
-  reg_wgt_bic[[gpd.exp]] <- rep(NA, nmodel); names(reg_wgt_bic[[gpd.exp]]) <- types.of.model
-  reg_wgt_lik[[gpd.exp]] <- rep(NA, nmodel); names(reg_wgt_lik[[gpd.exp]]) <- types.of.model
-}
+# create the BMA-weighted ensemble
 
-llik.ref <- rep(NA, nexp); names(llik.ref) <- gpd.experiments
-for (gpd.exp in gpd.experiments) {
-  llik.ref[[gpd.exp]] <- median(llik.mod[[gpd.exp]])
-  wgt_bic[[gpd.exp]] <- min(bic[[gpd.exp]])/bic[[gpd.exp]]; wgt_bic[[gpd.exp]] <- wgt_bic[[gpd.exp]]/sum(wgt_bic[[gpd.exp]])
-  wgt_lik[[gpd.exp]] <- exp(llik.mod[[gpd.exp]] - llik.ref[[gpd.exp]])/sum(exp(llik.mod[[gpd.exp]] - llik.ref[[gpd.exp]]))
-}
+# throw this to HPC; need the RData files and the raw parameter sets
+
+TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HERE NOW!!
+TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HERE NOW!!
+
+
+#===============================================================================
+# Calculate AIC, BIC, DIC for each ensemble
+#===============================================================================
+
+TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HERE NOW!!
+TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HERE NOW!!
+
+
+
 #===============================================================================
 
 

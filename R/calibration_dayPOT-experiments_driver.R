@@ -62,7 +62,7 @@ filename.everythingmcmc <- paste(output.dir,'everything_mcmc_',appen,'_',today,'
 
 #
 #===============================================================================
-# relevant libraries - do 'install.pacakges([library name])' if you do not have
+# relevant libraries - do 'install.packages([library name])' if you do not have
 # one yet
 #===============================================================================
 #

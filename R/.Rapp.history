@@ -1,32 +1,71 @@
-6*8
-f[x]=x^2;
-x<-10;
-x
-pp<-.15;
-pp<-.15; ppall<-(1-pp)^4
-ppall
-50000/60
-50000/60/3600
-50000/60/60
-exit
-quit
-exit()
-quit()
-q()
-library(stats)
-gamma(2)
-gamma(3)
-pgamma(q=1, shape=2, scale=1)
-pgamma(q=1, shape=2, rate=1)
-pgamma(1,2)
-1/exp(1)
-1-2*exp(-1)
+filetype='csv'#
+dat.dir <- '~/Downloads/'#
+files.tg <- list.files(path=dat.dir, pattern=filetype)
+files.tg
+files.tg[1]
+files.tg <- files.tg[-c(1,4,5,6)]
+data_set <- vector('list', length(files.tg))#
+for (dd in 1:length(files.tg)) {#
+  # print an update of progress to the screen#
+  print(paste('now reading in data set ',dd,' / ',length(files.tg),sep=''))#
+  names(data_set)[dd] <- substr(files.tg[dd], start=1, stop=7)#
+  data.tmp <- read.table(paste(dat.dir,files.tg[dd],sep=''), header=FALSE, sep=',')#
+  data_set[[dd]] <- vector('list', 5)#
+  names(data_set[[dd]]) <- c('year','month','day','hour','sl')#
+  data_set[[dd]]$year <- data.tmp$V1#
+  data_set[[dd]]$month <- data.tmp$V2#
+  data_set[[dd]]$day <- data.tmp$V3#
+  data_set[[dd]]$hour <- data.tmp$V4#
+  data_set[[dd]]$sl <- data.tmp$V5#
+  # time in days since 01 January 1960#
+  data_set[[dd]]$time.days <- as.numeric(mdy.date(month=data_set[[dd]]$month, day=data_set[[dd]]$day,#
+                                                  year=data_set[[dd]]$year)) + data_set[[dd]]$hour/24#
+}
+library(date)
+data_set <- vector('list', length(files.tg))#
+for (dd in 1:length(files.tg)) {#
+  # print an update of progress to the screen#
+  print(paste('now reading in data set ',dd,' / ',length(files.tg),sep=''))#
+  names(data_set)[dd] <- substr(files.tg[dd], start=1, stop=7)#
+  data.tmp <- read.table(paste(dat.dir,files.tg[dd],sep=''), header=FALSE, sep=',')#
+  data_set[[dd]] <- vector('list', 5)#
+  names(data_set[[dd]]) <- c('year','month','day','hour','sl')#
+  data_set[[dd]]$year <- data.tmp$V1#
+  data_set[[dd]]$month <- data.tmp$V2#
+  data_set[[dd]]$day <- data.tmp$V3#
+  data_set[[dd]]$hour <- data.tmp$V4#
+  data_set[[dd]]$sl <- data.tmp$V5#
+  # time in days since 01 January 1960#
+  data_set[[dd]]$time.days <- as.numeric(mdy.date(month=data_set[[dd]]$month, day=data_set[[dd]]$day,#
+                                                  year=data_set[[dd]]$year)) + data_set[[dd]]$hour/24#
+}
+par(mfrow=c(2,1))
+plot(data_set[[dd]]$time.days, data_set[[dd]]$sl, type='l')
+plot(data_set[[1]]$time.days, data_set[[1]]$sl, type='l')
+files.tg
 q()
 setwd('~/codes/EVT/R')
-load('../output/preprocessing.RData')
-source('read_data_temperature.R')
-library(ncdf4)
-source('read_data_temperature.R')
-time_forc
-save.image('../output/preprocessing.RData')
+load('../output/old/everything_mcmc_ppgpd-experiments_05Jul2017.RData')
+ls()
+load('../output/old/everything_mcmc_gev-nav_21Jun2017.RData')
+ls()
+amcmc_out$
+)
+dim(amcmc_out$gev3)
+length(amcmc_out$gev3)
+dim(amcmc_out$gev3[[1]]$samples)
+dim(amcmc_out$gev4[[1]]$samples)
+ifirst
+priors
+ls()
+mle.fits
+dim(mle.fits$gev3)
+names(amcmc_out)
+dim(amcmc_out$gev3[[1]]$samples)
+names(amcmc_out$gev3[[1]])
+length(amcmc_out$gev3)
+log_post_gev
+log_like_gev
+log_prior_gev
+amcmc_out$gev3[[1]]$samples[1:10,1]
 q()
