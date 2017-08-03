@@ -369,6 +369,7 @@ pp <- 1; par(mai=c(.25,.59,.25,.01))
 box.width <- diff(lims[1,])/nbins; box.edges <- seq(from=lims[1,1], to=lims[1,2], by=box.width)
 hist(deoptim.all[[model]][,pp], xlim=lims[1,], freq=FALSE, main='', xlab='', ylab='',
      breaks=box.edges, xaxt='n', yaxt='n', yaxs='i')
+x.tmp <- seq(from=lims[1,1], to=lims[1,2], length.out=1000); lines(x.tmp, dgamma(x=x.tmp, shape=priors_normalgamma[[model]]$lambda$shape, rate=priors_normalgamma[[model]]$lambda$rate), col='red', lwd=2)
 u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
 mtext('Probability density', side=2, line=1.2, cex=1)
 mtext('ST', side=2, line=3, cex=1)
@@ -377,12 +378,16 @@ pp <- 2; par(mai=c(.25,.35,.25,.25))
 box.width <- diff(lims[3,])/nbins; box.edges <- seq(from=lims[3,1], to=lims[3,2], by=box.width)
 hist(log(deoptim.all[[model]][,pp]), xlim=lims[3,], freq=FALSE, main='', xlab='', ylab='',
      breaks=box.edges, xaxt='n', yaxt='n', yaxs='i')
+rate.tmp <- median(log(deoptim.all[[model]][,2])) / (0.5*(max(log(deoptim.all[[model]][,2]))-min(log(deoptim.all[[model]][,2]))))^2
+shape.tmp <- median(log(deoptim.all[[model]][,2])) * rate.tmp
+x.tmp <- seq(from=lims[3,1], to=lims[3,2], length.out=1000); lines(x.tmp, dgamma(x=x.tmp, shape=shape.tmp, rate=rate.tmp), col='red', lwd=2)
 u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
 plot.new()
 pp <- 3; par(mai=c(.25,.3,.25,.3))
 box.width <- diff(lims[5,])/nbins; box.edges <- seq(from=lims[5,1], to=lims[5,2], by=box.width)
 hist(deoptim.all[[model]][,pp], xlim=lims[5,], freq=FALSE, main='', xlab='', ylab='',
      breaks=box.edges, xaxt='n', yaxt='n', yaxs='i')
+x.tmp <- seq(from=lims[5,1], to=lims[5,2], length.out=1000); lines(x.tmp, dnorm(x=x.tmp, mean=priors_normalgamma[[model]]$xi$mean, sd=priors_normalgamma[[model]]$xi$sd), col='red', lwd=2)
 u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
 plot.new()
 ##=============================
@@ -391,6 +396,7 @@ pp <- 1; par(mai=c(.25,.59,.25,.01))
 box.width <- diff(lims[1,])/nbins; box.edges <- seq(from=lims[1,1], to=lims[1,2], by=box.width)
 hist(deoptim.all[[model]][,pp], xlim=lims[1,], freq=FALSE, main='', xlab='', ylab='',
      breaks=box.edges, xaxt='n', yaxt='n', yaxs='i')
+x.tmp <- seq(from=lims[1,1], to=lims[1,2], length.out=1000); lines(x.tmp, dgamma(x=x.tmp, shape=priors_normalgamma[[model]]$lambda0$shape, rate=priors_normalgamma[[model]]$lambda0$rate), col='red', lwd=2)
 u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
 mtext('Probability density', side=2, line=1.2, cex=1)
 mtext('NS1', side=2, line=3, cex=1)
@@ -398,17 +404,22 @@ pp <- 2; par(mai=c(.25,.35,.25,.25))
 box.width <- diff(lims[2,])/nbins; box.edges <- seq(from=lims[2,1], to=lims[2,2], by=box.width)
 hist(deoptim.all[[model]][,pp], xlim=lims[2,], freq=FALSE, main='', xlab='', ylab='',
      breaks=box.edges, xaxt='n', yaxt='n', yaxs='i')
+x.tmp <- seq(from=lims[2,1], to=lims[2,2], length.out=1000); lines(x.tmp, dnorm(x=x.tmp, mean=priors_normalgamma[[model]]$lambda1$mean, sd=priors_normalgamma[[model]]$lambda1$sd), col='red', lwd=2)
 u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
 pp <- 3; par(mai=c(.25,.3,.25,.3))
 box.width <- diff(lims[3,])/nbins; box.edges <- seq(from=lims[3,1], to=lims[3,2], by=box.width)
 hist(log(deoptim.all[[model]][,pp]), xlim=lims[3,], freq=FALSE, main='', xlab='', ylab='',
      breaks=box.edges, xaxt='n', yaxt='n', yaxs='i')
+rate.tmp <- median(log(deoptim.all[[model]][,3])) / (0.5*(max(log(deoptim.all[[model]][,3]))-min(log(deoptim.all[[model]][,3]))))^2
+shape.tmp <- median(log(deoptim.all[[model]][,3])) * rate.tmp
+x.tmp <- seq(from=lims[3,1], to=lims[3,2], length.out=1000); lines(x.tmp, dgamma(x=x.tmp, shape=shape.tmp, rate=rate.tmp), col='red', lwd=2)
 u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
 plot.new()
 pp <- 4; par(mai=c(.25,.3,.25,.3))
-box.width <- diff(lims[4,])/nbins; box.edges <- seq(from=lims[4,1], to=lims[4,2], by=box.width)
-hist(deoptim.all[[model]][,pp], xlim=lims[4,], freq=FALSE, main='', xlab='', ylab='',
+box.width <- diff(lims[5,])/nbins; box.edges <- seq(from=lims[5,1], to=lims[5,2], by=box.width)
+hist(deoptim.all[[model]][,pp], xlim=lims[5,], freq=FALSE, main='', xlab='', ylab='',
      breaks=box.edges, xaxt='n', yaxt='n', yaxs='i')
+x.tmp <- seq(from=lims[5,1], to=lims[5,2], length.out=1000); lines(x.tmp, dnorm(x=x.tmp, mean=priors_normalgamma[[model]]$xi$mean, sd=priors_normalgamma[[model]]$xi$sd), col='red', lwd=2)
 u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
 plot.new()
 ##=============================
@@ -417,6 +428,7 @@ pp <- 1; par(mai=c(.25,.59,.25,.01))
 box.width <- diff(lims[1,])/nbins; box.edges <- seq(from=lims[1,1], to=lims[1,2], by=box.width)
 hist(deoptim.all[[model]][,pp], xlim=lims[1,], freq=FALSE, main='', xlab='', ylab='',
      breaks=box.edges, xaxt='n', yaxt='n', yaxs='i')
+x.tmp <- seq(from=lims[1,1], to=lims[1,2], length.out=1000); lines(x.tmp, dgamma(x=x.tmp, shape=priors_normalgamma[[model]]$lambda0$shape, rate=priors_normalgamma[[model]]$lambda0$rate), col='red', lwd=2)
 u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
 mtext('Probability density', side=2, line=1.2, cex=1)
 mtext('NS2', side=2, line=3, cex=1)
@@ -424,21 +436,25 @@ pp <- 2; par(mai=c(.25,.35,.25,.25))
 box.width <- diff(lims[2,])/nbins; box.edges <- seq(from=lims[2,1], to=lims[2,2], by=box.width)
 hist(deoptim.all[[model]][,pp], xlim=lims[2,], freq=FALSE, main='', xlab='', ylab='',
      breaks=box.edges, xaxt='n', yaxt='n', yaxs='i')
+x.tmp <- seq(from=lims[2,1], to=lims[2,2], length.out=1000); lines(x.tmp, dnorm(x=x.tmp, mean=priors_normalgamma[[model]]$lambda1$mean, sd=priors_normalgamma[[model]]$lambda1$sd), col='red', lwd=2)
 u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
 pp <- 3; par(mai=c(.25,.3,.25,.3))
 box.width <- diff(lims[3,])/nbins; box.edges <- seq(from=lims[3,1], to=lims[3,2], by=box.width)
 hist(deoptim.all[[model]][,pp], xlim=lims[3,], freq=FALSE, main='', xlab='', ylab='',
      breaks=box.edges, xaxt='n', yaxt='n', yaxs='i')
+x.tmp <- seq(from=lims[3,1], to=lims[3,2], length.out=1000); lines(x.tmp, dgamma(x=x.tmp, shape=priors_normalgamma[[model]]$sigma0$shape, rate=priors_normalgamma[[model]]$sigma0$rate), col='red', lwd=2)
 u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
 pp <- 4; par(mai=c(.25,.3,.25,.3))
 box.width <- diff(lims[4,])/nbins; box.edges <- seq(from=lims[4,1], to=lims[4,2], by=box.width)
 hist(deoptim.all[[model]][,pp], xlim=lims[4,], freq=FALSE, main='', xlab='', ylab='',
      breaks=box.edges, xaxt='n', yaxt='n', yaxs='i')
+x.tmp <- seq(from=lims[4,1], to=lims[4,2], length.out=1000); lines(x.tmp, dnorm(x=x.tmp, mean=priors_normalgamma[[model]]$sigma1$mean, sd=priors_normalgamma[[model]]$sigma1$sd), col='red', lwd=2)
 u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
 pp <- 5; par(mai=c(.25,.3,.25,.3))
 box.width <- diff(lims[5,])/nbins; box.edges <- seq(from=lims[5,1], to=lims[5,2], by=box.width)
 hist(deoptim.all[[model]][,pp], xlim=lims[5,], freq=FALSE, main='', xlab='', ylab='',
      breaks=box.edges, xaxt='n', yaxt='n', yaxs='i')
+x.tmp <- seq(from=lims[5,1], to=lims[5,2], length.out=1000); lines(x.tmp, dnorm(x=x.tmp, mean=priors_normalgamma[[model]]$xi$mean, sd=priors_normalgamma[[model]]$xi$sd), col='red', lwd=2)
 u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
 plot.new()
 ##=============================
@@ -447,6 +463,7 @@ pp <- 1; par(mai=c(.5,.59,.01,.01))
 box.width <- diff(lims[1,])/nbins; box.edges <- seq(from=lims[1,1], to=lims[1,2], by=box.width)
 hist(deoptim.all[[model]][,pp], xlim=lims[1,], freq=FALSE, main='', xlab='', ylab='',
      breaks=box.edges, yaxt='n', yaxs='i')
+x.tmp <- seq(from=lims[1,1], to=lims[1,2], length.out=1000); lines(x.tmp, dgamma(x=x.tmp, shape=priors_normalgamma[[model]]$lambda0$shape, rate=priors_normalgamma[[model]]$lambda0$rate), col='red', lwd=2)
 u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
 mtext('Probability density', side=2, line=1.2, cex=1)
 mtext(expression(mu[0]), side=1, line=2.7, cex=1)
@@ -455,30 +472,35 @@ pp <- 2; par(mai=c(.5,.35,.01,.25))
 box.width <- diff(lims[2,])/nbins; box.edges <- seq(from=lims[2,1], to=lims[2,2], by=box.width)
 hist(deoptim.all[[model]][,pp], xlim=lims[2,], freq=FALSE, main='', xlab='', ylab='',
      breaks=box.edges, yaxt='n', yaxs='i')
+x.tmp <- seq(from=lims[2,1], to=lims[2,2], length.out=1000); lines(x.tmp, dnorm(x=x.tmp, mean=priors_normalgamma[[model]]$lambda1$mean, sd=priors_normalgamma[[model]]$lambda1$sd), col='red', lwd=2)
 u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
 mtext(expression(mu[1]), side=1, line=2.7, cex=1)
 pp <- 3; par(mai=c(.5,.3,.01,.3))
 box.width <- diff(lims[3,])/nbins; box.edges <- seq(from=lims[3,1], to=lims[3,2], by=box.width)
 hist(deoptim.all[[model]][,pp], xlim=lims[3,], freq=FALSE, main='', xlab='', ylab='',
      breaks=box.edges, yaxt='n', yaxs='i')
+x.tmp <- seq(from=lims[3,1], to=lims[3,2], length.out=1000); lines(x.tmp, dgamma(x=x.tmp, shape=priors_normalgamma[[model]]$sigma0$shape, rate=priors_normalgamma[[model]]$sigma0$rate), col='red', lwd=2)
 u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
 mtext(expression(sigma[0]), side=1, line=2.7, cex=1)
 pp <- 4; par(mai=c(.5,.3,.01,.3))
 box.width <- diff(lims[4,])/nbins; box.edges <- seq(from=lims[4,1], to=lims[4,2], by=box.width)
 hist(deoptim.all[[model]][,pp], xlim=lims[4,], freq=FALSE, main='', xlab='', ylab='',
      breaks=box.edges, yaxt='n', yaxs='i')
+x.tmp <- seq(from=lims[4,1], to=lims[4,2], length.out=1000); lines(x.tmp, dnorm(x=x.tmp, mean=priors_normalgamma[[model]]$sigma1$mean, sd=priors_normalgamma[[model]]$sigma1$sd), col='red', lwd=2)
 u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
 mtext(expression(sigma[1]), side=1, line=2.7, cex=1)
 pp <- 5; par(mai=c(.5,.3,.01,.3))
 box.width <- diff(lims[5,])/nbins; box.edges <- seq(from=lims[5,1], to=lims[5,2], by=box.width)
 hist(deoptim.all[[model]][,pp], xlim=lims[5,], freq=FALSE, main='', xlab='', ylab='',
      breaks=box.edges, yaxt='n', yaxs='i')
+x.tmp <- seq(from=lims[5,1], to=lims[5,2], length.out=1000); lines(x.tmp, dnorm(x=x.tmp, mean=priors_normalgamma[[model]]$xi0$mean, sd=priors_normalgamma[[model]]$xi0$sd), col='red', lwd=2)
 u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
 mtext(expression(xi[0]), side=1, line=2.7, cex=1)
 pp <- 6; par(mai=c(.5,.3,.01,.3))
 box.width <- diff(lims[6,])/nbins; box.edges <- seq(from=lims[6,1], to=lims[6,2], by=box.width)
 hist(deoptim.all[[model]][,pp], xlim=lims[6,], freq=FALSE, main='', xlab='', ylab='',
      breaks=box.edges, yaxt='n', yaxs='i')
+x.tmp <- seq(from=lims[6,1], to=lims[6,2], length.out=1000); lines(x.tmp, dnorm(x=x.tmp, mean=priors_normalgamma[[model]]$xi1$mean, sd=priors_normalgamma[[model]]$xi1$sd), col='red', lwd=2)
 u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
 mtext(expression(xi[1]), side=1, line=2.7, cex=1)
 ##=============================
