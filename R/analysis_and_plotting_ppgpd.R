@@ -223,14 +223,17 @@ for (site in site.names) {
 source('likelihood_ppgpd.R')
 priors <- readRDS(filename.priors)
 
-bic <- list.init
 llik <- list.init
 lpri <- list.init
 lpost <- list.init
 llik.mod <- list.init
-bma.weight <- list.init
+lpost.mod <- list.init
 llik.ref <- vector('list', nsites); names(llik.ref) <- site.names
-for (site in site.names) {llik.ref[[site]] <- vector('list', ndata.exp); names(llik.ref[[site]]) <- data.experiment.names}
+lpost.ref <- vector('list', nsites); names(lpost.ref) <- site.names
+for (site in site.names) {
+  llik.ref[[site]] <- vector('list', ndata.exp); names(llik.ref[[site]]) <- data.experiment.names
+  lpost.ref[[site]] <- vector('list', ndata.exp); names(lpost.ref[[site]]) <- data.experiment.names
+}
 
 for (site in site.names) {
   for (ind.data in 1:all.data[[site]]) {
@@ -238,16 +241,15 @@ for (site in site.names) {
       print(paste('calculating log-posts/-likelihoods/-priors ',site,data.experiment.names[ind.data],model, sep=' - '))
       if(model=='gpd3') {auxiliary <- NULL
       } else {auxiliary <- trimmed_forcing(data.sites[[site]][[data.lengths[[site]][ind.data]]]$year, time_forc, temperature_forc)$temperature}
-      ndata <- sum(data.sites[[site]][[data.lengths[[site]][ind.data]]]$counts)
       lpri[[site]][[ind.data]][[model]] <- sapply(1:n.ensemble, function(sow) {log_prior_ppgpd(parameters=gpd.parameters[[site]][[ind.data]][[model]][sow,], parnames=parnames[[model]], priors=priors, model=model)})
       llik[[site]][[ind.data]][[model]] <- sapply(1:n.ensemble, function(sow) {log_like_ppgpd(parameters=gpd.parameters[[site]][[ind.data]][[model]][sow,], parnames=parnames[[model]], data_calib=data.sites[[site]][[data.lengths[[site]][ind.data]]], auxiliary=auxiliary)})
       lpost[[site]][[ind.data]][[model]] <- lpri[[site]][[ind.data]][[model]] + llik[[site]][[ind.data]][[model]]
-      imax <- which.max(llik[[site]][[ind.data]][[model]])
-      bic[[site]][[ind.data]][[model]] <- -2*max(llik[[site]][[ind.data]][[model]]) + length(parnames[[model]])*log(ndata)
       llik.mod[[site]][[ind.data]][[model]] <- mean(llik[[site]][[ind.data]][[model]][is.finite(llik[[site]][[ind.data]][[model]])])
+      lpost.mod[[site]][[ind.data]][[model]] <- mean(lpost[[site]][[ind.data]][[model]][is.finite(lpost[[site]][[ind.data]][[model]])])
     }
+    # reference likelihood and posterior values for BMA weight calculation
     llik.ref[[site]][[ind.data]] <- median(unlist(llik.mod[[site]][[ind.data]]))
-    bma.weight[[site]][[ind.data]][[model]] <- exp(llik.mod[[site]][[ind.data]][[model]] - llik.ref[[site]][[ind.data]])/sum(exp(llik.mod[[site]][[ind.data]][[model]] - llik.ref[[site]][[ind.data]]))
+    lpost.ref[[site]][[ind.data]] <- median(unlist(lpost.mod[[site]][[ind.data]]))
   }
 }
 save.image(file=filename.saveprogress)
@@ -262,7 +264,46 @@ TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 #===============================================================================
 # Calculate AIC, BIC, DIC for each ensemble
+# (of course, this could be wrapped up in the loop structure above, but it is
+# nice to compartmentalize the code)
 #===============================================================================
+
+# new initialization object for the model comparison metrics, so we have a table
+# comparing each of the models instead of a list for each of them
+metric.init <- vector('list', nsites); names(metric.init) <- site.names
+for (site in site.names) {
+  metric.init[[site]] <- mat.or.vec(all.data[[site]], nmodel)
+  rownames(metric.init[[site]]) <- data.experiment.names[1:all.data[[site]]]
+  colnames(metric.init[[site]]) <- types.of.gpd
+}
+
+aic <- metric.init
+bic <- metric.init
+dic <- metric.init
+  dev <- list.init      # deviance
+  par.mean <- list.init # expected value of the model parameters
+  dev.mean <- list.init # deviance at expected value of the parameters
+  np.eff <- list.init   # effective number of parameters (p_D)
+bma.weight <- metric.init
+
+for (site in site.names) {
+  for (ind.data in 1:all.data[[site]]) {
+    ndata <- sum(data.sites[[site]][[data.lengths[[site]][ind.data]]]$counts)
+    for (model in types.of.gpd) {
+      imax <- which.max(llik[[site]][[ind.data]][[model]])
+      aic[[site]][ind.data, model] <- -2*llik[[site]][[ind.data]][[model]][imax] + length(parnames[[model]])*2
+      bic[[site]][ind.data, model] <- -2*llik[[site]][[ind.data]][[model]][imax] + length(parnames[[model]])*log(ndata)
+      dev[[site]][[ind.data]][[model]] <- -2*llik[[site]][[ind.data]][[model]]
+      if(model=='gpd3') {auxiliary <- NULL
+      } else {auxiliary <- trimmed_forcing(data.sites[[site]][[data.lengths[[site]][ind.data]]]$year, time_forc, temperature_forc)$temperature}
+      par.mean[[site]][[ind.data]][[model]] <- apply(gpd.parameters[[site]][[ind.data]][[model]], MARGIN=2, FUN=mean)
+      dev.mean[[site]][[ind.data]][[model]] <- log_like_ppgpd(parameters=par.mean[[site]][[ind.data]][[model]], parnames=parnames[[model]], data_calib=data.sites[[site]][[data.lengths[[site]][ind.data]]], auxiliary=auxiliary)
+      np.eff[[site]][[ind.data]][[model]] <- mean(dev[[site]][[ind.data]][[model]]) - dev.mean[[site]][[ind.data]][[model]]
+      dic[[site]][ind.data, model] <- np.eff[[site]][[ind.data]][[model]] + mean(dev[[site]][[ind.data]][[model]])
+      bma.weight[[site]][ind.data, model] <- exp(lpost.mod[[site]][[ind.data]][[model]] - lpost.ref[[site]][[ind.data]])/sum(exp(unlist(lpost.mod[[site]][[ind.data]]) - lpost.ref[[site]][[ind.data]]))
+    }
+  }
+}
 
 TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HERE NOW!!
 TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HERE NOW!!
