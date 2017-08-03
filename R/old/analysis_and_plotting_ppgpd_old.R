@@ -322,167 +322,14 @@ TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 #===============================================================================
 
 
+
+
+
 #
 #===============================================================================
 # SOM FIGURE S1 -- show the histograms of the MLE parameters and superimpose the
 #                  prior distribution (normal or gamma)
 
-load('../output/fitting_priors.RData')
-
-nbins <- 12 # note that there are only 30 sites...
-frac.ran <- 0.35 # extend axes above/below max/min range
-
-# get standard limits for each of the 6 parameters
-lims <- mat.or.vec(6,2)
-pp <- 1 # lambda0
-  parameters.pooled <- c(deoptim.all$gpd3[,1], deoptim.all$gpd4[,1], deoptim.all$gpd5[,1], deoptim.all$gpd6[,1])
-  ran <- diff(quantile(parameters.pooled, c(0,1)))
-  lims[pp,] <- c(min(parameters.pooled) - frac.ran*ran , max(parameters.pooled) + frac.ran*ran)
-pp <- 2 # lambda1
-  parameters.pooled <- c(deoptim.all$gpd4[,2], deoptim.all$gpd5[,2], deoptim.all$gpd6[,2])
-  ran <- diff(quantile(parameters.pooled, c(0,1)))
-  lims[pp,] <- c(min(parameters.pooled) - frac.ran*ran , max(parameters.pooled) + frac.ran*ran)
-pp <- 3 # sigma0
-  parameters.pooled <- c(log(deoptim.all$gpd3[,2]), log(deoptim.all$gpd4[,3]), deoptim.all$gpd5[,3], deoptim.all$gpd6[,3])
-  ran <- diff(quantile(parameters.pooled, c(0,1)))
-  lims[pp,] <- c(min(parameters.pooled) - frac.ran*ran , max(parameters.pooled) + frac.ran*ran)
-pp <- 4 # sigma1
-  parameters.pooled <- c(deoptim.all$gpd5[,4], deoptim.all$gpd6[,4])
-  ran <- diff(quantile(parameters.pooled, c(0,1)))
-  lims[pp,] <- c(min(parameters.pooled) - frac.ran*ran , max(parameters.pooled) + frac.ran*ran)
-pp <- 5 # xi0
-  parameters.pooled <- c(deoptim.all$gpd5[,5], deoptim.all$gpd6[,5])
-  ran <- diff(quantile(parameters.pooled, c(0,1)))
-  lims[pp,] <- c(min(parameters.pooled) - frac.ran*ran , max(parameters.pooled) + frac.ran*ran)
-pp <- 6 # xi1
-  parameters.pooled <- c(deoptim.all$gpd6[,6])
-  ran <- diff(quantile(parameters.pooled, c(0,1)))
-  lims[pp,] <- c(min(parameters.pooled) - frac.ran*ran , max(parameters.pooled) + frac.ran*ran)
-
-
-
-pdf(paste(plot.dir,'priors_normalgamma.pdf',sep=''), height=7, width=10, colormodel='cmyk')
-par(mfrow=c(4,6))
-##=============================
-model <- 'gpd3'
-pp <- 1; par(mai=c(.25,.59,.25,.01))
-box.width <- diff(lims[1,])/nbins; box.edges <- seq(from=lims[1,1], to=lims[1,2], by=box.width)
-hist(deoptim.all[[model]][,pp], xlim=lims[1,], freq=FALSE, main='', xlab='', ylab='',
-     breaks=box.edges, xaxt='n', yaxt='n', yaxs='i')
-u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
-mtext('Probability density', side=2, line=1.2, cex=1)
-mtext('ST', side=2, line=3, cex=1)
-plot.new()
-pp <- 2; par(mai=c(.25,.35,.25,.25))
-box.width <- diff(lims[3,])/nbins; box.edges <- seq(from=lims[3,1], to=lims[3,2], by=box.width)
-hist(log(deoptim.all[[model]][,pp]), xlim=lims[3,], freq=FALSE, main='', xlab='', ylab='',
-     breaks=box.edges, xaxt='n', yaxt='n', yaxs='i')
-u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
-plot.new()
-pp <- 3; par(mai=c(.25,.3,.25,.3))
-box.width <- diff(lims[5,])/nbins; box.edges <- seq(from=lims[5,1], to=lims[5,2], by=box.width)
-hist(deoptim.all[[model]][,pp], xlim=lims[5,], freq=FALSE, main='', xlab='', ylab='',
-     breaks=box.edges, xaxt='n', yaxt='n', yaxs='i')
-u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
-plot.new()
-##=============================
-model <- 'gpd4'
-pp <- 1; par(mai=c(.25,.59,.25,.01))
-box.width <- diff(lims[1,])/nbins; box.edges <- seq(from=lims[1,1], to=lims[1,2], by=box.width)
-hist(deoptim.all[[model]][,pp], xlim=lims[1,], freq=FALSE, main='', xlab='', ylab='',
-     breaks=box.edges, xaxt='n', yaxt='n', yaxs='i')
-u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
-mtext('Probability density', side=2, line=1.2, cex=1)
-mtext('NS1', side=2, line=3, cex=1)
-pp <- 2; par(mai=c(.25,.35,.25,.25))
-box.width <- diff(lims[2,])/nbins; box.edges <- seq(from=lims[2,1], to=lims[2,2], by=box.width)
-hist(deoptim.all[[model]][,pp], xlim=lims[2,], freq=FALSE, main='', xlab='', ylab='',
-     breaks=box.edges, xaxt='n', yaxt='n', yaxs='i')
-u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
-pp <- 3; par(mai=c(.25,.3,.25,.3))
-box.width <- diff(lims[3,])/nbins; box.edges <- seq(from=lims[3,1], to=lims[3,2], by=box.width)
-hist(log(deoptim.all[[model]][,pp]), xlim=lims[3,], freq=FALSE, main='', xlab='', ylab='',
-     breaks=box.edges, xaxt='n', yaxt='n', yaxs='i')
-u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
-plot.new()
-pp <- 4; par(mai=c(.25,.3,.25,.3))
-box.width <- diff(lims[4,])/nbins; box.edges <- seq(from=lims[4,1], to=lims[4,2], by=box.width)
-hist(deoptim.all[[model]][,pp], xlim=lims[4,], freq=FALSE, main='', xlab='', ylab='',
-     breaks=box.edges, xaxt='n', yaxt='n', yaxs='i')
-u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
-plot.new()
-##=============================
-model <- 'gpd5'
-pp <- 1; par(mai=c(.25,.59,.25,.01))
-box.width <- diff(lims[1,])/nbins; box.edges <- seq(from=lims[1,1], to=lims[1,2], by=box.width)
-hist(deoptim.all[[model]][,pp], xlim=lims[1,], freq=FALSE, main='', xlab='', ylab='',
-     breaks=box.edges, xaxt='n', yaxt='n', yaxs='i')
-u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
-mtext('Probability density', side=2, line=1.2, cex=1)
-mtext('NS2', side=2, line=3, cex=1)
-pp <- 2; par(mai=c(.25,.35,.25,.25))
-box.width <- diff(lims[2,])/nbins; box.edges <- seq(from=lims[2,1], to=lims[2,2], by=box.width)
-hist(deoptim.all[[model]][,pp], xlim=lims[2,], freq=FALSE, main='', xlab='', ylab='',
-     breaks=box.edges, xaxt='n', yaxt='n', yaxs='i')
-u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
-pp <- 3; par(mai=c(.25,.3,.25,.3))
-box.width <- diff(lims[3,])/nbins; box.edges <- seq(from=lims[3,1], to=lims[3,2], by=box.width)
-hist(deoptim.all[[model]][,pp], xlim=lims[3,], freq=FALSE, main='', xlab='', ylab='',
-     breaks=box.edges, xaxt='n', yaxt='n', yaxs='i')
-u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
-pp <- 4; par(mai=c(.25,.3,.25,.3))
-box.width <- diff(lims[4,])/nbins; box.edges <- seq(from=lims[4,1], to=lims[4,2], by=box.width)
-hist(deoptim.all[[model]][,pp], xlim=lims[4,], freq=FALSE, main='', xlab='', ylab='',
-     breaks=box.edges, xaxt='n', yaxt='n', yaxs='i')
-u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
-pp <- 5; par(mai=c(.25,.3,.25,.3))
-box.width <- diff(lims[5,])/nbins; box.edges <- seq(from=lims[5,1], to=lims[5,2], by=box.width)
-hist(deoptim.all[[model]][,pp], xlim=lims[5,], freq=FALSE, main='', xlab='', ylab='',
-     breaks=box.edges, xaxt='n', yaxt='n', yaxs='i')
-u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
-plot.new()
-##=============================
-model <- 'gpd6'
-pp <- 1; par(mai=c(.5,.59,.01,.01))
-box.width <- diff(lims[1,])/nbins; box.edges <- seq(from=lims[1,1], to=lims[1,2], by=box.width)
-hist(deoptim.all[[model]][,pp], xlim=lims[1,], freq=FALSE, main='', xlab='', ylab='',
-     breaks=box.edges, yaxt='n', yaxs='i')
-u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
-mtext('Probability density', side=2, line=1.2, cex=1)
-mtext(expression(mu[0]), side=1, line=2.7, cex=1)
-mtext('NS3', side=2, line=3, cex=1)
-pp <- 2; par(mai=c(.5,.35,.01,.25))
-box.width <- diff(lims[2,])/nbins; box.edges <- seq(from=lims[2,1], to=lims[2,2], by=box.width)
-hist(deoptim.all[[model]][,pp], xlim=lims[2,], freq=FALSE, main='', xlab='', ylab='',
-     breaks=box.edges, yaxt='n', yaxs='i')
-u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
-mtext(expression(mu[1]), side=1, line=2.7, cex=1)
-pp <- 3; par(mai=c(.5,.3,.01,.3))
-box.width <- diff(lims[3,])/nbins; box.edges <- seq(from=lims[3,1], to=lims[3,2], by=box.width)
-hist(deoptim.all[[model]][,pp], xlim=lims[3,], freq=FALSE, main='', xlab='', ylab='',
-     breaks=box.edges, yaxt='n', yaxs='i')
-u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
-mtext(expression(sigma[0]), side=1, line=2.7, cex=1)
-pp <- 4; par(mai=c(.5,.3,.01,.3))
-box.width <- diff(lims[4,])/nbins; box.edges <- seq(from=lims[4,1], to=lims[4,2], by=box.width)
-hist(deoptim.all[[model]][,pp], xlim=lims[4,], freq=FALSE, main='', xlab='', ylab='',
-     breaks=box.edges, yaxt='n', yaxs='i')
-u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
-mtext(expression(sigma[1]), side=1, line=2.7, cex=1)
-pp <- 5; par(mai=c(.5,.3,.01,.3))
-box.width <- diff(lims[5,])/nbins; box.edges <- seq(from=lims[5,1], to=lims[5,2], by=box.width)
-hist(deoptim.all[[model]][,pp], xlim=lims[5,], freq=FALSE, main='', xlab='', ylab='',
-     breaks=box.edges, yaxt='n', yaxs='i')
-u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
-mtext(expression(xi[0]), side=1, line=2.7, cex=1)
-pp <- 6; par(mai=c(.5,.3,.01,.3))
-box.width <- diff(lims[6,])/nbins; box.edges <- seq(from=lims[6,1], to=lims[6,2], by=box.width)
-hist(deoptim.all[[model]][,pp], xlim=lims[6,], freq=FALSE, main='', xlab='', ylab='',
-     breaks=box.edges, yaxt='n', yaxs='i')
-u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
-mtext(expression(xi[1]), side=1, line=2.7, cex=1)
-##=============================
-dev.off()
 
 #===============================================================================
 #
@@ -490,8 +337,13 @@ dev.off()
 
 #
 #===============================================================================
-# SOM FIGURE S2 -- show the calibrated distributions of parameters using the
-#                  normal and gamma priors
+# FIGURE 1 – Comparison of the empirical survival function calculated from the
+#            observed tide gauge data at Delfzijl (red points) against the
+#            modeled survival function in the ensemble median (black points) and
+#            5-95% credible range (error bars) for models (a) ST: all parameters
+#            stationary, (b) NS1: lambda non-stationary, (c) NS3: lambda and
+#            sigma non-stationary, (d) NS3: all non-stationary and (e) the
+#            BMA-weighted ensemble.
 
 
 #===============================================================================
@@ -500,8 +352,11 @@ dev.off()
 
 #
 #===============================================================================
-# SOM FIGURE S3 -- show the calibrated distributions of parameters using the
-#                  uniform priors
+# FIGURE 2 - Projected distributions in 2065 of (a) the 20-year storm surge
+#            return level, (b) the 50-year return level and (c) the 100-year
+#            return level, relative to 2015, for each of the candidate models
+#            and the BMA-weighted ensemble. The ST model would show no increase,
+#            so we have plotted the actual surge level in 2015 for the ST model.
 
 
 #===============================================================================
@@ -510,9 +365,8 @@ dev.off()
 
 #
 #===============================================================================
-# FIGURE 1 - Motivation figure, showing 30-year blocks and the estimated
-#            distributions (box-whisker/box-lighter-box) for each block, for
-#            each site.
+# FIGURE 3 - Distributions of calibrated return levels (rows) for varying time
+#            lengths of data employed for each candidate model (columns).
 
 
 #===============================================================================
@@ -521,55 +375,294 @@ dev.off()
 
 #
 #===============================================================================
-# FIGURE 2 – Comparison of the empirical survival function calculated from the
-#            observed tide gauge data at each site (red points, different columns)
-#            against the modeled survival function in the ensemble median (black
-#            points) and 5-95% credible range (error bars) for models (a) ST:
-#            all parameters stationary, (b) NS1: lambda non-stationary, (c) NS3:
-#            lambda and sigma non-stationary, (d) NS3: all non-stationary and
-#            (e) the BMA-weighted ensemble.
-
-
-#===============================================================================
-#
-
-
-#
-#===============================================================================
-# FIGURE 3 - Top row: current surge levels; bottom row: projected 2065 surge
-#            levels relative to present. Columns: different sites.
-#            Projected distributions of 100-year surge level by BMA, relative to
-#            each of the individual model structures.
-
-
-#===============================================================================
-#
-
-
-#
-#===============================================================================
-# FIGURE 4 - Box-whisker (or box-lighter-box) distributions (horizontally) of
-#            100-year return level for varying lengths of data employed for the
-#            BMA ensemble. Different sites are 3 horizontally oriented panels.
-
-
-#===============================================================================
-#
-
-
-#
-#===============================================================================
-# FIGURE 5 - Bayesian model averaging weights (equation (XX)) for the four
+# FIGURE 4 - Bayesian model averaging weights (equation (XX)) for the four
 #            candidate models, using (a) 30 years of tide gauge data from
 #            Delfzijl, (b) 50 years of data, (c) 70 years of data, (d) 90 years
 #            of data, (e) 110 years of data and (f) 137 years of data. Higher
-#            values imply better model-data match. Different sites are different
-#            columns.
+#            values imply better model-data match.
 
 
 #===============================================================================
 #
 
+
+
+
+#===============================================================================
+#===============================================================================
+#===============================================================================
+# Old plots below here
+#===============================================================================
+#===============================================================================
+#===============================================================================
+
+
+
+
+
+
+
+#===============================================================================
+# preliminary plots of projections... what's going on?
+#=====================================================
+
+# stationary case
+xtmp <- seq(from=0, to=10000, by=10)
+mle.gev3 <- amcmc_out$gev3[[1]]$samples[which.max(amcmc_out$gev3[[1]]$log.p),]
+mle.nav3 <- amcmc_out$nav3[[1]]$samples[which.max(amcmc_out$nav3[[1]]$log.p),]
+pdf.nav3 <- naveau_pdf(x=xtmp, kappa=exp(mle.nav3[1]), sigma=mle.nav3[2], xi=mle.nav3[3])
+pdf.gev3 <- devd(x=xtmp, loc=mle.gev3[1], scale=mle.gev3[2], shape=mle.gev3[3])
+
+plot(xtmp, pdf.gev3, type='l', col='blue'); lines(xtmp, pdf.nav3, type='l', col='red')
+
+# above should verify that the stationary case looks the same (check this below)
+
+# gev/nav-4 nonstationary, look at 2040, 2060, 2080 and 2100
+mle.gev4 <- amcmc_out$gev4[[1]]$samples[which.max(amcmc_out$gev4[[1]]$log.p),]
+mle.nav4 <- amcmc_out$nav4[[1]]$samples[which.max(amcmc_out$nav4[[1]]$log.p),]
+time_beg <- 2000
+time_end <- 2100
+time_proj <- time_forc[which(time_forc==time_beg):which(time_forc==time_end)]
+temperature_proj <- temperature_forc[which(time_forc==time_beg):which(time_forc==time_end)]
+par.gev4 <- project_gev(parameters=mle.gev4, parnames=parnames_all$gev4, auxiliary=temperature_proj)
+par.nav4 <- project_naveau(parameters=mle.nav4, parnames=parnames_all$nav4, auxiliary=temperature_proj)
+par.tmp <- par.gev4[which(time_proj==2020),]; pdf.gev4.2020 <- devd(x=xtmp, loc=par.tmp[1], scale=par.tmp[2], shape=par.tmp[3])
+par.tmp <- par.gev4[which(time_proj==2040),]; pdf.gev4.2040 <- devd(x=xtmp, loc=par.tmp[1], scale=par.tmp[2], shape=par.tmp[3])
+par.tmp <- par.gev4[which(time_proj==2060),]; pdf.gev4.2060 <- devd(x=xtmp, loc=par.tmp[1], scale=par.tmp[2], shape=par.tmp[3])
+par.tmp <- par.gev4[which(time_proj==2080),]; pdf.gev4.2080 <- devd(x=xtmp, loc=par.tmp[1], scale=par.tmp[2], shape=par.tmp[3])
+par.tmp <- par.gev4[which(time_proj==2100),]; pdf.gev4.2100 <- devd(x=xtmp, loc=par.tmp[1], scale=par.tmp[2], shape=par.tmp[3])
+par.tmp <- par.nav4[which(time_proj==2020),]; pdf.nav4.2020 <- naveau_pdf(x=xtmp, kappa=par.tmp[1], sigma=par.tmp[2], xi=par.tmp[3])
+par.tmp <- par.nav4[which(time_proj==2040),]; pdf.nav4.2040 <- naveau_pdf(x=xtmp, kappa=par.tmp[1], sigma=par.tmp[2], xi=par.tmp[3])
+par.tmp <- par.nav4[which(time_proj==2060),]; pdf.nav4.2060 <- naveau_pdf(x=xtmp, kappa=par.tmp[1], sigma=par.tmp[2], xi=par.tmp[3])
+par.tmp <- par.nav4[which(time_proj==2080),]; pdf.nav4.2080 <- naveau_pdf(x=xtmp, kappa=par.tmp[1], sigma=par.tmp[2], xi=par.tmp[3])
+par.tmp <- par.nav4[which(time_proj==2100),]; pdf.nav4.2100 <- naveau_pdf(x=xtmp, kappa=par.tmp[1], sigma=par.tmp[2], xi=par.tmp[3])
+
+
+# gev/nav-5 nonstationary, look at 2040, 2060, 2080 and 2100
+mle.gev5 <- amcmc_out$gev5[[1]]$samples[which.max(amcmc_out$gev5[[1]]$log.p),]
+mle.nav5 <- amcmc_out$nav5[[1]]$samples[which.max(amcmc_out$nav5[[1]]$log.p),]
+time_beg <- 2000
+time_end <- 2100
+time_proj <- time_forc[which(time_forc==time_beg):which(time_forc==time_end)]
+temperature_proj <- temperature_forc[which(time_forc==time_beg):which(time_forc==time_end)]
+par.gev5 <- project_gev(parameters=mle.gev5, parnames=parnames_all$gev5, auxiliary=temperature_proj)
+par.nav5 <- project_naveau(parameters=mle.nav5, parnames=parnames_all$nav5, auxiliary=temperature_proj)
+par.tmp <- par.gev5[which(time_proj==2020),]; pdf.gev5.2020 <- devd(x=xtmp, loc=par.tmp[1], scale=par.tmp[2], shape=par.tmp[3])
+par.tmp <- par.gev5[which(time_proj==2040),]; pdf.gev5.2040 <- devd(x=xtmp, loc=par.tmp[1], scale=par.tmp[2], shape=par.tmp[3])
+par.tmp <- par.gev5[which(time_proj==2060),]; pdf.gev5.2060 <- devd(x=xtmp, loc=par.tmp[1], scale=par.tmp[2], shape=par.tmp[3])
+par.tmp <- par.gev5[which(time_proj==2080),]; pdf.gev5.2080 <- devd(x=xtmp, loc=par.tmp[1], scale=par.tmp[2], shape=par.tmp[3])
+par.tmp <- par.gev5[which(time_proj==2100),]; pdf.gev5.2100 <- devd(x=xtmp, loc=par.tmp[1], scale=par.tmp[2], shape=par.tmp[3])
+par.tmp <- par.nav5[which(time_proj==2020),]; pdf.nav5.2020 <- naveau_pdf(x=xtmp, kappa=par.tmp[1], sigma=par.tmp[2], xi=par.tmp[3])
+par.tmp <- par.nav5[which(time_proj==2040),]; pdf.nav5.2040 <- naveau_pdf(x=xtmp, kappa=par.tmp[1], sigma=par.tmp[2], xi=par.tmp[3])
+par.tmp <- par.nav5[which(time_proj==2060),]; pdf.nav5.2060 <- naveau_pdf(x=xtmp, kappa=par.tmp[1], sigma=par.tmp[2], xi=par.tmp[3])
+par.tmp <- par.nav5[which(time_proj==2080),]; pdf.nav5.2080 <- naveau_pdf(x=xtmp, kappa=par.tmp[1], sigma=par.tmp[2], xi=par.tmp[3])
+par.tmp <- par.nav5[which(time_proj==2100),]; pdf.nav5.2100 <- naveau_pdf(x=xtmp, kappa=par.tmp[1], sigma=par.tmp[2], xi=par.tmp[3])
+
+
+# gev/nav-6 nonstationary, look at 2040, 2060, 2080 and 2100
+mle.gev6 <- amcmc_out$gev6[[1]]$samples[which.max(amcmc_out$gev6[[1]]$log.p),]
+mle.nav6 <- amcmc_out$nav6[[1]]$samples[which.max(amcmc_out$nav6[[1]]$log.p),]
+time_beg <- 2000
+time_end <- 2100
+time_proj <- time_forc[which(time_forc==time_beg):which(time_forc==time_end)]
+temperature_proj <- temperature_forc[which(time_forc==time_beg):which(time_forc==time_end)]
+par.gev6 <- project_gev(parameters=mle.gev6, parnames=parnames_all$gev6, auxiliary=temperature_proj)
+par.nav6 <- project_naveau(parameters=mle.nav6, parnames=parnames_all$nav6, auxiliary=temperature_proj)
+par.tmp <- par.gev6[which(time_proj==2020),]; pdf.gev6.2020 <- devd(x=xtmp, loc=par.tmp[1], scale=par.tmp[2], shape=par.tmp[3])
+par.tmp <- par.gev6[which(time_proj==2040),]; pdf.gev6.2040 <- devd(x=xtmp, loc=par.tmp[1], scale=par.tmp[2], shape=par.tmp[3])
+par.tmp <- par.gev6[which(time_proj==2060),]; pdf.gev6.2060 <- devd(x=xtmp, loc=par.tmp[1], scale=par.tmp[2], shape=par.tmp[3])
+par.tmp <- par.gev6[which(time_proj==2080),]; pdf.gev6.2080 <- devd(x=xtmp, loc=par.tmp[1], scale=par.tmp[2], shape=par.tmp[3])
+par.tmp <- par.gev6[which(time_proj==2100),]; pdf.gev6.2100 <- devd(x=xtmp, loc=par.tmp[1], scale=par.tmp[2], shape=par.tmp[3])
+par.tmp <- par.nav6[which(time_proj==2020),]; pdf.nav6.2020 <- naveau_pdf(x=xtmp, kappa=par.tmp[1], sigma=par.tmp[2], xi=par.tmp[3])
+par.tmp <- par.nav6[which(time_proj==2040),]; pdf.nav6.2040 <- naveau_pdf(x=xtmp, kappa=par.tmp[1], sigma=par.tmp[2], xi=par.tmp[3])
+par.tmp <- par.nav6[which(time_proj==2060),]; pdf.nav6.2060 <- naveau_pdf(x=xtmp, kappa=par.tmp[1], sigma=par.tmp[2], xi=par.tmp[3])
+par.tmp <- par.nav6[which(time_proj==2080),]; pdf.nav6.2080 <- naveau_pdf(x=xtmp, kappa=par.tmp[1], sigma=par.tmp[2], xi=par.tmp[3])
+par.tmp <- par.nav6[which(time_proj==2100),]; pdf.nav6.2100 <- naveau_pdf(x=xtmp, kappa=par.tmp[1], sigma=par.tmp[2], xi=par.tmp[3])
+
+par(mfrow=c(3,2))
+plot(xtmp/1000, pdf.gev4.2020, type='l', xlim=c(0,10), ylim=c(0, 1e-3), axes=FALSE,
+     xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', col='black', main='GEV, location nonstationary')
+  lines(xtmp/1000, pdf.gev4.2040, col='blue'); lines(xtmp/1000, pdf.gev4.2060, col='purple');
+  lines(xtmp/1000, pdf.gev4.2080, col='red');  lines(xtmp/1000, pdf.gev4.2100, col='orange');
+  u <- par("usr")
+  arrows(0, u[3],0, .95*u[4], code = 2, length=.15, xpd = TRUE)
+  mtext('Probability density', side=2, line=0.1, cex=1);
+  mtext('Surge level [m]', side=1, line=2.3, cex=1);
+  axis(1,seq(0,10), cex.axis=1.3)
+plot(xtmp/1000, pdf.nav4.2020, type='l', xlim=c(0,10), ylim=c(0, 1e-3),axes=FALSE,
+     xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', col='black', main='Naveau, lower tail nonstationary')
+  lines(xtmp/1000, pdf.nav4.2040, col='blue'); lines(xtmp/1000, pdf.nav4.2060, col='purple');
+  lines(xtmp/1000, pdf.nav4.2080, col='red');  lines(xtmp/1000, pdf.nav4.2100, col='orange');
+  u <- par("usr")
+  arrows(0, u[3],0, .95*u[4], code = 2, length=.15, xpd = TRUE)
+  mtext('Probability density', side=2, line=0.1, cex=1);
+  mtext('Surge level [m]', side=1, line=2.3, cex=1);
+  axis(1,seq(0,10), cex.axis=1.3)
+plot(xtmp/1000, pdf.gev5.2020, type='l', xlim=c(0,10), ylim=c(0, 2e-3),axes=FALSE,
+     xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', col='black', main='GEV, location and scale nonstationary')
+  lines(xtmp/1000, pdf.gev5.2040, col='blue'); lines(xtmp/1000, pdf.gev5.2060, col='purple');
+  lines(xtmp/1000, pdf.gev5.2080, col='red');  lines(xtmp/1000, pdf.gev5.2100, col='orange');
+  u <- par("usr")
+  arrows(0, u[3],0, .95*u[4], code = 2, length=.15, xpd = TRUE)
+  mtext('Probability density', side=2, line=0.1, cex=1);
+  mtext('Surge level [m]', side=1, line=2.3, cex=1);
+  axis(1,seq(0,10), cex.axis=1.3)
+plot(xtmp/1000, pdf.nav5.2020, type='l', xlim=c(0,10), ylim=c(0, 1e-3),axes=FALSE,
+     xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', col='black', main='Naveau, lower tail and scale nonstationary')
+  lines(xtmp/1000, pdf.nav5.2040, col='blue'); lines(xtmp/1000, pdf.nav5.2060, col='purple');
+  lines(xtmp/1000, pdf.nav5.2080, col='red');  lines(xtmp/1000, pdf.nav5.2100, col='orange');
+  u <- par("usr")
+  arrows(0, u[3],0, .95*u[4], code = 2, length=.15, xpd = TRUE)
+  mtext('Probability density', side=2, line=0.1, cex=1);
+  mtext('Surge level [m]', side=1, line=2.3, cex=1);
+  axis(1,seq(0,10), cex.axis=1.3)
+
+plot(xtmp/1000, pdf.gev6.2020, type='l', xlim=c(0,10), ylim=c(0, 3e-3),axes=FALSE,
+     xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', col='black', main='GEV, all nonstationary')
+  lines(xtmp/1000, pdf.gev6.2040, col='blue'); lines(xtmp/1000, pdf.gev6.2060, col='purple');
+  lines(xtmp/1000, pdf.gev6.2080, col='red');  lines(xtmp/1000, pdf.gev6.2100, col='orange');
+  u <- par("usr")
+  arrows(0, u[3],0, .95*u[4], code = 2, length=.15, xpd = TRUE)
+  mtext('Probability density', side=2, line=0.1, cex=1);
+  mtext('Surge level [m]', side=1, line=2.3, cex=1);
+  axis(1,seq(0,10), cex.axis=1.3)
+plot(xtmp/1000, pdf.nav6.2020, type='l', xlim=c(0,10), ylim=c(0, 1e-3),axes=FALSE,
+     xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', col='black', main='Naveau, all nonstationary')
+  lines(xtmp/1000, pdf.nav6.2040, col='blue'); lines(xtmp/1000, pdf.nav6.2060, col='purple');
+  lines(xtmp/1000, pdf.nav6.2080, col='red');  lines(xtmp/1000, pdf.nav6.2100, col='orange');
+  u <- par("usr")
+  arrows(0, u[3],0, .95*u[4], code = 2, length=.15, xpd = TRUE)
+  mtext('Probability density', side=2, line=0.1, cex=1);
+  mtext('Surge level [m]', side=1, line=2.3, cex=1);
+  axis(1,seq(0,10), cex.axis=1.3)
+
+#===============================================================================
+
+
+
+#===============================================================================
+# FIGURE
+#
+# how does the 2000-year return level change throughout 2000-2100?
+# want the 1:2000 event, ensemble 5%, 50%, and 95% quantiles
+
+time_beg <- 2000
+time_end <- 2100
+time_proj <- time_forc[which(time_forc==time_beg):which(time_forc==time_end)]
+temperature_proj <- temperature_forc[which(time_forc==time_beg):which(time_forc==time_end)]
+
+protection.target <- 1/2000
+
+# save the quantiles for the ensemble for each year
+return_period_target <- vector('list', length(types.of.model)); names(return_period_target) <- types.of.model
+for (model in types.of.model) {
+  return_period_target[[model]] <- mat.or.vec(length(time_proj), 3)
+  colnames(return_period_target[[model]]) <- c('q5','q50','q95')
+}
+
+
+for (model in types.of.gev) {
+  print(paste('starting projections for ',model,' now...',sep=''))
+  pb <- txtProgressBar(min=0,max=length(time_proj),initial=0,style=3)
+  for (t in 1:length(time_proj)) {
+    parameters_project <- t(sapply(1:nrow(parameters[[model]]), function(i) {project_gev(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], auxiliary=temperature_proj[t])}))
+    colnames(parameters_project) <- c('mu','sigma','xi')
+    level_target <- as.numeric(sapply(1:nrow(parameters_project), function(i) {qevd(p=1-protection.target, loc=parameters_project[i,'mu'], scale=parameters_project[i,'sigma'], shape=parameters_project[i,'xi'])}))
+    return_period_target[[model]][t,] <- quantile(level_target, c(.05, .5, .95))
+    setTxtProgressBar(pb, t)
+  }
+  close(pb)
+}
+for (model in types.of.nav) {
+  print(paste('starting projections for ',model,' now...',sep=''))
+  pb <- txtProgressBar(min=0,max=length(time_proj),initial=0,style=3)
+  for (t in 1:length(time_proj)) {
+    parameters_project <- t(sapply(1:nrow(parameters[[model]]), function(i) {project_naveau(parameters=parameters[[model]][i,], parnames=parnames_all[[model]], auxiliary=temperature_proj[t])}))
+    colnames(parameters_project) <- c('kappa','sigma','xi')
+    level_target <- as.numeric(sapply(1:nrow(parameters_project), function(i) {naveau_invcdf(q=1-protection.target, kappa=parameters_project[i,'kappa'], sigma=parameters_project[i,'sigma'], xi=parameters_project[i,'xi'])}))
+    return_period_target[[model]][t,] <- quantile(level_target, c(.05, .5, .95), na.rm=TRUE)
+    setTxtProgressBar(pb, t)
+  }
+  close(pb)
+}
+
+# convert from mm to m
+for (model in types.of.model) {return_period_target[[model]] <- return_period_target[[model]]/1000}
+
+#
+# The actual figure
+#
+
+pdf(paste(plot.dir,'2000yReturnPeriod_projections.pdf',sep=''),width=8,height=3.5,colormodel='cmyk')
+par(mfrow=c(1,2))
+par(mai=c(.65,.65,.20,.2))
+model <- 'gev3'
+plot(time_proj, return_period_target[[model]][,'q50'], type='l', lwd=2, lty=1,
+     ylim=c(4.5,14.5), xlab='', ylab='', xaxt='n', yaxt='n', col='black', xaxs='i')
+polygon(c(time_proj,rev(time_proj)), c(return_period_target[[model]][,'q5'], rev(return_period_target[[model]][,'q95'])),
+        col=rgb(.5,.5,.5,.5), border=NA)
+mtext('1/2000 surge level [m]', side=2, line=2.3, cex=1);
+mtext('Year', side=1, line=2, cex=1);
+axis(1,seq(2000,2100,by=20), cex.axis=1)
+axis(2,seq(5,13, by=1), label=c('5','','7','','9','','11','','13'), cex.axis=1)
+
+model <- 'gev4'; ic <- 6
+lines(time_proj, return_period_target[[model]][,'q50'], type='l', lwd=2, lty=1,
+      col=rgb(mycol[ic,1], mycol[ic,2], mycol[ic,3]) )
+polygon(c(time_proj,rev(time_proj)), c(return_period_target[[model]][,'q5'], rev(return_period_target[[model]][,'q95'])),
+        col=rgb(mycol[ic,1], mycol[ic,2], mycol[ic,3], 0.5), border=NA)
+
+model <- 'gev5'; ic <- 9
+lines(time_proj, return_period_target[[model]][,'q50'], type='l', lwd=2, lty=1,
+      col=rgb(mycol[ic,1], mycol[ic,2], mycol[ic,3]) )
+polygon(c(time_proj,rev(time_proj)), c(return_period_target[[model]][,'q5'], rev(return_period_target[[model]][,'q95'])),
+        col=rgb(mycol[ic,1], mycol[ic,2], mycol[ic,3], 0.5), border=NA)
+
+legend(2000, 15, c('stationary','location nonstationary', 'location, scale nonstationary', '5-95% credible range'),
+       lty=c(1,1,1,NA), pch=c(NA,NA,NA,15), lwd=c(2,2,2,10), cex=1, col=c('black', mycol.rgb[6], mycol.rgb[9], rgb(.5,.5,.5)), bty='n' )
+
+# Too crazy ... need to check?
+#model <- 'gev6'; ic <- 7
+#lines(time_proj, return_period_target[[model]][,'q50'], type='l', lwd=2, lty=1,
+#      col=rgb(mycol[ic,1], mycol[ic,2], mycol[ic,3]) )
+#polygon(c(time_proj,rev(time_proj)), c(return_period_target[[model]][,'q5'], rev(return_period_target[[model]][,'q95'])),
+#        col=rgb(mycol[ic,1], mycol[ic,2], mycol[ic,3], 0.5), border=NA)
+
+par(mai=c(.65,.65,.20,.2))
+model <- 'nav3'
+plot(time_proj, return_period_target[[model]][,'q50'], type='l', lwd=2, lty=1,
+     ylim=c(4.5,14.5), xlab='', ylab='', xaxt='n', yaxt='n', col='black', xaxs='i')
+
+model <- 'nav6'; ic <- 14
+lines(time_proj, return_period_target[[model]][,'q50'], type='l', lwd=2, lty=1,
+      col=rgb(mycol[ic,1], mycol[ic,2], mycol[ic,3]) )
+polygon(c(time_proj,rev(time_proj)), c(return_period_target[[model]][,'q5'], rev(return_period_target[[model]][,'q95'])),
+        col=rgb(mycol[ic,1], mycol[ic,2], mycol[ic,3], 0.5), border=NA)
+
+polygon(c(time_proj,rev(time_proj)), c(return_period_target[[model]][,'q5'], rev(return_period_target[[model]][,'q95'])),
+        col=rgb(.5,.5,.5,.5), border=NA)
+mtext('1/2000 surge level [m]', side=2, line=2.3, cex=1);
+mtext('Year', side=1, line=2, cex=1);
+axis(1,seq(2000,2100,by=20), cex.axis=1)
+axis(2,seq(5,13, by=1), label=c('5','','7','','9','','11','','13'), cex.axis=1)
+
+model <- 'nav4'; ic <- 6
+lines(time_proj, return_period_target[[model]][,'q50'], type='l', lwd=2, lty=1,
+      col=rgb(mycol[ic,1], mycol[ic,2], mycol[ic,3]) )
+polygon(c(time_proj,rev(time_proj)), c(return_period_target[[model]][,'q5'], rev(return_period_target[[model]][,'q95'])),
+        col=rgb(mycol[ic,1], mycol[ic,2], mycol[ic,3], 0.5), border=NA)
+
+model <- 'nav5'; ic <- 9
+lines(time_proj, return_period_target[[model]][,'q50'], type='l', lwd=2, lty=1,
+      col=rgb(mycol[ic,1], mycol[ic,2], mycol[ic,3]) )
+polygon(c(time_proj,rev(time_proj)), c(return_period_target[[model]][,'q5'], rev(return_period_target[[model]][,'q95'])),
+        col=rgb(mycol[ic,1], mycol[ic,2], mycol[ic,3], 0.5), border=NA)
+
+legend(2000, 15, c('stationary','lower tail nonstationary', 'lower tail, scale nonstationary', 'both tails, scale nonstationary', '5-95% credible range'),
+       lty=c(1,1,1,1,NA), pch=c(NA,NA,NA,NA,15), lwd=c(2,2,2,2,10), cex=1, col=c('black', mycol.rgb[6], mycol.rgb[9], mycol.rgb[14], rgb(.5,.5,.5)), bty='n' )
+
+dev.off()
+#===============================================================================
 
 
 
