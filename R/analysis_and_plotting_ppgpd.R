@@ -136,6 +136,7 @@ for (site in site.names) {
       gpd.parameters[[site]]$y90[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd90.',model,sep='')))
       gpd.parameters[[site]]$y110[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd107.',model,sep='')))
     }
+    n.ensemble <- nrow(gpd.parameters[[site]]$y30$gpd3)
     data.sites[[site]] <- readRDS(filename.balboa.data)
     data.lengths[[site]] <- names(data.sites[[site]])[intersect(which(nchar(names(data.sites[[site]]))>3) , grep('gpd', names(data.sites[[site]])))]
     all.data[[site]] <- length(data.lengths[[site]])
@@ -149,6 +150,7 @@ for (site in site.names) {
       gpd.parameters[[site]]$y110[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd110.',model,sep='')))
       gpd.parameters[[site]]$y130[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd137.',model,sep='')))
     }
+    n.ensemble <- nrow(gpd.parameters[[site]]$y30$gpd3)
     data.sites[[site]] <- readRDS(filename.delfzijl.data)
     data.lengths[[site]] <- names(data.sites[[site]])[intersect(which(nchar(names(data.sites[[site]]))>3) , grep('gpd', names(data.sites[[site]])))]
     all.data[[site]] <- length(data.lengths[[site]])
@@ -374,7 +376,7 @@ u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE
 mtext('Probability density', side=2, line=1.2, cex=1)
 mtext('ST', side=2, line=3, cex=1)
 plot.new()
-pp <- 2; par(mai=c(.25,.35,.25,.25))
+pp <- 2; par(mai=c(.25,.3,.25,.3))
 box.width <- diff(lims[3,])/nbins; box.edges <- seq(from=lims[3,1], to=lims[3,2], by=box.width)
 hist(log(deoptim.all[[model]][,pp]), xlim=lims[3,], freq=FALSE, main='', xlab='', ylab='',
      breaks=box.edges, xaxt='n', yaxt='n', yaxs='i')
@@ -513,17 +515,663 @@ dev.off()
 #
 #===============================================================================
 # SOM FIGURE S2 -- show the calibrated distributions of parameters using the
-#                  normal and gamma priors
+# (and S3, S4)     normal and gamma priors, with uniform results superimposed
+#                  as a dashed curve. Do this for all three sites (S2-S4 figs)
+
+gpd.parameters.uniform <- list.init
+for (site in site.names) {
+  if(site=='Norfolk') {
+    ncdata <- nc_open(filename.norfolk.uniform)
+    for (model in types.of.gpd) {gpd.parameters.uniform[[site]]$y90[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd89.',model,sep='')))}
+  } else if(site=='Balboa') {ncdata <- nc_open(filename.balboa.uniform)
+    for (model in types.of.gpd) {gpd.parameters.uniform[[site]]$y110[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd107.',model,sep='')))}
+  } else if(site=='Delfzijl') {ncdata <- nc_open(filename.delfzijl.uniform)
+    for (model in types.of.gpd) {gpd.parameters.uniform[[site]]$y130[[model]] <- t(ncvar_get(ncdata, paste('parameters.gpd137.',model,sep='')))}
+  } else {print('ERROR - unrecognized site name')}
+}
+
+kde.uniform <- kde.normalgamma <- list.init
+for (site in site.names) {
+  for (model in types.of.gpd) {
+    kde.normalgamma[[site]][[all.data[[site]]]][[model]] <- vector('list', length(parnames[[model]])); names(kde.normalgamma[[site]][[all.data[[site]]]][[model]]) <- parnames[[model]]
+    for (pp in 1:length(parnames[[model]])) {
+      kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]] <- density(gpd.parameters[[site]][[all.data[[site]]]][[model]][,pp])
+      kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]] <- density(gpd.parameters.uniform[[site]][[all.data[[site]]]][[model]][,pp])
+    }
+  }
+}
+
+# get limits that bound all of the parameters across both priors and all sites
+lims.p <- lims
+pp <- 1 # lambda0
+lims.p[pp,1] <- min(kde.normalgamma[[1]][[all.data[[1]]]]$gpd3$lambda$x[which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd3$lambda$y > 0)[1]],
+                    kde.normalgamma[[1]][[all.data[[1]]]]$gpd4$lambda0$x[which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd4$lambda0$y > 0)[1]],
+                    kde.normalgamma[[1]][[all.data[[1]]]]$gpd5$lambda0$x[which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd5$lambda0$y > 0)[1]],
+                    kde.normalgamma[[1]][[all.data[[1]]]]$gpd6$lambda0$x[which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd6$lambda0$y > 0)[1]],
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd3$lambda$x[which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd3$lambda$y > 0)[1]],
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd4$lambda0$x[which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd4$lambda0$y > 0)[1]],
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd5$lambda0$x[which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd5$lambda0$y > 0)[1]],
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd6$lambda0$x[which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd6$lambda0$y > 0)[1]],
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd3$lambda$x[which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd3$lambda$y > 0)[1]],
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd4$lambda0$x[which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd4$lambda0$y > 0)[1]],
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd5$lambda0$x[which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd5$lambda0$y > 0)[1]],
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd6$lambda0$x[which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd6$lambda0$y > 0)[1]])
+lims.p[pp,2] <- max(kde.normalgamma[[1]][[all.data[[1]]]]$gpd3$lambda$x[rev(which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd3$lambda$y > 0))[1]],
+                    kde.normalgamma[[1]][[all.data[[1]]]]$gpd4$lambda0$x[rev(which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd4$lambda0$y > 0))[1]],
+                    kde.normalgamma[[1]][[all.data[[1]]]]$gpd5$lambda0$x[rev(which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd5$lambda0$y > 0))[1]],
+                    kde.normalgamma[[1]][[all.data[[1]]]]$gpd6$lambda0$x[rev(which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd6$lambda0$y > 0))[1]],
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd3$lambda$x[rev(which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd3$lambda$y > 0))[1]],
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd4$lambda0$x[rev(which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd4$lambda0$y > 0))[1]],
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd5$lambda0$x[rev(which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd5$lambda0$y > 0))[1]],
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd6$lambda0$x[rev(which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd6$lambda0$y > 0))[1]],
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd3$lambda$x[rev(which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd3$lambda$y > 0))[1]],
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd4$lambda0$x[rev(which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd4$lambda0$y > 0))[1]],
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd5$lambda0$x[rev(which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd5$lambda0$y > 0))[1]],
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd6$lambda0$x[rev(which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd6$lambda0$y > 0))[1]])
+pp <- 2 # lambda1
+lims.p[pp,1] <- min(kde.normalgamma[[1]][[all.data[[1]]]]$gpd4$lambda1$x[which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd4$lambda1$y > 0)[1]],
+                    kde.normalgamma[[1]][[all.data[[1]]]]$gpd5$lambda1$x[which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd5$lambda1$y > 0)[1]],
+                    kde.normalgamma[[1]][[all.data[[1]]]]$gpd6$lambda1$x[which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd6$lambda1$y > 0)[1]],
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd4$lambda1$x[which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd4$lambda1$y > 0)[1]],
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd5$lambda1$x[which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd5$lambda1$y > 0)[1]],
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd6$lambda1$x[which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd6$lambda1$y > 0)[1]],
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd4$lambda1$x[which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd4$lambda1$y > 0)[1]],
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd5$lambda1$x[which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd5$lambda1$y > 0)[1]],
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd6$lambda1$x[which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd6$lambda1$y > 0)[1]])
+lims.p[pp,2] <- max(kde.normalgamma[[1]][[all.data[[1]]]]$gpd4$lambda1$x[rev(which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd4$lambda1$y > 0))[1]],
+                    kde.normalgamma[[1]][[all.data[[1]]]]$gpd5$lambda1$x[rev(which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd5$lambda1$y > 0))[1]],
+                    kde.normalgamma[[1]][[all.data[[1]]]]$gpd6$lambda1$x[rev(which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd6$lambda1$y > 0))[1]],
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd4$lambda1$x[rev(which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd4$lambda1$y > 0))[1]],
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd5$lambda1$x[rev(which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd5$lambda1$y > 0))[1]],
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd6$lambda1$x[rev(which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd6$lambda1$y > 0))[1]],
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd4$lambda1$x[rev(which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd4$lambda1$y > 0))[1]],
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd5$lambda1$x[rev(which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd5$lambda1$y > 0))[1]],
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd6$lambda1$x[rev(which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd6$lambda1$y > 0))[1]])
+pp <- 3 # sigma0
+lims.p[pp,1] <- min(log(kde.normalgamma[[1]][[all.data[[1]]]]$gpd3$sigma$x[which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd3$sigma$y > 0)[1]]),
+                    log(kde.normalgamma[[1]][[all.data[[1]]]]$gpd4$sigma$x[which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd4$sigma$y > 0)[1]]),
+                    kde.normalgamma[[1]][[all.data[[1]]]]$gpd5$sigma0$x[which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd5$sigma0$y > 0)[1]],
+                    kde.normalgamma[[1]][[all.data[[1]]]]$gpd6$sigma0$x[which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd6$sigma0$y > 0)[1]],
+                    log(kde.normalgamma[[2]][[all.data[[2]]]]$gpd3$sigma$x[which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd3$sigma$y > 0)[1]]),
+                    log(kde.normalgamma[[2]][[all.data[[2]]]]$gpd4$sigma$x[which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd4$sigma$y > 0)[1]]),
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd5$sigma0$x[which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd5$sigma0$y > 0)[1]],
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd6$sigma0$x[which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd6$sigma0$y > 0)[1]],
+                    log(kde.normalgamma[[3]][[all.data[[3]]]]$gpd3$sigma$x[which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd3$sigma$y > 0)[1]]),
+                    log(kde.normalgamma[[3]][[all.data[[3]]]]$gpd4$sigma$x[which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd4$sigma$y > 0)[1]]),
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd5$sigma0$x[which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd5$sigma0$y > 0)[1]],
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd6$sigma0$x[which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd6$sigma0$y > 0)[1]])
+lims.p[pp,2] <- max(log(kde.normalgamma[[1]][[all.data[[1]]]]$gpd3$sigma$x[rev(which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd3$sigma$y > 0))[1]]),
+                    log(kde.normalgamma[[1]][[all.data[[1]]]]$gpd4$sigma$x[rev(which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd4$sigma$y > 0))[1]]),
+                    kde.normalgamma[[1]][[all.data[[1]]]]$gpd5$sigma0$x[rev(which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd5$sigma0$y > 0))[1]],
+                    kde.normalgamma[[1]][[all.data[[1]]]]$gpd6$sigma0$x[rev(which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd6$sigma0$y > 0))[1]],
+                    log(kde.normalgamma[[2]][[all.data[[2]]]]$gpd3$sigma$x[rev(which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd3$sigma$y > 0))[1]]),
+                    log(kde.normalgamma[[2]][[all.data[[2]]]]$gpd4$sigma$x[rev(which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd4$sigma$y > 0))[1]]),
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd5$sigma0$x[rev(which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd5$sigma0$y > 0))[1]],
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd6$sigma0$x[rev(which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd6$sigma0$y > 0))[1]],
+                    log(kde.normalgamma[[3]][[all.data[[3]]]]$gpd3$sigma$x[rev(which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd3$sigma$y > 0))[1]]),
+                    log(kde.normalgamma[[3]][[all.data[[3]]]]$gpd4$sigma$x[rev(which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd4$sigma$y > 0))[1]]),
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd5$sigma0$x[rev(which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd5$sigma0$y > 0))[1]],
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd6$sigma0$x[rev(which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd6$sigma0$y > 0))[1]])
+pp <- 4 # sigma1
+lims.p[pp,1] <- min(kde.normalgamma[[1]][[all.data[[1]]]]$gpd5$sigma1$x[which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd5$sigma1$y > 0)[1]],
+                    kde.normalgamma[[1]][[all.data[[1]]]]$gpd6$sigma1$x[which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd6$sigma1$y > 0)[1]],
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd5$sigma1$x[which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd5$sigma1$y > 0)[1]],
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd6$sigma1$x[which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd6$sigma1$y > 0)[1]],
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd5$sigma1$x[which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd5$sigma1$y > 0)[1]],
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd6$sigma1$x[which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd6$sigma1$y > 0)[1]])
+lims.p[pp,2] <- max(kde.normalgamma[[1]][[all.data[[1]]]]$gpd5$sigma1$x[rev(which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd5$sigma1$y > 0))[1]],
+                    kde.normalgamma[[1]][[all.data[[1]]]]$gpd6$sigma1$x[rev(which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd6$sigma1$y > 0))[1]],
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd5$sigma1$x[rev(which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd5$sigma1$y > 0))[1]],
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd6$sigma1$x[rev(which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd6$sigma1$y > 0))[1]],
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd5$sigma1$x[rev(which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd5$sigma1$y > 0))[1]],
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd6$sigma1$x[rev(which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd6$sigma1$y > 0))[1]])
+pp <- 5 # xi0
+lims.p[pp,1] <- min(kde.normalgamma[[1]][[all.data[[1]]]]$gpd3$xi$x[which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd3$xi$y > 0)[1]],
+                    kde.normalgamma[[1]][[all.data[[1]]]]$gpd4$xi0$x[which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd4$xi0$y > 0)[1]],
+                    kde.normalgamma[[1]][[all.data[[1]]]]$gpd5$xi0$x[which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd5$xi0$y > 0)[1]],
+                    kde.normalgamma[[1]][[all.data[[1]]]]$gpd6$xi0$x[which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd6$xi0$y > 0)[1]],
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd3$xi$x[which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd3$xi$y > 0)[1]],
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd4$xi0$x[which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd4$xi0$y > 0)[1]],
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd5$xi0$x[which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd5$xi0$y > 0)[1]],
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd6$xi0$x[which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd6$xi0$y > 0)[1]],
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd3$xi$x[which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd3$xi$y > 0)[1]],
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd4$xi0$x[which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd4$xi0$y > 0)[1]],
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd5$xi0$x[which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd5$xi0$y > 0)[1]],
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd6$xi0$x[which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd6$xi0$y > 0)[1]])
+lims.p[pp,2] <- max(kde.normalgamma[[1]][[all.data[[1]]]]$gpd3$xi$x[rev(which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd3$xi$y > 0))[1]],
+                    kde.normalgamma[[1]][[all.data[[1]]]]$gpd4$xi0$x[rev(which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd4$xi0$y > 0))[1]],
+                    kde.normalgamma[[1]][[all.data[[1]]]]$gpd5$xi0$x[rev(which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd5$xi0$y > 0))[1]],
+                    kde.normalgamma[[1]][[all.data[[1]]]]$gpd6$xi0$x[rev(which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd6$xi0$y > 0))[1]],
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd3$xi$x[rev(which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd3$xi$y > 0))[1]],
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd4$xi0$x[rev(which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd4$xi0$y > 0))[1]],
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd5$xi0$x[rev(which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd5$xi0$y > 0))[1]],
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd6$xi0$x[rev(which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd6$xi0$y > 0))[1]],
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd3$xi$x[rev(which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd3$xi$y > 0))[1]],
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd4$xi0$x[rev(which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd4$xi0$y > 0))[1]],
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd5$xi0$x[rev(which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd5$xi0$y > 0))[1]],
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd6$xi0$x[rev(which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd6$xi0$y > 0))[1]])
+pp <- 6 # xi1
+lims.p[pp,1] <- min(kde.normalgamma[[1]][[all.data[[1]]]]$gpd6$xi1$x[which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd6$xi1$y > 0)[1]],
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd6$xi1$x[which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd6$xi1$y > 0)[1]],
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd6$xi1$x[which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd6$xi1$y > 0)[1]])
+lims.p[pp,2] <- max(kde.normalgamma[[1]][[all.data[[1]]]]$gpd6$xi1$x[rev(which(kde.normalgamma[[1]][[all.data[[1]]]]$gpd6$xi1$y > 0))[1]],
+                    kde.normalgamma[[2]][[all.data[[2]]]]$gpd6$xi1$x[rev(which(kde.normalgamma[[2]][[all.data[[2]]]]$gpd6$xi1$y > 0))[1]],
+                    kde.normalgamma[[3]][[all.data[[3]]]]$gpd6$xi1$x[rev(which(kde.normalgamma[[3]][[all.data[[3]]]]$gpd6$xi1$y > 0))[1]])
 
 
-#===============================================================================
+
+#
+# Delfzijl posterior results
 #
 
+pdf(paste(plot.dir,'posteriors_normalgamma_delfzijl.pdf',sep=''), height=7, width=10, colormodel='cmyk')
+par(mfrow=c(4,6))
+##=============================
+site <- 'Delfzijl'
+model <- 'gpd3'
+pp <- 1; par(mai=c(.25,.59,.25,.01))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[1,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext('Probability density', side=2, line=1.2, cex=1)
+mtext('ST', side=2, line=3, cex=1)
+
+# add a legend:
+par(mai=c(.01,.01,.01,.01))
+plot.new()
+text(0.2, .77, 'Priors:', cex=1.2)
+legend(0,0.75, c('normal/gamma','uniform'), lty=c(1,2), cex=1.2, bty='n', lwd=c(2,2))
+
+pp <- 2; par(mai=c(.25,.3,.25,.3))
+plot(log(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x), kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[3,])
+lines(log(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x), kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+plot.new()
+pp <- 3; par(mai=c(.25,.3,.25,.3))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[5,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+plot.new()
+##=============================
+model <- 'gpd4'
+pp <- 1; par(mai=c(.25,.59,.25,.01))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[1,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext('Probability density', side=2, line=1.2, cex=1)
+mtext('NS1', side=2, line=3, cex=1)
+pp <- 2; par(mai=c(.25,.35,.25,.25))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[2,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+pp <- 3; par(mai=c(.25,.3,.25,.3))
+plot(log(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x), kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[3,])
+lines(log(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x), kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+plot.new()
+pp <- 4; par(mai=c(.25,.3,.25,.3))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[5,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+plot.new()
+##=============================
+model <- 'gpd5'
+pp <- 1; par(mai=c(.25,.59,.25,.01))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[1,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext('Probability density', side=2, line=1.2, cex=1)
+mtext('NS2', side=2, line=3, cex=1)
+pp <- 2; par(mai=c(.25,.35,.25,.25))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[2,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+pp <- 3; par(mai=c(.25,.3,.25,.3))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[3,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+pp <- 4; par(mai=c(.25,.3,.25,.3))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[4,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+pp <- 5; par(mai=c(.25,.3,.25,.3))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[5,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+plot.new()
+##=============================
+model <- 'gpd6'
+pp <- 1; par(mai=c(.5,.59,.01,.01))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', yaxt='n', yaxs='i', bty='n', xlim=lims.p[1,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext('Probability density', side=2, line=1.2, cex=1)
+mtext(expression(mu[0]), side=1, line=2.7, cex=1)
+mtext('NS3', side=2, line=3, cex=1)
+pp <- 2; par(mai=c(.5,.35,.01,.25))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', yaxt='n', yaxs='i', bty='n', xlim=lims.p[2,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext(expression(mu[1]), side=1, line=2.7, cex=1)
+pp <- 3; par(mai=c(.5,.3,.01,.3))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', yaxt='n', yaxs='i', bty='n', xlim=lims.p[3,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext(expression(sigma[0]), side=1, line=2.7, cex=1)
+pp <- 4; par(mai=c(.5,.3,.01,.3))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', yaxt='n', yaxs='i', bty='n', xlim=lims.p[4,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext(expression(sigma[1]), side=1, line=2.7, cex=1)
+pp <- 5; par(mai=c(.5,.3,.01,.3))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', yaxt='n', yaxs='i', bty='n', xlim=lims.p[5,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext(expression(xi[0]), side=1, line=2.7, cex=1)
+pp <- 6; par(mai=c(.5,.3,.01,.3))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', yaxt='n', yaxs='i', bty='n', xlim=lims.p[6,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext(expression(xi[1]), side=1, line=2.7, cex=1)
+##=============================
+dev.off()
+
 
 #
-#===============================================================================
-# SOM FIGURE S3 -- show the calibrated distributions of parameters using the
-#                  uniform priors
+# Balboa posterior results
+#
+
+pdf(paste(plot.dir,'posteriors_normalgamma_balboa.pdf',sep=''), height=7, width=10, colormodel='cmyk')
+par(mfrow=c(4,6))
+##=============================
+site <- 'Balboa'
+model <- 'gpd3'
+pp <- 1; par(mai=c(.25,.59,.25,.01))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[1,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext('Probability density', side=2, line=1.2, cex=1)
+mtext('ST', side=2, line=3, cex=1)
+
+# add a legend:
+par(mai=c(.01,.01,.01,.01))
+plot.new()
+text(0.2, .77, 'Priors:', cex=1.2)
+legend(0,0.75, c('normal/gamma','uniform'), lty=c(1,2), cex=1.2, bty='n', lwd=c(2,2))
+
+pp <- 2; par(mai=c(.25,.3,.25,.3))
+plot(log(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x), kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[3,])
+lines(log(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x), kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+plot.new()
+pp <- 3; par(mai=c(.25,.3,.25,.3))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[5,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+plot.new()
+##=============================
+model <- 'gpd4'
+pp <- 1; par(mai=c(.25,.59,.25,.01))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[1,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext('Probability density', side=2, line=1.2, cex=1)
+mtext('NS1', side=2, line=3, cex=1)
+pp <- 2; par(mai=c(.25,.35,.25,.25))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[2,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+pp <- 3; par(mai=c(.25,.3,.25,.3))
+plot(log(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x), kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[3,])
+lines(log(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x), kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+plot.new()
+pp <- 4; par(mai=c(.25,.3,.25,.3))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[5,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+plot.new()
+##=============================
+model <- 'gpd5'
+pp <- 1; par(mai=c(.25,.59,.25,.01))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[1,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext('Probability density', side=2, line=1.2, cex=1)
+mtext('NS2', side=2, line=3, cex=1)
+pp <- 2; par(mai=c(.25,.35,.25,.25))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[2,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+pp <- 3; par(mai=c(.25,.3,.25,.3))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[3,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+pp <- 4; par(mai=c(.25,.3,.25,.3))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[4,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+pp <- 5; par(mai=c(.25,.3,.25,.3))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[5,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+plot.new()
+##=============================
+model <- 'gpd6'
+pp <- 1; par(mai=c(.5,.59,.01,.01))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', yaxt='n', yaxs='i', bty='n', xlim=lims.p[1,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext('Probability density', side=2, line=1.2, cex=1)
+mtext(expression(mu[0]), side=1, line=2.7, cex=1)
+mtext('NS3', side=2, line=3, cex=1)
+pp <- 2; par(mai=c(.5,.35,.01,.25))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', yaxt='n', yaxs='i', bty='n', xlim=lims.p[2,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext(expression(mu[1]), side=1, line=2.7, cex=1)
+pp <- 3; par(mai=c(.5,.3,.01,.3))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', yaxt='n', yaxs='i', bty='n', xlim=lims.p[3,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext(expression(sigma[0]), side=1, line=2.7, cex=1)
+pp <- 4; par(mai=c(.5,.3,.01,.3))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', yaxt='n', yaxs='i', bty='n', xlim=lims.p[4,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext(expression(sigma[1]), side=1, line=2.7, cex=1)
+pp <- 5; par(mai=c(.5,.3,.01,.3))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', yaxt='n', yaxs='i', bty='n', xlim=lims.p[5,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext(expression(xi[0]), side=1, line=2.7, cex=1)
+pp <- 6; par(mai=c(.5,.3,.01,.3))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', yaxt='n', yaxs='i', bty='n', xlim=lims.p[6,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext(expression(xi[1]), side=1, line=2.7, cex=1)
+##=============================
+dev.off()
+
+
+
+#
+# Norfolk posterior results
+#
+
+pdf(paste(plot.dir,'posteriors_normalgamma_norfolk.pdf',sep=''), height=7, width=10, colormodel='cmyk')
+par(mfrow=c(4,6))
+##=============================
+site <- 'Norfolk'
+model <- 'gpd3'
+pp <- 1; par(mai=c(.25,.59,.25,.01))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[1,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext('Probability density', side=2, line=1.2, cex=1)
+mtext('ST', side=2, line=3, cex=1)
+
+# add a legend:
+par(mai=c(.01,.01,.01,.01))
+plot.new()
+text(0.2, .77, 'Priors:', cex=1.2)
+legend(0,0.75, c('normal/gamma','uniform'), lty=c(1,2), cex=1.2, bty='n', lwd=c(2,2))
+
+pp <- 2; par(mai=c(.25,.3,.25,.3))
+plot(log(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x), kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[3,])
+lines(log(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x), kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+plot.new()
+pp <- 3; par(mai=c(.25,.3,.25,.3))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[5,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+plot.new()
+##=============================
+model <- 'gpd4'
+pp <- 1; par(mai=c(.25,.59,.25,.01))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[1,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext('Probability density', side=2, line=1.2, cex=1)
+mtext('NS1', side=2, line=3, cex=1)
+pp <- 2; par(mai=c(.25,.35,.25,.25))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[2,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+pp <- 3; par(mai=c(.25,.3,.25,.3))
+plot(log(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x), kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[3,])
+lines(log(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x), kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+plot.new()
+pp <- 4; par(mai=c(.25,.3,.25,.3))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[5,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+plot.new()
+##=============================
+model <- 'gpd5'
+pp <- 1; par(mai=c(.25,.59,.25,.01))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[1,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext('Probability density', side=2, line=1.2, cex=1)
+mtext('NS2', side=2, line=3, cex=1)
+pp <- 2; par(mai=c(.25,.35,.25,.25))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[2,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+pp <- 3; par(mai=c(.25,.3,.25,.3))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[3,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+pp <- 4; par(mai=c(.25,.3,.25,.3))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[4,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+pp <- 5; par(mai=c(.25,.3,.25,.3))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[5,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+plot.new()
+##=============================
+model <- 'gpd6'
+pp <- 1; par(mai=c(.5,.59,.01,.01))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', yaxt='n', yaxs='i', bty='n', xlim=lims.p[1,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext('Probability density', side=2, line=1.2, cex=1)
+mtext(expression(mu[0]), side=1, line=2.7, cex=1)
+mtext('NS3', side=2, line=3, cex=1)
+pp <- 2; par(mai=c(.5,.35,.01,.25))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', yaxt='n', yaxs='i', bty='n', xlim=lims.p[2,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext(expression(mu[1]), side=1, line=2.7, cex=1)
+pp <- 3; par(mai=c(.5,.3,.01,.3))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', yaxt='n', yaxs='i', bty='n', xlim=lims.p[3,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext(expression(sigma[0]), side=1, line=2.7, cex=1)
+pp <- 4; par(mai=c(.5,.3,.01,.3))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', yaxt='n', yaxs='i', bty='n', xlim=lims.p[4,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext(expression(sigma[1]), side=1, line=2.7, cex=1)
+pp <- 5; par(mai=c(.5,.3,.01,.3))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', yaxt='n', yaxs='i', bty='n', xlim=lims.p[5,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext(expression(xi[0]), side=1, line=2.7, cex=1)
+pp <- 6; par(mai=c(.5,.3,.01,.3))
+plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+     type='l', lwd=2, lty=1, main='', xlab='', ylab='', yaxt='n', yaxs='i', bty='n', xlim=lims.p[6,])
+lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+      type='l', lwd=2, lty=2)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext(expression(xi[1]), side=1, line=2.7, cex=1)
+##=============================
+dev.off()
 
 
 #===============================================================================
@@ -536,6 +1184,59 @@ dev.off()
 #            distributions (box-whisker/box-lighter-box) for each block, for
 #            each site.
 
+returnlevel <- readRDS('../output/sensitivity_returnlevels_Delfzijl_04Aug2017.rds')
+nblocks <- length(returnlevel)
+
+## Calculate the quantiles to plot
+quantiles.to.grab <- c(.05, .25, .5, .75, .95)
+quantile.names <- rep(NULL, length(quantiles.to.grab))
+for (qq in 1:length(quantiles.to.grab)) {
+  if(quantiles.to.grab[qq] >= .10) {
+    quantile.names[qq] <- paste('q',100*quantiles.to.grab[qq], sep='')
+  } else if(quantiles.to.grab[qq] < .10 & quantiles.to.grab[qq] >= 0) {
+    quantile.names[qq] <- paste('q0',100*quantiles.to.grab[qq], sep='')
+  }
+}
+returnlevel.quantiles <- mat.or.vec(nblocks, length(quantiles.to.grab))
+colnames(returnlevel.quantiles) <- quantile.names
+for (bb in 1:nblocks) {
+  # the /1000 is to convert to m from mm
+  returnlevel.quantiles[bb,] <- quantile(returnlevel[[bb]], quantiles.to.grab)/1000
+}
+
+## Useful for plotting - centers of the time blocks used in the experiments
+block.years.center <- apply(X=block.years, MARGIN=1, FUN=median)
+
+block.colors <- colorRampPalette(c("darkslateblue","royalblue","turquoise1"),space="Lab")(max(nblocks))
+block.colors.lighter <- paste(block.colors, "70", sep="")
+
+
+## The actual figure
+
+pdf(paste(plotdir,'stormsurge_sensitivity_boxwhisker.pdf',sep=''),width=4,height=3,colormodel='cmyk')
+par(mfrow=c(1,1), mai=c(.8,.7,.15,.2))
+halfwidth <- 2 # half the width of the boxes, in years
+# put the first median bar down, to get hte plot started
+plot(c(block.years.center[1]-halfwidth, block.years.center[1]+halfwidth), rep(returnlevel.quantiles[1,'q50'],2),
+     type='l', lwd=3, col='black', xlim=c(1900,2000), ylim=c(0,8), xlab='', ylab='', las=1)
+# now add the darker 25-75% range polygon before the median bars, ...
+for (bb in 1:nblocks) {
+    times.beg.end <- c(block.years.center[bb]-halfwidth, block.years.center[bb]+halfwidth)
+    polygon(c(times.beg.end,rev(times.beg.end)), c(returnlevel.quantiles[bb,c('q25','q25')],rev(returnlevel.quantiles[bb,c('q75','q75')])),
+            col=block.colors[bb], border=NA)
+}
+# ... and add the lighter 5-95% range polygon before the median bars too...
+for (bb in 1:nblocks) {
+    times.beg.end <- c(block.years.center[bb]-halfwidth, block.years.center[bb]+halfwidth)
+    polygon(c(times.beg.end,rev(times.beg.end)), c(returnlevel.quantiles[bb,c('q05','q05')],rev(returnlevel.quantiles[bb,c('q95','q95')])),
+            col=block.colors.lighter[bb], border=NA)
+}
+# ... so the bars are on top
+for (bb in 1:nblocks) {lines(c(block.years.center[bb]-halfwidth, block.years.center[bb]+halfwidth),
+                                   rep(returnlevel.quantiles[bb,'q50'],2), lwd=3, col='black')}
+text(1960, 20, 'Delfzijl, the Netherlands', pos=4)
+mtext('Year', side=1, line=2.4, cex=1);
+mtext('100-year return level [m]', side=2, line=2.2, cex=1);
 
 #===============================================================================
 #
@@ -598,3 +1299,213 @@ dev.off()
 #===============================================================================
 # End
 #===============================================================================
+
+
+
+if(FALSE) {
+
+
+# bonus material!
+
+
+#===============================================================================
+# Potentially useful for characterizing spatial uncertainty:
+
+pdf(paste(plot.dir,'posteriors_normalgamma_allsites.pdf',sep=''), height=7, width=10, colormodel='cmyk')
+par(mfrow=c(4,6))
+##=============================
+model <- 'gpd3'
+pp <- 1; par(mai=c(.25,.59,.25,.01))
+site <- 1; plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[1,])
+site <- 2; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=2)
+site <- 3; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=3)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext('Probability density', side=2, line=1.2, cex=1)
+mtext('ST', side=2, line=3, cex=1)
+plot.new()
+pp <- 2; par(mai=c(.25,.35,.25,.25))
+site <- 1; plot(log(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x), kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[3,])
+site <- 2; lines(log(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x), kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=2)
+site <- 3; lines(log(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x), kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=3)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+plot.new()
+pp <- 3; par(mai=c(.25,.3,.25,.3))
+site <- 1; plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[5,])
+site <- 2; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=2)
+site <- 3; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=3)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+plot.new()
+##=============================
+model <- 'gpd4'
+pp <- 1; par(mai=c(.25,.59,.25,.01))
+site <- 1; plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[1,])
+site <- 2; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=2)
+site <- 3; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=3)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext('Probability density', side=2, line=1.2, cex=1)
+mtext('NS1', side=2, line=3, cex=1)
+pp <- 2; par(mai=c(.25,.35,.25,.25))
+site <- 1; plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[2,])
+site <- 2; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=2)
+site <- 3; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=3)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+pp <- 3; par(mai=c(.25,.3,.25,.3))
+site <- 1; plot(log(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x), kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[3,])
+site <- 2; lines(log(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x), kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=2)
+site <- 3; lines(log(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x), kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=3)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+plot.new()
+pp <- 4; par(mai=c(.25,.3,.25,.3))
+site <- 1; plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[5,])
+site <- 2; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=2)
+site <- 3; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=3)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+plot.new()
+##=============================
+model <- 'gpd5'
+pp <- 1; par(mai=c(.25,.59,.25,.01))
+site <- 1; plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[1,])
+site <- 2; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=2)
+site <- 3; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=3)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext('Probability density', side=2, line=1.2, cex=1)
+mtext('NS2', side=2, line=3, cex=1)
+pp <- 2; par(mai=c(.25,.35,.25,.25))
+site <- 1; plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[2,])
+site <- 2; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=2)
+site <- 3; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=3)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+pp <- 3; par(mai=c(.25,.3,.25,.3))
+site <- 1; plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[3,])
+site <- 2; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=2)
+site <- 3; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=3)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+pp <- 4; par(mai=c(.25,.3,.25,.3))
+site <- 1; plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[4,])
+site <- 2; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=2)
+site <- 3; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=3)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+pp <- 5; par(mai=c(.25,.3,.25,.3))
+site <- 1; plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[5,])
+site <- 2; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=2)
+site <- 3; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=3)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+plot.new()
+##=============================
+model <- 'gpd6'
+pp <- 1; par(mai=c(.5,.59,.01,.01))
+site <- 1; plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[1,])
+site <- 2; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=2)
+site <- 3; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=3)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext('Probability density', side=2, line=1.2, cex=1)
+mtext(expression(mu[0]), side=1, line=2.7, cex=1)
+mtext('NS3', side=2, line=3, cex=1)
+pp <- 2; par(mai=c(.5,.35,.01,.25))
+site <- 1; plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[2,])
+site <- 2; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=2)
+site <- 3; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=3)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext(expression(mu[1]), side=1, line=2.7, cex=1)
+pp <- 3; par(mai=c(.5,.3,.01,.3))
+site <- 1; plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[3,])
+site <- 2; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=2)
+site <- 3; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=3)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext(expression(sigma[0]), side=1, line=2.7, cex=1)
+pp <- 4; par(mai=c(.5,.3,.01,.3))
+site <- 1; plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[4,])
+site <- 2; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=2)
+site <- 3; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=3)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext(expression(sigma[1]), side=1, line=2.7, cex=1)
+pp <- 5; par(mai=c(.5,.3,.01,.3))
+site <- 1; plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[5,])
+site <- 2; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=2)
+site <- 3; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=3)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext(expression(xi[0]), side=1, line=2.7, cex=1)
+pp <- 6; par(mai=c(.5,.3,.01,.3))
+site <- 1; plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[6,])
+site <- 2; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=2)
+site <- 3; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
+    type='l', lwd=2, lty=3)
+u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
+lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
+mtext(expression(xi[1]), side=1, line=2.7, cex=1)
+##=============================
+dev.off()
+#===============================================================================
+
+
+}
