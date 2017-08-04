@@ -192,7 +192,7 @@ for (model in types.of.model) {
       # do parallel chains
       tbeg <- proc.time()
       amcmc_out[[model]] <- MCMC.parallel(log_post_gev, niter_mcmc, initial_parameters,
-                            n.chain=4, n.cpu=4, packages='extRemes',
+                            n.chain=nnode_mcmc, n.cpu=nnode_mcmc, packages='extRemes',
 				            scale=step_mcmc, adapt=TRUE, acc.rate=accept_mcmc,
                             gamma=gamma_mcmc, list=TRUE, n.start=startadapt_mcmc,
                             parnames=parnames_all[[model]], data_calib=data_calib$gev_year$lsl_max,
@@ -220,7 +220,7 @@ for (model in types.of.model) {
     } else if(nnode_mcmc > 1) {
       # do parallel chains
       tbeg <- proc.time()
-      amcmc_out[[model]] <- MCMC.parallel(log_post_naveau, niter_mcmc, initial_parameters, n.chain=4, n.cpu=4,
+      amcmc_out[[model]] <- MCMC.parallel(log_post_naveau, niter_mcmc, initial_parameters, n.chain=nnode_mcmc, n.cpu=nnode_mcmc,
 				             scale=step_mcmc, adapt=TRUE, acc.rate=accept_mcmc,
                              gamma=gamma_mcmc, list=TRUE, n.start=startadapt_mcmc,
                              parnames=parnames_all[[model]], data_calib=data_calib$gev_year$lsl_max,

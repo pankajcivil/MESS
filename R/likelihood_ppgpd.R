@@ -1,4 +1,6 @@
 #===============================================================================
+# likelihood_ppgpd.R
+#
 # likelihood function(s), priors, posterior
 # for generalized pareto/poisson process distribution
 #

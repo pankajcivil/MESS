@@ -293,11 +293,10 @@ today=Sys.Date(); today=format(today,format="%d%b%Y")
 filename.priors.normalgamma <- paste(output.dir,'surge_priors_normalgamma_',appen,'_',today,'.rds', sep='')
 filename.priors.uniform <- paste(output.dir,'surge_priors_uniform_',appen,'_',today,'.rds', sep='')
 filename.mles <- paste(output.dir,'surge_MLEs_',appen,'_',today,'.rds', sep='')
-filename.everything <- paste(output.dir,'everything_priors_',appen,'_',today,'.RData', sep='')
 
 print(paste('saving priors and DE optim output as .rds files to read and use later...',sep=''))
 
-save.image(file=filename.everything)
+save.image(file=filename.saveprogress)
 saveRDS(priors_normalgamma, file=filename.priors.normalgamma)
 saveRDS(priors_uniform, file=filename.priors.uniform)
 saveRDS(deoptim.all, file=filename.mles)

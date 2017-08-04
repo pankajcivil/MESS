@@ -66,7 +66,17 @@ filename.everythingmcmc <- paste(output.dir,'everything_mcmc_',appen,'_',today,'
 
 #
 #===============================================================================
-# relevant libraries - do 'install.pacakges([library name])' if you do not have
+# Nothing below here should need to be modified. And really, all you ought to
+# need to do is adjust the name of the station to calibrate, or the set of prior
+# distributions for a supplementary experiment.
+#===============================================================================
+#
+
+# On with the show!
+
+#
+#===============================================================================
+# relevant libraries - do 'install.packages([library name])' if you do not have
 # one yet
 #===============================================================================
 #
