@@ -10,13 +10,17 @@
 
 rm(list=ls())
 
+# vvv IMPORTANT SETTINGS YOU SHOULD MODIFY, DEPENDING ON THE EXPERIMENT vvv
+
+station <- 'delfzijl'             # can be 'delfzijl', 'balboa', or 'norfolk'
+type.of.priors <- 'normalgamma'      # can be either 'uniform' or 'normalgamma'
+
 niter_mcmc_prelim000 <- 5e3      # number of MCMC iterations (PRELIMINARY chains)
 nnode_mcmc_prelim000 <- 1        # number of CPUs to use (PRELIMINARY chains)
 niter_mcmc_prod000 <- 5e5        # number of MCMC iterations (PRODUCTION chains)
 nnode_mcmc_prod000 <- 10          # number of CPUs to use (PRODUCTION chains)
 gamma_mcmc000 <- 0.5             # speed of adaptation (0.5=faster, 1=slowest)
 
-filename.priors   <- 'surge_priors_normalgamma_ppgpd_26Jul2017.rds'  # file holding the 'priors' object
 filename.mles <- 'surge_MLEs_ppgpd_26Jul2017.rds'  # file holding the 'deoptim.all' object with the MLEs (for initial parameters)
 
 output.dir <- '../output/'
@@ -25,30 +29,7 @@ dat.dir <- '../data/'
 setwd('/home/scrim/axw322/codes/EVT/R')
 #setwd('/Users/tony/codes/EVT/R')
 
-# IMPORTANT vvv SET WHICH STATION YOU WANT TO CALIBRATE HERE
-station <- 'norfolk' # can be 'delfzijl', 'balboa', or 'norfolk'
-# IMPORTANT ^^^
-
-if (station=='delfzijl') {
-  appen <- 'ppgpd-experiments_delfzijl'
-  filename.datacalib <- 'tidegauge_processed_delfzijl_26Jul2017.rds' # file holding the calibration data object for Delfzijl
-  ind.in.mles <- 29
-} else if (station=='norfolk') {
-  appen <- 'ppgpd-experiments_norfolk'
-  filename.datacalib <- 'tidegauge_processed_norfolk_26Jul2017.rds' # file holding the calibration data object for Norfolk
-  ind.in.mles <- 30
-} else if (station=='balboa') {
-  appen <- 'ppgpd-experiments_balboa'
-  filename.datacalib <- 'tidegauge_processed_balboa_26Jul2017.rds' # file holding the calibration data object for Balboa
-  ind.in.mles <- 10
-}
-
-# Name the calibrated parameters output file
-today <- Sys.Date(); today=format(today,format="%d%b%Y")
-filename.parameters <- paste(output.dir,'calibratedParameters_',appen,'_',today,'.nc',sep='')
-
-# Name the saved progress RData workspace image file
-filename.everythingmcmc <- paste(output.dir,'everything_mcmc_',appen,'_',today,'.RData', sep='')
+# ^^^ IMPORTANT SETTINGS YOU SHOULD MODIFY, DEPENDING ON THE EXPERIMENT ^^^ 
 
 #
 #===============================================================================
@@ -59,6 +40,29 @@ filename.everythingmcmc <- paste(output.dir,'everything_mcmc_',appen,'_',today,'
 #
 
 # On with the show!
+
+filename.priors <- paste('surge_priors_',type.of.priors,'_ppgpd_26Jul2017.rds',sep='')
+
+if (station=='delfzijl') {
+  appen <- paste('ppgpd-experiments_delfzijl',type.of.priors,sep='_')
+  filename.datacalib <- 'tidegauge_processed_delfzijl_26Jul2017.rds' # file holding the calibration data object for Delfzijl
+  ind.in.mles <- 29
+} else if (station=='norfolk') {
+  appen <- paste('ppgpd-experiments_norfolk',type.of.priors,sep='_')
+  filename.datacalib <- 'tidegauge_processed_norfolk_26Jul2017.rds' # file holding the calibration data object for Norfolk
+  ind.in.mles <- 30
+} else if (station=='balboa') {
+  appen <- paste('ppgpd-experiments_balboa',type.of.priors,sep='_')
+  filename.datacalib <- 'tidegauge_processed_balboa_26Jul2017.rds' # file holding the calibration data object for Balboa
+  ind.in.mles <- 10
+}
+
+# Name the calibrated parameters output file
+today <- Sys.Date(); today=format(today,format="%d%b%Y")
+filename.parameters <- paste(output.dir,'calibratedParameters_',appen,'_',today,'.nc',sep='')
+
+# Name the saved progress RData workspace image file
+filename.everythingmcmc <- paste(output.dir,'everything_mcmc_',appen,'_',today,'.RData', sep='')
 
 #
 #===============================================================================
