@@ -1184,6 +1184,7 @@ dev.off()
 #            distributions (box-whisker/box-lighter-box) for each block, for
 #            each site.
 
+load('../output/sensitivity_returnlevels_mcmc_Delfzijl_04Aug2017.RData')
 returnlevel <- readRDS('../output/sensitivity_returnlevels_Delfzijl_04Aug2017.rds')
 nblocks <- length(returnlevel)
 
@@ -1213,7 +1214,7 @@ block.colors.lighter <- paste(block.colors, "70", sep="")
 
 ## The actual figure
 
-pdf(paste(plotdir,'stormsurge_sensitivity_boxwhisker.pdf',sep=''),width=4,height=3,colormodel='cmyk')
+pdf(paste(plot.dir,'stormsurge_sensitivity_boxwhisker.pdf',sep=''),width=4,height=3,colormodel='cmyk')
 par(mfrow=c(1,1), mai=c(.8,.7,.15,.2))
 halfwidth <- 2 # half the width of the boxes, in years
 # put the first median bar down, to get hte plot started
@@ -1234,9 +1235,10 @@ for (bb in 1:nblocks) {
 # ... so the bars are on top
 for (bb in 1:nblocks) {lines(c(block.years.center[bb]-halfwidth, block.years.center[bb]+halfwidth),
                                    rep(returnlevel.quantiles[bb,'q50'],2), lwd=3, col='black')}
-text(1960, 20, 'Delfzijl, the Netherlands', pos=4)
+text(1895, 0.5, 'Delfzijl, the Netherlands', pos=4)
 mtext('Year', side=1, line=2.4, cex=1);
 mtext('100-year return level [m]', side=2, line=2.2, cex=1);
+dev.off()
 
 #===============================================================================
 #
