@@ -260,8 +260,8 @@ save.image(file=filename.saveprogress)
 
 # throw this to HPC; need the RData files and the raw parameter sets
 
-TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HERE NOW!!
-TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HERE NOW!!
+#TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HERE NOW!!
+#TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HERE NOW!!
 
 
 #===============================================================================
@@ -307,8 +307,8 @@ for (site in site.names) {
   }
 }
 
-TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HERE NOW!!
-TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HERE NOW!!
+#TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HERE NOW!!
+#TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HERE NOW!!
 
 
 
@@ -322,6 +322,216 @@ TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 # PLOTTING
 #===============================================================================
 #===============================================================================
+
+
+
+#
+#===============================================================================
+# FIGURE 1 - Motivation figure, showing 30-year blocks and the estimated
+#            distributions (box-whisker/box-lighter-box) for each block, for
+#            each site.
+
+load('../output/sensitivity_returnlevels_mcmc_Delfzijl_04Aug2017.RData')
+returnlevel <- readRDS('../output/sensitivity_returnlevels_Delfzijl_04Aug2017.rds')
+nblocks <- length(returnlevel)
+
+## Calculate the quantiles to plot
+quantiles.to.grab <- c(.05, .25, .5, .75, .95)
+quantile.names <- rep(NULL, length(quantiles.to.grab))
+for (qq in 1:length(quantiles.to.grab)) {
+  if(quantiles.to.grab[qq] >= .10) {
+    quantile.names[qq] <- paste('q',100*quantiles.to.grab[qq], sep='')
+  } else if(quantiles.to.grab[qq] < .10 & quantiles.to.grab[qq] >= 0) {
+    quantile.names[qq] <- paste('q0',100*quantiles.to.grab[qq], sep='')
+  }
+}
+returnlevel.quantiles <- mat.or.vec(nblocks, length(quantiles.to.grab))
+colnames(returnlevel.quantiles) <- quantile.names
+for (bb in 1:nblocks) {
+  # the /1000 is to convert to m from mm
+  returnlevel.quantiles[bb,] <- quantile(returnlevel[[bb]], quantiles.to.grab)/1000
+}
+
+## Useful for plotting - centers of the time blocks used in the experiments
+block.years.center <- apply(X=block.years, MARGIN=1, FUN=median)
+
+block.colors <- colorRampPalette(c("darkslateblue","royalblue","turquoise1"),space="Lab")(max(nblocks))
+block.colors.lighter <- paste(block.colors, "70", sep="")
+
+
+## The actual figure
+
+pdf(paste(plot.dir,'stormsurge_sensitivity_boxwhisker.pdf',sep=''),width=4,height=3,colormodel='cmyk')
+par(mfrow=c(1,1), mai=c(.8,.7,.15,.2))
+halfwidth <- 2 # half the width of the boxes, in years
+# put the first median bar down, to get hte plot started
+plot(c(block.years.center[1]-halfwidth, block.years.center[1]+halfwidth), rep(returnlevel.quantiles[1,'q50'],2),
+     type='l', lwd=3, col='black', xlim=c(1900,2000), ylim=c(0,8), xlab='', ylab='', las=1)
+# now add the darker 25-75% range polygon before the median bars, ...
+for (bb in 1:nblocks) {
+    times.beg.end <- c(block.years.center[bb]-halfwidth, block.years.center[bb]+halfwidth)
+    polygon(c(times.beg.end,rev(times.beg.end)), c(returnlevel.quantiles[bb,c('q25','q25')],rev(returnlevel.quantiles[bb,c('q75','q75')])),
+            col=block.colors[bb], border=NA)
+}
+# ... and add the lighter 5-95% range polygon before the median bars too...
+for (bb in 1:nblocks) {
+    times.beg.end <- c(block.years.center[bb]-halfwidth, block.years.center[bb]+halfwidth)
+    polygon(c(times.beg.end,rev(times.beg.end)), c(returnlevel.quantiles[bb,c('q05','q05')],rev(returnlevel.quantiles[bb,c('q95','q95')])),
+            col=block.colors.lighter[bb], border=NA)
+}
+# ... so the bars are on top
+for (bb in 1:nblocks) {lines(c(block.years.center[bb]-halfwidth, block.years.center[bb]+halfwidth),
+                                   rep(returnlevel.quantiles[bb,'q50'],2), lwd=3, col='black')}
+text(1895, 0.5, 'Delfzijl, the Netherlands', pos=4)
+mtext('Year', side=1, line=2.4, cex=1);
+mtext('100-year return level [m]', side=2, line=2.2, cex=1);
+dev.off()
+
+#===============================================================================
+#
+
+
+
+#
+#===============================================================================
+# FIGURE 2 - Top row: current surge levels; bottom row: projected 2065 surge
+#            levels relative to present. Columns: different sites.
+#            Projected distributions of 100-year surge level by BMA, relative to
+#            each of the individual model structures.
+
+hist(rl100[[site]][[all.data[[site]]]]$gpd3$y2065 - rl100[[site]][[all.data[[site]]]]$gpd3$y2016)
+
+#===============================================================================
+#
+
+
+#
+#===============================================================================
+# FIGURE 3 - Box-whisker (or box-lighter-box) distributions (horizontally) of
+#            100-year return level for varying lengths of data employed for the
+#            BMA ensemble. Different sites are 3 horizontally oriented panels.
+
+############## TODO FIX THIS #################
+# temporary placeholder for the BMA ensemble
+for (site in site.names) {
+  for (dd in 1:length(data.lengths[[site]])) {
+    rl100[[site]][[dd]]$bma <- vector('list', nyears); names(rl100[[site]][[dd]]$bma) <- year.names
+    for (year in year.names) {
+      rl100[[site]][[dd]]$bma[[year]] <- rl100[[site]][[dd]]$gpd6[[year]]
+    }
+  }
+}
+############## TODO FIX THIS #################
+
+## Calculate the quantiles to plot
+quantiles.to.grab <- c(.05, .25, .5, .75, .95)
+quantile.names <- rep(NULL, length(quantiles.to.grab))
+for (qq in 1:length(quantiles.to.grab)) {
+  if(quantiles.to.grab[qq] >= .10) {
+    quantile.names[qq] <- paste('q',100*quantiles.to.grab[qq], sep='')
+  } else if(quantiles.to.grab[qq] < .10 & quantiles.to.grab[qq] >= 0) {
+    quantile.names[qq] <- paste('q0',100*quantiles.to.grab[qq], sep='')
+  }
+}
+year.for.quantiles <- year.names[2]
+returnlevel.quantiles <- vector('list', nsites); names(returnlevel.quantiles) <- site.names
+for (site in site.names) {
+  returnlevel.quantiles[[site]] <- mat.or.vec(length(data.lengths[[site]]), length(quantiles.to.grab))
+  rownames(returnlevel.quantiles[[site]]) <- data.lengths[[site]]
+  colnames(returnlevel.quantiles[[site]]) <- quantile.names
+  for (dd in 1:length(data.lengths[[site]])) {
+    for (year in year.names) {
+      # the /1000 is to convert to m from mm
+      returnlevel.quantiles[[site]][dd,] <- quantile(rl100[[site]][[dd]]$bma[[year.for.quantiles]], quantiles.to.grab)/1000
+    }
+  }
+}
+
+## Useful for plotting - centers of the time blocks used in the experiments
+y.datalengths <- seq(from=30, to=137, by=20)
+
+#
+# make the figure
+#
+block.colors <- rev(colorRampPalette(c("darkslateblue","royalblue","turquoise1"),space="Lab")(max(all.data)))
+block.colors.lighter <- paste(block.colors, "70", sep="")
+
+pdf(paste(plot.dir,'datalengths_boxwhisker.pdf',sep=''),width=6,height=4,colormodel='cmyk')
+par(mfrow=c(1,3), mai=c(.5,.5,.5,.5))
+halfwidth <- 2 # half the width of the boxes, in years
+# put the first median bar down, to get hte plot started
+site <- 'Delfzijl'
+plot(rep(returnlevel.quantiles[[site]][1,'q50'],2), c(y.datalengths[1]-halfwidth, y.datalengths[1]+halfwidth),
+     type='l', lwd=3, col='black', xlim=c(0,10), ylim=c(140,20), xlab='', ylab='', las=1)
+# ... and add the 25-75% range polygon...
+for (dd in 1:length(data.lengths[[site]])) {
+  times.beg.end <- c(y.datalengths[dd]-halfwidth, y.datalengths[dd]+halfwidth)
+  polygon(c(returnlevel.quantiles[[site]][dd,c('q25','q25')],rev(returnlevel.quantiles[[site]][dd,c('q75','q75')])), c(times.beg.end,rev(times.beg.end)),
+          col=block.colors[dd], border=NA)
+}
+# ... and add the lighter 5-95% range polygon before the median bars too...
+for (dd in 1:length(data.lengths[[site]])) {
+    times.beg.end <- c(y.datalengths[dd]-halfwidth, y.datalengths[dd]+halfwidth)
+    polygon(c(returnlevel.quantiles[[site]][dd,c('q05','q05')],rev(returnlevel.quantiles[[site]][dd,c('q95','q95')])), c(times.beg.end,rev(times.beg.end)),
+            col=block.colors.lighter[dd], border=NA)
+}
+# ... so the bars are on top
+for (dd in 1:length(data.lengths[[site]])) {lines(rep(returnlevel.quantiles[[site]][dd,'q50'],2), c(y.datalengths[dd]-halfwidth, y.datalengths[dd]+halfwidth), lwd=3, col='black')}
+text(0, 25, 'Delfzijl, the Netherlands', pos=4)
+mtext('Years of data', side=2, line=2.4, cex=1);
+mtext('100-year return level [m]', side=1, line=2.2, cex=1);
+
+# other sites...
+
+     # TODO here now     # TODO here now     # TODO here now     # TODO here now
+     # TODO here now     # TODO here now     # TODO here now     # TODO here now
+     # TODO here now     # TODO here now     # TODO here now     # TODO here now
+
+
+
+
+dev.off()
+
+
+
+#===============================================================================
+#
+
+
+#
+#===============================================================================
+# FIGURE 4 - Bayesian model averaging weights (equation (XX)) for the four
+#            candidate models, using (a) 30 years of tide gauge data from
+#            Delfzijl, (b) 50 years of data, (c) 70 years of data, (d) 90 years
+#            of data, (e) 110 years of data and (f) 137 years of data. Higher
+#            values imply better model-data match. Different sites are different
+#            columns.
+
+
+#===============================================================================
+#
+
+
+
+#
+#===============================================================================
+# FIGURE 2 – Comparison of the empirical survival function calculated from the
+#            observed tide gauge data at each site (red points, different columns)
+#            against the modeled survival function in the ensemble median (black
+#            points) and 5-95% credible range (error bars) for models (a) ST:
+#            all parameters stationary, (b) NS1: lambda non-stationary, (c) NS3:
+#            lambda and sigma non-stationary, (d) NS3: all non-stationary and
+#            (e) the BMA-weighted ensemble.
+
+# for each site, what are the return
+
+# for each site, for each model structure, find the modeled return period for
+# each empirical survival function value
+
+
+#===============================================================================
+#
+
 
 
 #
@@ -1178,122 +1388,6 @@ dev.off()
 #
 
 
-#
-#===============================================================================
-# FIGURE 1 - Motivation figure, showing 30-year blocks and the estimated
-#            distributions (box-whisker/box-lighter-box) for each block, for
-#            each site.
-
-load('../output/sensitivity_returnlevels_mcmc_Delfzijl_04Aug2017.RData')
-returnlevel <- readRDS('../output/sensitivity_returnlevels_Delfzijl_04Aug2017.rds')
-nblocks <- length(returnlevel)
-
-## Calculate the quantiles to plot
-quantiles.to.grab <- c(.05, .25, .5, .75, .95)
-quantile.names <- rep(NULL, length(quantiles.to.grab))
-for (qq in 1:length(quantiles.to.grab)) {
-  if(quantiles.to.grab[qq] >= .10) {
-    quantile.names[qq] <- paste('q',100*quantiles.to.grab[qq], sep='')
-  } else if(quantiles.to.grab[qq] < .10 & quantiles.to.grab[qq] >= 0) {
-    quantile.names[qq] <- paste('q0',100*quantiles.to.grab[qq], sep='')
-  }
-}
-returnlevel.quantiles <- mat.or.vec(nblocks, length(quantiles.to.grab))
-colnames(returnlevel.quantiles) <- quantile.names
-for (bb in 1:nblocks) {
-  # the /1000 is to convert to m from mm
-  returnlevel.quantiles[bb,] <- quantile(returnlevel[[bb]], quantiles.to.grab)/1000
-}
-
-## Useful for plotting - centers of the time blocks used in the experiments
-block.years.center <- apply(X=block.years, MARGIN=1, FUN=median)
-
-block.colors <- colorRampPalette(c("darkslateblue","royalblue","turquoise1"),space="Lab")(max(nblocks))
-block.colors.lighter <- paste(block.colors, "70", sep="")
-
-
-## The actual figure
-
-pdf(paste(plot.dir,'stormsurge_sensitivity_boxwhisker.pdf',sep=''),width=4,height=3,colormodel='cmyk')
-par(mfrow=c(1,1), mai=c(.8,.7,.15,.2))
-halfwidth <- 2 # half the width of the boxes, in years
-# put the first median bar down, to get hte plot started
-plot(c(block.years.center[1]-halfwidth, block.years.center[1]+halfwidth), rep(returnlevel.quantiles[1,'q50'],2),
-     type='l', lwd=3, col='black', xlim=c(1900,2000), ylim=c(0,8), xlab='', ylab='', las=1)
-# now add the darker 25-75% range polygon before the median bars, ...
-for (bb in 1:nblocks) {
-    times.beg.end <- c(block.years.center[bb]-halfwidth, block.years.center[bb]+halfwidth)
-    polygon(c(times.beg.end,rev(times.beg.end)), c(returnlevel.quantiles[bb,c('q25','q25')],rev(returnlevel.quantiles[bb,c('q75','q75')])),
-            col=block.colors[bb], border=NA)
-}
-# ... and add the lighter 5-95% range polygon before the median bars too...
-for (bb in 1:nblocks) {
-    times.beg.end <- c(block.years.center[bb]-halfwidth, block.years.center[bb]+halfwidth)
-    polygon(c(times.beg.end,rev(times.beg.end)), c(returnlevel.quantiles[bb,c('q05','q05')],rev(returnlevel.quantiles[bb,c('q95','q95')])),
-            col=block.colors.lighter[bb], border=NA)
-}
-# ... so the bars are on top
-for (bb in 1:nblocks) {lines(c(block.years.center[bb]-halfwidth, block.years.center[bb]+halfwidth),
-                                   rep(returnlevel.quantiles[bb,'q50'],2), lwd=3, col='black')}
-text(1895, 0.5, 'Delfzijl, the Netherlands', pos=4)
-mtext('Year', side=1, line=2.4, cex=1);
-mtext('100-year return level [m]', side=2, line=2.2, cex=1);
-dev.off()
-
-#===============================================================================
-#
-
-
-#
-#===============================================================================
-# FIGURE 2 – Comparison of the empirical survival function calculated from the
-#            observed tide gauge data at each site (red points, different columns)
-#            against the modeled survival function in the ensemble median (black
-#            points) and 5-95% credible range (error bars) for models (a) ST:
-#            all parameters stationary, (b) NS1: lambda non-stationary, (c) NS3:
-#            lambda and sigma non-stationary, (d) NS3: all non-stationary and
-#            (e) the BMA-weighted ensemble.
-
-
-#===============================================================================
-#
-
-
-#
-#===============================================================================
-# FIGURE 3 - Top row: current surge levels; bottom row: projected 2065 surge
-#            levels relative to present. Columns: different sites.
-#            Projected distributions of 100-year surge level by BMA, relative to
-#            each of the individual model structures.
-
-
-#===============================================================================
-#
-
-
-#
-#===============================================================================
-# FIGURE 4 - Box-whisker (or box-lighter-box) distributions (horizontally) of
-#            100-year return level for varying lengths of data employed for the
-#            BMA ensemble. Different sites are 3 horizontally oriented panels.
-
-
-#===============================================================================
-#
-
-
-#
-#===============================================================================
-# FIGURE 5 - Bayesian model averaging weights (equation (XX)) for the four
-#            candidate models, using (a) 30 years of tide gauge data from
-#            Delfzijl, (b) 50 years of data, (c) 70 years of data, (d) 90 years
-#            of data, (e) 110 years of data and (f) 137 years of data. Higher
-#            values imply better model-data match. Different sites are different
-#            columns.
-
-
-#===============================================================================
-#
 
 
 

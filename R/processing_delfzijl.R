@@ -9,6 +9,8 @@
 # Questions? Tony Wong (twong@psu.edu)
 #===============================================================================
 
+library(date)
+
 filename.saveprogress <- '../output/processing_delfzijl.RData'
 
 print('starting to process Delfzijl tide gauge data')

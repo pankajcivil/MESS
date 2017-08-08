@@ -52,8 +52,12 @@ print('...done.')
 print('reading and process data from Delfzijl and other European tide gauge stations.')
 print(' (if you do not have this already done and [filename.processing] defined, this might take a while)...')
 
-if(exists('filename.processing')) {load(filename.processing)
-} else {source('processing_script.R')}
+if(exists('filename.processing')) {
+  load(filename.processing)
+} else {
+  source('processing_delfzijl_yearBM.R')
+  source('processing_europe.R')
+}
 
 print('...done.')
 
@@ -348,7 +352,7 @@ today=Sys.Date(); today=format(today,format="%d%b%Y")
 filename.priors <- paste(output.dir,'surge_priors_',appen,'_',today,'.rds', sep='')
 filename.mles <- paste(output.dir,'surge_MLEs_',appen,'_',today,'.rds', sep='')
 filename.initvals <- paste(output.dir,'surge_initialvalues_',appen,'_',today,'.rds', sep='')
-filename.everything <- paste(output.dir,'kitchen_sink_priors_',appen,'_',today,'.RData', sep='')
+filename.everything <- paste(output.dir,'everything_priors_',appen,'_',today,'.RData', sep='')
 filename.temperature <- paste(output.dir,'temperature_forcing_',today,'.csv', sep='')
 
 print(paste('saving priors and initial values as .rds files (',filename.priors,', ',filename.initvals,') to read and use later...',sep=''))
