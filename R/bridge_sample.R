@@ -10,7 +10,7 @@
 
 # import libraries
 library(mvtnorm)  # used for multivariate normal samples and densities
-library(coda)     # used to compute spectral density of MCMC draws at frequency 0
+#library(coda)     # used to compute spectral density of MCMC draws at frequency 0
 library(extRemes) # used to compute GEV densities within posterior likelihood function
 
 # import file containing the log likelihood calculations
@@ -28,18 +28,21 @@ args = commandArgs(trailingOnly=TRUE)
 # if no arguments are passed, it is assumed this is being run in parallel using PBS arrays
 if (length(args) == 0) {
   # set up table of experiment parameters
+  # some of these combinations (in terms of the data length and sites) don't exist, but they
+  # just throw errors anyway. There is probably a better way to construct this data frame.
   # could include the type of prior in this as well
   experiments <- expand.grid(station = c('delfzijl','balboa','norfolk'),
                              gpd.model=c('gpd3','gpd4','gpd5','gpd6'),
-                             data.length=c('30','50','70','90','110','137'))
+                             data.length=c('30','50','70','89','90','107','110','137'))
   # get the array ID
   AI <- Sys.getenv("PBS_ARRAYID")
   NAI <- as.numeric(AI)
   
   # get parameters for this particular experiment
-  station <- experiments[NAI]$station
-  gpd.model <- experiments[NAI]$gpd.model
-  data.length <- experiments[NAI]$data.length
+  print(experiments[NAI,])
+  station <- experiments[NAI,'station']
+  gpd.model <- experiments[NAI,'gpd.model']
+  data.length <- experiments[NAI,'data.length']
   
 } else {
   station <- args[1]
@@ -47,9 +50,12 @@ if (length(args) == 0) {
   data.length <- args[3]
 }
 
-# set number of posterior and importance samples
-imp.samp.num <- 45000
-post.samp.num <- 45000
+# set output (saved as .RData; to be collected into a single output file later) file name
+filename.out <- paste('ml_',station,'_',gpd.model,'_',data.length,'.RData',sep='')
+if (file.exists(paste(path.save, filename.out, sep='/'))) {
+   stop('Output file already exists!')
+}
+
 
 # read in calibration output file
 print('loading calibration file...')
@@ -71,9 +77,17 @@ print('done!')
 gpd.exp <- paste('gpd',data.length,sep='')
 
 # compute the burn-in length for sampling based on the chains_burned object
-full.length <- dim(amcmc_out[[gpd.exp]][[gpd.model]][[1]]$samples)[1]
-burned.length <- dim(chains_burned[[gpd.exp]][[gpd.model]][[1]])[1]
+full.length <- nrow(amcmc_out[[gpd.exp]][[gpd.model]][[1]]$samples)
+burned.length <- nrow(chains_burned[[gpd.exp]][[gpd.model]][[1]])
 burn.in <- full.length - burned.length
+# having some issues with burn.in having length 0 when full.length and
+# burned.length are NULL. not sure why that is occurring.
+#if (length(burn.in) == 0) {burn.in = 50000}
+
+# set number of samples to use for estimate
+post.samp.num <- 100000
+imp.samp.num <- 100000
+
 # burn in samples and log.p values
 post.samples <- amcmc_out[[gpd.exp]][[gpd.model]][[1]]$samples
 post.samples <- post.samples[(burn.in+1):full.length,]
@@ -89,12 +103,12 @@ print('sampling from posterior distribution...')
 
 samp.names <- c('samples','log.imp','log.p')
 post.samp <- setNames(vector("list",length(samp.names)),samp.names)
-#samp.idx <- sample(x=nrow(post.samples), size=post.samp.num, replace=TRUE)
+samp.idx <- sample(x=nrow(post.samples), size=post.samp.num, replace=TRUE)
 post.samp$samples <- post.samples
-#post.samp$samples <- post.samples[samp.idx,]
+post.samp$samples <- post.samples[samp.idx,]
 # get posterior log-likelihood of sampled posterior values
 post.samp$log.p <- post.ll
-#post.samp$log.p <- post.ll[samp.idx]
+post.samp$log.p <- post.ll[samp.idx]
 # get importance log-likelhood of posterior samples
 post.samp$log.imp <- dmvnorm(x=post.samp$samples, mean=post.mean, sigma=post.cov, log=TRUE)
 
@@ -109,8 +123,10 @@ imp.samp$samples <- rmvnorm(n=imp.samp.num, mean=post.mean, sigma=post.cov)
 imp.samp$log.imp <- dmvnorm(x=imp.samp$samples, mean=post.mean, sigma=post.cov, log=TRUE)
 colnames(imp.samp$samples) <- colnames(post.samp$samples)
 # compute posterior log-likelihood of importance samples
+print(parnames_all[[gpd.model]])
+print(colnames(imp.samp$samples))
 imp.samp$log.p <- apply(imp.samp$samples, 1, log_post_ppgpd,
-                              parnames=parnames_all[[gpd.model]],
+                              parnames=colnames(post.samp$samples),
                               priors=priors,
                               data_calib=data_calib[[gpd.exp]],
                               model = gpd.model,
@@ -158,7 +174,7 @@ bridge.samp.iter <- function(log.norm.const,
 }
 
 # set tolerance for halting of iteration
-TOL <- 1e-5
+TOL <- 1e-3
 # initialize storage for estimates
 ml <- mat.or.vec(nr=1,nc=1)
 # initialize with starting value
@@ -182,8 +198,9 @@ print('done!')
 print('computing relative standard error of estimate')
 
 # compute the relative standard error of the bridge sampling estimator
-# since the posterior samples are not necessarily iid, we use the error formula from
-# Fruhwirth-Schnatter (2004) which accounts for any autocorrelation
+# we can treat the posterior samples as iid due to re-sampling from the posterior,
+# so we use the error formula from Fruhwirth-Schnatter (2004) with the spectral density
+# at frequency 0 set equal to 1.
 bridge.samp.rel.err <- function(log.norm.const,
                                 post,
                                 imp) {
@@ -206,11 +223,8 @@ bridge.samp.rel.err <- function(log.norm.const,
   post.bridge.int <- exp(post.log.imp)/(imp.factor*exp(post.log.imp)+post.factor*(exp(post.log.p.norm)))
   imp.bridge.int <- exp(imp.log.p.norm)/(imp.factor*exp(imp.log.imp)+post.factor*(exp(imp.log.p.norm)))
   
-  # compute frequency-0 autocorrelation of posterior process
-  rho.0 <- spectrum0.ar(post.bridge.int)$spec
-  
   # return squared relative error estimate
-  (var(imp.bridge.int)/mean(imp.bridge.int)^2)/imp.num + (rho.0*var(post.bridge.int)/mean(post.bridge.int)^2)/post.num
+  (var(imp.bridge.int)/mean(imp.bridge.int)^2)/imp.num + (var(post.bridge.int)/mean(post.bridge.int)^2)/post.num
 }
 
 re.sq <- bridge.samp.rel.err(ml[length(ml)], post.samp[c('log.p','log.imp')], imp.samp[c('log.p','log.imp')])
@@ -219,6 +233,5 @@ re.sq <- bridge.samp.rel.err(ml[length(ml)], post.samp[c('log.p','log.imp')], im
 # if save directory doesn't exist, create it
 ifelse(!dir.exists(path.save), dir.create(path.save), FALSE)
 setwd(path.save)
-# set output (saved as .RData; to be collected into a single output file later) file name
-filename.out <- paste('ml_',station,'_',gpd.model,'_',data.length,'.RData',sep='')
-save(list=c('post.samp','imp.samp', 'ml', 're.sq'), file=filename.out)
+
+save(list=c('post.samp','imp.samp', 'ml', 're.sq', 'station', 'data.length', 'gpd.model'), file=filename.out)
