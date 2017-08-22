@@ -80,13 +80,10 @@ gpd.exp <- paste('gpd',data.length,sep='')
 full.length <- nrow(amcmc_out[[gpd.exp]][[gpd.model]][[1]]$samples)
 burned.length <- nrow(chains_burned[[gpd.exp]][[gpd.model]][[1]])
 burn.in <- full.length - burned.length
-# having some issues with burn.in having length 0 when full.length and
-# burned.length are NULL. not sure why that is occurring.
-#if (length(burn.in) == 0) {burn.in = 50000}
 
 # set number of samples to use for estimate
-post.samp.num <- 100000
-imp.samp.num <- 100000
+post.samp.num <- 10000
+imp.samp.num <- 10000
 
 # burn in samples and log.p values
 post.samples <- amcmc_out[[gpd.exp]][[gpd.model]][[1]]$samples
@@ -95,8 +92,8 @@ post.ll <- amcmc_out[[gpd.exp]][[gpd.model]][[1]]$log.p
 post.ll <- post.ll[(burn.in+1):full.length]
 
 # fit normal approximation to the posteriors
-post.mean <- colMeans(chains_burned[[gpd.exp]][[gpd.model]][[1]])
-post.cov <- cov(chains_burned[[gpd.exp]][[gpd.model]][[1]])
+post.mean <- colMeans(post.samples)
+post.cov <- cov(post.samples)
 
 # get posterior samples
 print('sampling from posterior distribution...')
@@ -123,9 +120,7 @@ imp.samp$samples <- rmvnorm(n=imp.samp.num, mean=post.mean, sigma=post.cov)
 imp.samp$log.imp <- dmvnorm(x=imp.samp$samples, mean=post.mean, sigma=post.cov, log=TRUE)
 colnames(imp.samp$samples) <- colnames(post.samp$samples)
 # compute posterior log-likelihood of importance samples
-print(parnames_all[[gpd.model]])
-print(colnames(imp.samp$samples))
-imp.samp$log.p <- apply(imp.samp$samples, 1, log_post_ppgpd,
+  imp.samp$log.p <- apply(imp.samp$samples, 1, log_post_ppgpd,
                               parnames=colnames(post.samp$samples),
                               priors=priors,
                               data_calib=data_calib[[gpd.exp]],
@@ -174,24 +169,30 @@ bridge.samp.iter <- function(log.norm.const,
 }
 
 # set tolerance for halting of iteration
-TOL <- 1e-3
+TOL <- 1
 # initialize storage for estimates
-ml <- mat.or.vec(nr=1,nc=1)
+ml <- mat.or.vec(nr=100000,nc=1)
 # initialize with starting value
 # we can't quite start with the reciprocal importance sampling estimate from
 # Gelfand and Dey (1994) due to numerics (we get 0 values when we exponentiate
-# the ratio of the importance densities and posterior likelihoods), so we just
-# average the ratios on a log scale. Sensitivity tests show this shouldn't matter
-# too much.
-ml[1] <- -mean(post.samp$log.imp-post.samp$log.p)
-# compute second iteration
+# the difference of the importance log-densities and posterior log-likelihoods), so we just
+# average the ratios on a log scale. Due to the amount of oscillation, our first guess is the
+# average of that and the first value obtained from the bridge sampling iterative method.
+ml.0 <- -mean(post.samp$log.imp-post.samp$log.p)
+ml.1 <- bridge.samp.iter(ml.0, post.samp[c('log.p','log.imp')], imp.samp[c('log.p','log.imp')])
+ml[1] <- (ml.0+ml.1)/2
 ml[2] <- bridge.samp.iter(ml[1], post.samp[c('log.p','log.imp')], imp.samp[c('log.p','log.imp')])
-# iterate until within tolerance
+# iterate until within tolerance. there are issues with significant oscillation occurring with the
+# iterator, so after 100,000 iterations we halt the recursion and take the mean of the last two
+# elements. This gets us within tolerance to the "true" estimate (if the recursion were allowed to converge) 
+# with every examined case.
 t <- 2
 while (abs(ml[t] - ml[t-1]) >= TOL) {
   ml[t+1] <- bridge.samp.iter(ml[t], post.samp[c('log.p', 'log.imp')], imp.samp[c('log.p', 'log.imp')])
   t <- t+1
 }
+
+ml <- ml[ml != 0]
 
 print('done!')
 
