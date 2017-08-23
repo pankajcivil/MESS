@@ -120,12 +120,17 @@ imp.samp$samples <- rmvnorm(n=imp.samp.num, mean=post.mean, sigma=post.cov)
 imp.samp$log.imp <- dmvnorm(x=imp.samp$samples, mean=post.mean, sigma=post.cov, log=TRUE)
 colnames(imp.samp$samples) <- colnames(post.samp$samples)
 # compute posterior log-likelihood of importance samples
-  imp.samp$log.p <- apply(imp.samp$samples, 1, log_post_ppgpd,
-                              parnames=colnames(post.samp$samples),
-                              priors=priors,
-                              data_calib=data_calib[[gpd.exp]],
-                              model = gpd.model,
-                              auxiliary=auxiliary)
+
+# set auxiliary parameters as trimmed_forcing for the relevant model
+if (gpd.model == 'gpd3') {aux <- NULL
+} else {aux <-  trimmed_forcing(data_calib[[gpd.exp]]$year, time_forc, temperature_forc)$temperature}
+
+imp.samp$log.p <- apply(imp.samp$samples, 1, log_post_ppgpd,
+                        parnames=colnames(post.samp$samples),
+                        priors=priors,
+                        data_calib=data_calib[[gpd.exp]],
+                        model = gpd.model,
+                        auxiliary=aux)
 
 print('done!')
   
@@ -169,30 +174,22 @@ bridge.samp.iter <- function(log.norm.const,
 }
 
 # set tolerance for halting of iteration
-TOL <- 1
+TOL <- 1e-10
 # initialize storage for estimates
-ml <- mat.or.vec(nr=100000,nc=1)
+ml <- mat.or.vec(nr=1,nc=1)
 # initialize with starting value
 # we can't quite start with the reciprocal importance sampling estimate from
 # Gelfand and Dey (1994) due to numerics (we get 0 values when we exponentiate
 # the difference of the importance log-densities and posterior log-likelihoods), so we just
-# average the ratios on a log scale. Due to the amount of oscillation, our first guess is the
-# average of that and the first value obtained from the bridge sampling iterative method.
-ml.0 <- -mean(post.samp$log.imp-post.samp$log.p)
-ml.1 <- bridge.samp.iter(ml.0, post.samp[c('log.p','log.imp')], imp.samp[c('log.p','log.imp')])
-ml[1] <- (ml.0+ml.1)/2
+# average the ratios on a log scale. 
+ml[1] <- -mean(post.samp$log.imp - post.samp$log.p)
 ml[2] <- bridge.samp.iter(ml[1], post.samp[c('log.p','log.imp')], imp.samp[c('log.p','log.imp')])
-# iterate until within tolerance. there are issues with significant oscillation occurring with the
-# iterator, so after 100,000 iterations we halt the recursion and take the mean of the last two
-# elements. This gets us within tolerance to the "true" estimate (if the recursion were allowed to converge) 
-# with every examined case.
+# iterate until within tolerance. 
 t <- 2
 while (abs(ml[t] - ml[t-1]) >= TOL) {
   ml[t+1] <- bridge.samp.iter(ml[t], post.samp[c('log.p', 'log.imp')], imp.samp[c('log.p', 'log.imp')])
   t <- t+1
 }
-
-ml <- ml[ml != 0]
 
 print('done!')
 
