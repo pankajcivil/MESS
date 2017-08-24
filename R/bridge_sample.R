@@ -82,8 +82,8 @@ burned.length <- nrow(chains_burned[[gpd.exp]][[gpd.model]][[1]])
 burn.in <- full.length - burned.length
 
 # set number of samples to use for estimate
-post.samp.num <- 10000
-imp.samp.num <- 10000
+post.samp.num <- 50000
+imp.samp.num <- 50000
 
 # burn in samples and log.p values
 post.samples <- amcmc_out[[gpd.exp]][[gpd.model]][[1]]$samples

@@ -21,43 +21,45 @@ names(log.marg.lik) <- site.names
 
 data.length.names <- c('y30', 'y50', 'y70', 'y90', 'y110', 'y130')
 
+years=c('30','50','70','89','90','107','110','137')
+
 gpd.models <- c('gpd3','gpd4','gpd5','gpd6')
 
 for (site in site.names) {
   
-  bma.weights[[site]] <- vector('list', 6)
-  names(bma.weights[[site]]) <- data.length.names
-  for (data.length in data.length.names) {
-    bma.weights[[site]][[data.length]] <- rep(NA, 4)
-    names(bma.weights[[site]][[data.length]]) <- gpd.models
+  bma.weights[[site]] <- vector('list', 8)
+  names(bma.weights[[site]]) <- years
+  for (year in years) {
+    bma.weights[[site]][[year]] <- rep(NA, 4)
+    names(bma.weights[[site]][[year]]) <- gpd.models
   }
-  log.marg.lik[[site]] <- vector('list', 6)
-  names(log.marg.lik[[site]]) <- data.length.names
-  for (data.length in data.length.names) {
-      log.marg.lik[[site]][[data.length]] <- rep(NA, 4)
-      names(log.marg.lik[[site]][[data.length]]) <- gpd.models
+  log.marg.lik[[site]] <- vector('list', 8)
+  names(log.marg.lik[[site]]) <- years
+  for (year in years) {
+      log.marg.lik[[site]][[year]] <- rep(NA, 4)
+      names(log.marg.lik[[site]][[year]]) <- gpd.models
   
   }
 }
-  
-exp.years <- c(30,50,70,90,110,130)
 
 files <- list.files(path=path.ml, full.names=TRUE, recursive=FALSE)
 
 for (file in files) {
   load(file)
   site <- capitalize(station)
-  data.case <- data.length.names[which.min(abs(as.numeric(levels(data.length)[data.length])-exp.years))]
-  log.marg.lik[[site]][[data.case]][[gpd.model]] <- ml[length(ml)]
+  year <- unlist(strsplit(file, split="[_. ]"))[4]
+#  data.case <- which.min(abs(as.numeric(levels(data.length)[data.length])-exp.years))]
+  log.marg.lik[[site]][[year]][[gpd.model]] <- ml[length(ml)]
+  
 }
 
 for (site in site.names) {
-  for (data.length in data.length.names) {
-    ml <- log.marg.lik[[site]][[data.length]]
+  for (year in years) {
+    ml <- log.marg.lik[[site]][[year]]
     ml.scale <- ml - max(ml,na.rm=TRUE)
     for (model in gpd.models) {
-      if (!is.na(log.marg.lik[[site]][[data.length]][[model]])) {
-        bma.weights[[site]][[data.length]][[model]] <- exp(ml.scale[model])/sum(exp(ml.scale), na.rm=TRUE)
+      if (!is.na(log.marg.lik[[site]][[year]][[model]])) {
+        bma.weights[[site]][[year]][[model]] <- exp(ml.scale[model])/sum(exp(ml.scale), na.rm=TRUE)
       }
     }
   }
