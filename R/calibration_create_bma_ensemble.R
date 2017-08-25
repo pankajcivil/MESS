@@ -13,9 +13,13 @@
 # Questions? Tony Wong (twong@psu.edu)
 #===============================================================================
 
+# mcmc results files
 mcmc.balboa <- '../output/everything_mcmc_ppgpd-experiments_balboa_normalgamma_28Jul2017.RData'
 mcmc.norfolk <- '../output/everything_mcmc_ppgpd-experiments_norfolk_normalgamma_27Jul2017.RData'
 mcmc.delfzijl <- '../output/everything_mcmc_ppgpd-experiments_delfzijl_normalgamma_29Jul2017.RData'
+
+# bma weight results object
+bma_weights <- readRDS('../output/bma_weights.rds')
 
 #===============================================================================
 # Read and save the raw posterior parameter sets - all of them, not just the
@@ -116,20 +120,14 @@ for (site in site.names) {
     # add up the BMA ensemble from the individual model results calculated above
     # WARNING! - HARD-CODED FOR THE SET OF GPD MODELS USED HERE! - WARNING!
     for (year in year.names) {
-      rl100.bmamodels[[site]][[dd]][[year]] <- bma.weight[[site]][[dd]]$gpd3 * rl100.bmamodels[[site]][[dd]]$gpd3[[year]] +
-                                               bma.weight[[site]][[dd]]$gpd4 * rl100.bmamodels[[site]][[dd]]$gpd4[[year]] +
-                                               bma.weight[[site]][[dd]]$gpd5 * rl100.bmamodels[[site]][[dd]]$gpd5[[year]] +
-                                               bma.weight[[site]][[dd]]$gpd6 * rl100.bmamodels[[site]][[dd]]$gpd6[[year]]
+      rl100.bma[[site]][[dd]][[year]] <- bma_weights[[site]][[dd]]['gpd3'] * rl100.bmamodels[[site]][[dd]]$gpd3[[year]] +
+                                         bma_weights[[site]][[dd]]['gpd4'] * rl100.bmamodels[[site]][[dd]]$gpd4[[year]] +
+                                         bma_weights[[site]][[dd]]['gpd5'] * rl100.bmamodels[[site]][[dd]]$gpd5[[year]] +
+                                         bma_weights[[site]][[dd]]['gpd6'] * rl100.bmamodels[[site]][[dd]]$gpd6[[year]]
     }
   }
 }
-
-
-TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HERE NOW!!
-TODO <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HERE NOW!!
-
-
-
+save.image(file=filename.saveprogress)
 
 #===============================================================================
 # end
