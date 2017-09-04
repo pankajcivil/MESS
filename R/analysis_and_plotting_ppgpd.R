@@ -365,6 +365,12 @@ for (bb in 1:nblocks) {
   returnlevel.quantiles[bb,] <- quantile(returnlevel[[bb]], quantiles.to.grab)/1000
 }
 
+# useful analysis:
+widest <- max( returnlevel.quantiles[,'q95'] - returnlevel.quantiles[,'q05'] )
+narrowest <- min( returnlevel.quantiles[,'q95'] - returnlevel.quantiles[,'q05'] )
+highest <- max( returnlevel.quantiles[,'q50'])
+lowest <- min( returnlevel.quantiles[,'q50'])
+
 ## Useful for plotting - centers of the time blocks used in the experiments
 block.years.center <- apply(X=block.years, MARGIN=1, FUN=median)
 
@@ -531,6 +537,48 @@ for (site in site.names) {
   }
 }
 
+# box-whiskers for the plot
+
+## Calculate the quantiles to plot
+quantiles.to.grab <- c(.05, .25, .5, .75, .95)
+quantile.names <- rep(NULL, length(quantiles.to.grab))
+for (qq in 1:length(quantiles.to.grab)) {
+  if(quantiles.to.grab[qq] >= .10) {
+    quantile.names[qq] <- paste('q',100*quantiles.to.grab[qq], sep='')
+  } else if(quantiles.to.grab[qq] < .10 & quantiles.to.grab[qq] >= 0) {
+    quantile.names[qq] <- paste('q0',100*quantiles.to.grab[qq], sep='')
+  }
+}
+# initialize like this, and then within each of the 'year.names' (last element)
+# replace with the quantiles and rename 'quantile.names'
+q.rl100.bma_mod <- rl100.bma_mod
+for (site in site.names) {
+  for (model in types.of.gpd) {
+    for (year in year.names[2:3]) {
+      q.rl100.bma_mod[[site]][[model]][[year]] <- quantile(rl100.bma_mod[[site]][[model]][[year]], quantiles.to.grab)
+      names(q.rl100.bma_mod[[site]][[model]][[year]]) <- quantile.names
+    }
+  }
+}
+
+medians <- vector('list', nsites); names(medians) <- site.names
+widths.50 <- vector('list', nsites); names(widths.50) <- site.names
+widths.90 <- vector('list', nsites); names(widths.90) <- site.names
+for (site in site.names) {
+  medians[[site]] <- widths.50[[site]] <- widths.90[[site]] <- mat.or.vec(2, nmodel)
+  rownames(medians[[site]]) <- rownames(widths.50[[site]]) <- rownames(widths.90[[site]]) <- year.names[2:3]
+  colnames(medians[[site]]) <- colnames(widths.50[[site]]) <- colnames(widths.90[[site]]) <- types.of.gpd
+  for (model in types.of.gpd) {
+    for (year in year.names[2:3]) {
+      # 0.001 * is to convert mm to m
+      widths.50[[site]][year,model] <- 0.001 * q.rl100.bma_mod[[site]][[model]][[year]]['q75'] - q.rl100.bma_mod[[site]][[model]][[year]]['q25']
+      widths.90[[site]][year,model] <- 0.001 * q.rl100.bma_mod[[site]][[model]][[year]]['q95'] - q.rl100.bma_mod[[site]][[model]][[year]]['q05']
+      medians[[site]][year,model] <- 0.001 * q.rl100.bma_mod[[site]][[model]][[year]]['q50']
+    }
+  }
+}
+
+saveRDS(rl100.bma_mod, file='bma_minus_model_anomalies.rds')
 
 } # end check if(l.do.convolution)
 
@@ -540,7 +588,7 @@ for (site in site.names) {
 
 pdf(paste(plot.dir,'returnlevels_bma.pdf',sep=''),width=7,height=5,colormodel='rgb')
 
-par(mfrow=c(2,3), mai=c(.67,.32,.25,.08))
+par(mfrow=c(2,3), mai=c(.67,.32,.25,.09))
 
 year <- 'y2016'
 site <- 'Delfzijl'
@@ -560,10 +608,10 @@ plot(rl100.x, f.rl100.bma_mod[[site]]$gpd3[[year]], type='l', xlim=c(-3,3), ylim
   mtext(side=3, text=expression(bold(' a.')), line=.6, cex=0.75, adj=0)
   mtext('100-year return level in 2016 [m],\nBMA relative to each model', side=1, line=3.4, cex=0.75);
   axis(1, at=seq(-3, 3, 1), labels=c('-3','-2','-1','0','1','2','3'), cex.axis=1.2)
-  legend(-3,1, c('ST','NS1','NS2','NS3'), lty=c(1,5,5,5), cex=1.1, bty='n', lwd=2,
+  legend(-3.1,1.1, c('ST','NS1','NS2','NS3'), lty=c(1,5,5,5), cex=1.1, bty='n', lwd=2,
          col=c('seagreen','darkorange3','mediumslateblue','mediumvioletred'))
 #
-par(mai=c(.67,.32,.25,.11))
+par(mai=c(.67,.3,.25,.11))
 site <- 'Balboa'
 plot(rl100.x, f.rl100.bma_mod[[site]]$gpd3[[year]], type='l', xlim=c(-.5,.5), ylim=c(0, 13.7),
      lwd=2, xlab='', ylab='', yaxs='i', yaxt='n', axes=FALSE, col='seagreen')
@@ -581,7 +629,7 @@ plot(rl100.x, f.rl100.bma_mod[[site]]$gpd3[[year]], type='l', xlim=c(-.5,.5), yl
   mtext('100-year return level in 2016 [m],\nBMA relative to each model', side=1, line=3.4, cex=0.75);
   axis(1, at=seq(-.5, .5, .25), labels=c('-0.5','-0.25','0','0.25','0.5'), cex.axis=1.2)
 #
-par(mai=c(.67,.32,.25,.14))
+par(mai=c(.67,.28,.25,.13))
 site <- 'Norfolk'
 plot(rl100.x, f.rl100.bma_mod[[site]]$gpd3[[year]], type='l', xlim=c(-2,2), ylim=c(0, 1.65),
      lwd=2, xlab='', ylab='', yaxs='i', yaxt='n', axes=FALSE, col='seagreen')
@@ -601,7 +649,7 @@ plot(rl100.x, f.rl100.bma_mod[[site]]$gpd3[[year]], type='l', xlim=c(-2,2), ylim
 #
 year <- 'y2065'
 #
-par(mai=c(.67,.32,.25,.08))
+par(mai=c(.67,.32,.25,.09))
 site <- 'Delfzijl'
 plot(rl100.x, f.rl100.bma_mod[[site]]$gpd3[[year]], type='l', xlim=c(-3,3), ylim=c(0, .38),
      lwd=2, xlab='', ylab='', yaxs='i', yaxt='n', axes=FALSE, col='seagreen')
@@ -619,7 +667,7 @@ plot(rl100.x, f.rl100.bma_mod[[site]]$gpd3[[year]], type='l', xlim=c(-3,3), ylim
   mtext('100-year return level increase by\n2065 [m], BMA relative to each model', side=1, line=3.4, cex=0.75);
   axis(1, at=seq(-3, 3, 1), labels=c('-3','-2','-1','0','1','2','3'), cex.axis=1.2)
 #
-par(mai=c(.67,.32,.25,.11))
+par(mai=c(.67,.3,.25,.11))
 site <- 'Balboa'
 plot(rl100.x, f.rl100.bma_mod[[site]]$gpd3[[year]], type='l', xlim=c(-.5,.5), ylim=c(0,10),
      lwd=2, xlab='', ylab='', yaxs='i', yaxt='n', axes=FALSE, col='seagreen')
@@ -636,7 +684,7 @@ plot(rl100.x, f.rl100.bma_mod[[site]]$gpd3[[year]], type='l', xlim=c(-.5,.5), yl
   mtext('100-year return level increase by\n2065 [m], BMA relative to each model', side=1, line=3.4, cex=0.75);
   axis(1, at=seq(-.5, .5, .25), labels=c('-0.5','-0.25','0','0.25','0.5'), cex.axis=1.2)
 #
-par(mai=c(.67,.32,.25,.14))
+par(mai=c(.67,.28,.25,.13))
 site <- 'Norfolk'
 plot(rl100.x, f.rl100.bma_mod[[site]]$gpd3[[year]], type='l', xlim=c(-2,2), ylim=c(0, 1.34),
      lwd=2, xlab='', ylab='', yaxs='i', yaxt='n', axes=FALSE, col='seagreen')
@@ -937,7 +985,7 @@ hist(deoptim.all[[model]][,pp], xlim=lims[1,], freq=FALSE, main='', xlab='', yla
 x.tmp <- seq(from=lims[1,1], to=lims[1,2], length.out=1000); lines(x.tmp, dgamma(x=x.tmp, shape=priors_normalgamma[[model]]$lambda0$shape, rate=priors_normalgamma[[model]]$lambda0$rate), col='red', lwd=2)
 u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
 mtext('Probability density', side=2, line=1.2, cex=1)
-mtext(expression(mu[0]), side=1, line=2.7, cex=1)
+mtext(expression(lambda[0]), side=1, line=2.7, cex=1)
 mtext('NS3', side=2, line=3, cex=1)
 pp <- 2; par(mai=c(.5,.35,.01,.25))
 box.width <- diff(lims[2,])/nbins; box.edges <- seq(from=lims[2,1], to=lims[2,2], by=box.width)
@@ -945,7 +993,7 @@ hist(deoptim.all[[model]][,pp], xlim=lims[2,], freq=FALSE, main='', xlab='', yla
      breaks=box.edges, yaxt='n', yaxs='i')
 x.tmp <- seq(from=lims[2,1], to=lims[2,2], length.out=1000); lines(x.tmp, dnorm(x=x.tmp, mean=priors_normalgamma[[model]]$lambda1$mean, sd=priors_normalgamma[[model]]$lambda1$sd), col='red', lwd=2)
 u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
-mtext(expression(mu[1]), side=1, line=2.7, cex=1)
+mtext(expression(lambda[1]), side=1, line=2.7, cex=1)
 pp <- 3; par(mai=c(.5,.3,.01,.3))
 box.width <- diff(lims[3,])/nbins; box.edges <- seq(from=lims[3,1], to=lims[3,2], by=box.width)
 hist(deoptim.all[[model]][,pp], xlim=lims[3,], freq=FALSE, main='', xlab='', ylab='',
@@ -1254,7 +1302,7 @@ lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[sit
 u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
 lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
 mtext('Probability density', side=2, line=1.2, cex=1)
-mtext(expression(mu[0]), side=1, line=2.7, cex=1)
+mtext(expression(lambda[0]), side=1, line=2.7, cex=1)
 mtext('NS3', side=2, line=3, cex=1)
 pp <- 2; par(mai=c(.5,.35,.01,.25))
 plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
@@ -1263,7 +1311,7 @@ lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[sit
       type='l', lwd=2, lty=2)
 u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
 lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
-mtext(expression(mu[1]), side=1, line=2.7, cex=1)
+mtext(expression(lambda[1]), side=1, line=2.7, cex=1)
 pp <- 3; par(mai=c(.5,.3,.01,.3))
 plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
      type='l', lwd=2, lty=1, main='', xlab='', ylab='', yaxt='n', yaxs='i', bty='n', xlim=lims.p[3,])
@@ -1425,7 +1473,7 @@ lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[sit
 u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
 lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
 mtext('Probability density', side=2, line=1.2, cex=1)
-mtext(expression(mu[0]), side=1, line=2.7, cex=1)
+mtext(expression(lambda[0]), side=1, line=2.7, cex=1)
 mtext('NS3', side=2, line=3, cex=1)
 pp <- 2; par(mai=c(.5,.35,.01,.25))
 plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
@@ -1434,7 +1482,7 @@ lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[sit
       type='l', lwd=2, lty=2)
 u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
 lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
-mtext(expression(mu[1]), side=1, line=2.7, cex=1)
+mtext(expression(lambda[1]), side=1, line=2.7, cex=1)
 pp <- 3; par(mai=c(.5,.3,.01,.3))
 plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
      type='l', lwd=2, lty=1, main='', xlab='', ylab='', yaxt='n', yaxs='i', bty='n', xlim=lims.p[3,])
@@ -1597,7 +1645,7 @@ lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[sit
 u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
 lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
 mtext('Probability density', side=2, line=1.2, cex=1)
-mtext(expression(mu[0]), side=1, line=2.7, cex=1)
+mtext(expression(lambda[0]), side=1, line=2.7, cex=1)
 mtext('NS3', side=2, line=3, cex=1)
 pp <- 2; par(mai=c(.5,.35,.01,.25))
 plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
@@ -1606,7 +1654,7 @@ lines(kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.uniform[[sit
       type='l', lwd=2, lty=2)
 u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
 lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
-mtext(expression(mu[1]), side=1, line=2.7, cex=1)
+mtext(expression(lambda[1]), side=1, line=2.7, cex=1)
 pp <- 3; par(mai=c(.5,.3,.01,.3))
 plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
      type='l', lwd=2, lty=1, main='', xlab='', ylab='', yaxt='n', yaxs='i', bty='n', xlim=lims.p[3,])
@@ -1806,7 +1854,7 @@ site <- 3; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, k
 u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
 lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
 mtext('Probability density', side=2, line=1.2, cex=1)
-mtext(expression(mu[0]), side=1, line=2.7, cex=1)
+mtext(expression(lambda[0]), side=1, line=2.7, cex=1)
 mtext('NS3', side=2, line=3, cex=1)
 pp <- 2; par(mai=c(.5,.35,.01,.25))
 site <- 1; plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
@@ -1817,7 +1865,7 @@ site <- 3; lines(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, k
     type='l', lwd=2, lty=3)
 u <- par('usr'); arrows(u[1], u[3], u[1], .95*u[4], code=2, length=.15, xpd=TRUE)
 lines(c(-1e4,1e4),c(0,0), lty=1, col='black', lwd=2)
-mtext(expression(mu[1]), side=1, line=2.7, cex=1)
+mtext(expression(lambda[1]), side=1, line=2.7, cex=1)
 pp <- 3; par(mai=c(.5,.3,.01,.3))
 site <- 1; plot(kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$x, kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]]$y,
     type='l', lwd=2, lty=1, main='', xlab='', ylab='', xaxt='n', yaxt='n', yaxs='i', axes=FALSE, xlim=lims.p[3,])
