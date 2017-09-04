@@ -571,8 +571,8 @@ for (site in site.names) {
   for (model in types.of.gpd) {
     for (year in year.names[2:3]) {
       # 0.001 * is to convert mm to m
-      widths.50[[site]][year,model] <- 0.001 * q.rl100.bma_mod[[site]][[model]][[year]]['q75'] - q.rl100.bma_mod[[site]][[model]][[year]]['q25']
-      widths.90[[site]][year,model] <- 0.001 * q.rl100.bma_mod[[site]][[model]][[year]]['q95'] - q.rl100.bma_mod[[site]][[model]][[year]]['q05']
+      widths.50[[site]][year,model] <- 0.001 * (q.rl100.bma_mod[[site]][[model]][[year]]['q75'] - q.rl100.bma_mod[[site]][[model]][[year]]['q25'])
+      widths.90[[site]][year,model] <- 0.001 * (q.rl100.bma_mod[[site]][[model]][[year]]['q95'] - q.rl100.bma_mod[[site]][[model]][[year]]['q05'])
       medians[[site]][year,model] <- 0.001 * q.rl100.bma_mod[[site]][[model]][[year]]['q50']
     }
   }
@@ -1693,6 +1693,218 @@ dev.off()
 
 #===============================================================================
 #
+
+
+
+
+#
+#===============================================================================
+# SOM FIGURE 5 - Top row: current surge levels; bottom row: projected 2065 surge
+#                levels. Columns: different sites.
+#                Projected distributions of 100-year surge level by BMA, and
+#                each of the individual model structures.
+
+
+# all index combinations between the BMA ensemble and each specific model ensemble
+# don't even set up 'all.indices', because it is probably going to be HUGE (and
+# in R, therefore slow)
+#all.indices <- expand.grid(bma=1:n.ensemble, model=1:n.ensemble)
+n.sample <- 1e6 # 1e6 chosen because quantiles seem to stabilize; 1e4 not enough,
+                # but 1e5 and 1e6 yield similar results across all 3 sites
+sample.indices <- expand.grid(bma=1:n.ensemble, model=1:n.ensemble)[sample(x=(1:(n.ensemble*n.ensemble)), size=n.sample, replace=FALSE),]
+
+# * rl100.mod is to sample from the distribution of [model] (including [bma])
+#   for 2016 100-year return levels and 2065 return levels relative to 2016.
+# * f.rl100.mod is to fit KDEs for plotting nicely
+# * rl100.x are x coordinates for the KDEs, in meters, because we will start using meters after the density estimates
+rl100.mod        <- f.rl100.mod        <- vector('list', nsites)
+names(rl100.mod) <- names(f.rl100.mod) <- site.names
+rl100.dx <- 0.02 # 2 cm sea level is the minimum difference we care about
+rl100.x <- seq(-30, 30, by=rl100.dx)
+
+for (site in site.names) {
+  rl100.mod[[site]]        <- f.rl100.mod[[site]]        <- vector('list', nmodel)
+  names(rl100.mod[[site]]) <- names(f.rl100.mod[[site]]) <- types.of.gpd
+  for (model in types.of.gpd) {
+    rl100.mod[[site]][[model]]        <- f.rl100.mod[[site]][[model]]        <- vector('list', length(year.names))
+    names(rl100.mod[[site]][[model]]) <- names(f.rl100.mod[[site]][[model]]) <- year.names
+    rl100.mod[[site]][[model]]$y2016 <- rl100[[site]][[all.data[[site]]]][[model]]$y2016[sample.indices[,2]]
+    rl100.mod[[site]][[model]]$y2065 <- rl100[[site]][[all.data[[site]]]][[model]]$y2065[sample.indices[,2]]
+    f.rl100.mod[[site]][[model]]$y2016 <- density(x=rl100.mod[[site]][[model]]$y2016, from=1000*min(rl100.x), to=1000*max(rl100.x), n=length(rl100.x), kernel='gaussian')
+    f.rl100.mod[[site]][[model]]$y2065 <- density(x=rl100.mod[[site]][[model]]$y2065, from=1000*min(rl100.x), to=1000*max(rl100.x), n=length(rl100.x), kernel='gaussian')
+    # normalize
+    f.rl100.mod[[site]][[model]]$y2016 <- f.rl100.mod[[site]][[model]]$y2016$y/sintegral(x=rl100.x, fx=f.rl100.mod[[site]][[model]]$y2016$y)$value
+    f.rl100.mod[[site]][[model]]$y2065 <- f.rl100.mod[[site]][[model]]$y2065$y/sintegral(x=rl100.x, fx=f.rl100.mod[[site]][[model]]$y2065$y)$value
+  }
+  rl100.mod[[site]]$bma        <- f.rl100.mod[[site]]$bma        <- vector('list', length(year.names))
+  names(rl100.mod[[site]]$bma) <- names(f.rl100.mod[[site]]$bma) <- year.names
+  rl100.mod[[site]]$bma$y2016 <- rl100.bma[[site]][[all.data[[site]]]]$y2016[sample.indices[,1]]
+  rl100.mod[[site]]$bma$y2065 <- rl100.bma[[site]][[all.data[[site]]]]$y2065[sample.indices[,1]]
+  f.rl100.mod[[site]]$bma$y2016 <- density(x=rl100.mod[[site]]$bma$y2016, from=1000*min(rl100.x), to=1000*max(rl100.x), n=length(rl100.x), kernel='gaussian')
+  f.rl100.mod[[site]]$bma$y2065 <- density(x=rl100.mod[[site]]$bma$y2065, from=1000*min(rl100.x), to=1000*max(rl100.x), n=length(rl100.x), kernel='gaussian')
+  # normalize
+  f.rl100.mod[[site]]$bma$y2016 <- f.rl100.mod[[site]]$bma$y2016$y/sintegral(x=rl100.x, fx=f.rl100.mod[[site]]$bma$y2016$y)$value
+  f.rl100.mod[[site]]$bma$y2065 <- f.rl100.mod[[site]]$bma$y2065$y/sintegral(x=rl100.x, fx=f.rl100.mod[[site]]$bma$y2065$y)$value
+}
+
+# box-whiskers for the plot
+
+## Calculate the quantiles to plot
+quantiles.to.grab <- c(0, .05, .25, .5, .75, .95, 1)
+quantile.names <- rep(NULL, length(quantiles.to.grab))
+for (qq in 1:length(quantiles.to.grab)) {
+  if(quantiles.to.grab[qq] >= .10) {
+    quantile.names[qq] <- paste('q',100*quantiles.to.grab[qq], sep='')
+  } else if(quantiles.to.grab[qq] < .10 & quantiles.to.grab[qq] >= 0) {
+    quantile.names[qq] <- paste('q0',100*quantiles.to.grab[qq], sep='')
+  }
+}
+
+# create matrices for each of the sites
+q.rl100.mod <- vector('list', nsites); names(q.rl100.mod) <- site.names
+for (site in site.names) {
+  q.rl100.mod[[site]] <- mat.or.vec(5, 2*length(quantile.names))
+  rownames(q.rl100.mod[[site]]) <- c(types.of.gpd, 'bma')
+  colnames(q.rl100.mod[[site]]) <- c(quantile.names, quantile.names)
+  for (model in c(types.of.gpd, 'bma')) {
+    q.rl100.mod[[site]][model,1:length(quantile.names)] <- 0.001 * quantile(rl100.mod[[site]][[model]]$y2016, quantiles.to.grab)
+    q.rl100.mod[[site]][model,(length(quantile.names)+1):(2*length(quantile.names))] <- 0.001 * quantile(rl100.mod[[site]][[model]]$y2065, quantiles.to.grab)
+  }
+}
+
+## Here we write the CSV file that is the basis for supplemental tables S1-S3
+write.csv(x=rbind(q.rl100.mod$Delfzijl, q.rl100.mod$Balboa, q.rl100.mod$Norfolk), file='../output/returnlevels.csv')
+
+## NOTE: not actually using the figure code below - it is not complete
+## went with presenting as a table instead.
+#
+# the actual figure
+#
+
+if(FALSE) {
+
+pdf(paste(plot.dir,'returnlevels_SOM.pdf',sep=''),width=7,height=5,colormodel='rgb')
+
+par(mfrow=c(2,3), mai=c(.67,.32,.25,.09))
+
+year <- 'y2016'
+site <- 'Delfzijl'
+plot(rl100.x, f.rl100.mod[[site]]$gpd3[[year]], type='l', xlim=c(4,10), #ylim=c(0, 1.05),
+     lwd=2, xlab='', ylab='', yaxs='i', yaxt='n', axes=FALSE, col='seagreen')
+  lines(rl100.x, f.rl100.mod[[site]]$gpd4[[year]], col='darkorange3', lwd=2, lty=5)
+  lines(rl100.x, f.rl100.mod[[site]]$gpd5[[year]], col='mediumslateblue', lwd=2, lty=5)
+  lines(rl100.x, f.rl100.mod[[site]]$gpd6[[year]], col='mediumvioletred', lwd=2, lty=5)
+  lines(rl100.x, f.rl100.mod[[site]]$bma[[year]], col='black', lwd=2, lty=3)
+  lines(c(-100,100), c(0,0), col='black', lwd=1.5) # replace the x-axis wonkily
+  #  text(-3, .9, 'BMA lowers upper\ntail of flood risk', pos=4)
+  #  text(.8, .9, 'BMA raises upper\ntail of flood risk', pos=4)
+  u <- par("usr")
+  arrows(u[1], u[3], u[1], .99*u[4], code = 2, length=.15, xpd = TRUE)
+  mtext('Probability density', side=2, line=1, cex=.75);
+  mtext('Delfzijl', side=3, line=.6, cex=0.75)
+  mtext(side=3, text=expression(bold(' a.')), line=.6, cex=0.75, adj=0)
+  mtext('100-year return level in 2016 [m]', side=1, line=3.4, cex=0.75);
+  axis(1, at=seq(0, 10, 1), cex.axis=1.2)
+  legend(8,1.5, c('ST','NS1','NS2','NS3','BMA'), lty=c(1,5,5,5,3), cex=1.1, bty='n', lwd=2,
+         col=c('seagreen','darkorange3','mediumslateblue','mediumvioletred','black'))
+#
+par(mai=c(.67,.3,.25,.11))
+site <- 'Balboa'
+plot(rl100.x, f.rl100.mod[[site]]$gpd3[[year]], type='l', #xlim=c(-.5,.5), ylim=c(0, 13.7),
+     lwd=2, xlab='', ylab='', yaxs='i', yaxt='n', axes=FALSE, col='seagreen')
+  lines(rl100.x, f.rl100.mod[[site]]$gpd4[[year]], col='darkorange3', lwd=2, lty=5)
+  lines(rl100.x, f.rl100.mod[[site]]$gpd5[[year]], col='mediumslateblue', lwd=2, lty=5)
+  lines(rl100.x, f.rl100.mod[[site]]$gpd6[[year]], col='mediumvioletred', lwd=2, lty=5)
+  lines(rl100.x, f.rl100.mod[[site]]$bma[[year]], col='black', lwd=2, lty=3)
+  lines(c(-100,100), c(0,0), col='black', lwd=1.5) # replace the x-axis wonkily
+  #  text(-3, .9, 'BMA lowers upper\ntail of flood risk', pos=4)
+  #  text(.8, .9, 'BMA raises upper\ntail of flood risk', pos=4)
+  u <- par("usr")
+  arrows(u[1], u[3], u[1], .99*u[4], code = 2, length=.15, xpd = TRUE)
+  mtext('Balboa', side=3, line=.6, cex=0.75)
+  mtext(side=3, text=expression(bold(' b.')), line=.6, cex=0.75, adj=0)
+  mtext('100-year return level in 2016 [m]', side=1, line=3.4, cex=0.75);
+  axis(1, at=seq(-.5, .5, .25), labels=c('-0.5','-0.25','0','0.25','0.5'), cex.axis=1.2)
+#
+par(mai=c(.67,.28,.25,.13))
+site <- 'Norfolk'
+plot(rl100.x, f.rl100.mod[[site]]$gpd3[[year]], type='l', #xlim=c(-2,2), ylim=c(0, 1.65),
+     lwd=2, xlab='', ylab='', yaxs='i', yaxt='n', axes=FALSE, col='seagreen')
+  lines(rl100.x, f.rl100.mod[[site]]$gpd4[[year]], col='darkorange3', lwd=2, lty=5)
+  lines(rl100.x, f.rl100.mod[[site]]$gpd5[[year]], col='mediumslateblue', lwd=2, lty=5)
+  lines(rl100.x, f.rl100.mod[[site]]$gpd6[[year]], col='mediumvioletred', lwd=2, lty=5)
+  lines(rl100.x, f.rl100.mod[[site]]$bma[[year]], col='black', lwd=2, lty=3)
+  lines(c(-100,100), c(0,0), col='black', lwd=1.5) # replace the x-axis wonkily
+  #  text(-3, .9, 'BMA lowers upper\ntail of flood risk', pos=4)
+  #  text(.8, .9, 'BMA raises upper\ntail of flood risk', pos=4)
+  u <- par("usr")
+  arrows(u[1], u[3], u[1], .99*u[4], code = 2, length=.15, xpd = TRUE)
+  mtext('Norfolk', side=3, line=.6, cex=0.75)
+  mtext(side=3, text=expression(bold(' c.')), line=.6, cex=0.75, adj=0)
+  mtext('100-year return level in 2016 [m]', side=1, line=3.4, cex=0.75);
+  axis(1, at=seq(-2, 2, .5), labels=c('-2','','-1','','0','','1','','2'), cex.axis=1.2)
+#
+year <- 'y2065'
+#
+par(mai=c(.67,.32,.25,.09))
+site <- 'Delfzijl'
+plot(rl100.x, f.rl100.mod[[site]]$gpd3[[year]], type='l', #xlim=c(-3,3), ylim=c(0, .38),
+     lwd=2, xlab='', ylab='', yaxs='i', yaxt='n', axes=FALSE, col='seagreen')
+  lines(rl100.x, f.rl100.mod[[site]]$gpd4[[year]], col='darkorange3', lwd=2, lty=5)
+  lines(rl100.x, f.rl100.mod[[site]]$gpd5[[year]], col='mediumslateblue', lwd=2, lty=5)
+  lines(rl100.x, f.rl100.mod[[site]]$gpd6[[year]], col='mediumvioletred', lwd=2, lty=5)
+  lines(rl100.x, f.rl100.mod[[site]]$bma[[year]], col='black', lwd=2, lty=3)
+  lines(c(-100,100), c(0,0), col='black', lwd=1.5) # replace the x-axis wonkily
+  #  text(-3, .9, 'BMA lowers upper\ntail of flood risk', pos=4)
+  #  text(.8, .9, 'BMA raises upper\ntail of flood risk', pos=4)
+  u <- par("usr")
+  arrows(u[1], u[3], u[1], .99*u[4], code = 2, length=.15, xpd = TRUE)
+  mtext('Probability density', side=2, line=1, cex=.75);
+  mtext(side=3, text=expression(bold(' d.')), line=.6, cex=0.75, adj=0)
+  mtext('100-year return level\nincrease by 2065 [m]', side=1, line=3.4, cex=0.75);
+  axis(1, at=seq(-3, 3, 1), labels=c('-3','-2','-1','0','1','2','3'), cex.axis=1.2)
+#
+par(mai=c(.67,.3,.25,.11))
+site <- 'Balboa'
+plot(rl100.x, f.rl100.mod[[site]]$gpd3[[year]], type='l',# xlim=c(-.5,.5), ylim=c(0,10),
+     lwd=2, xlab='', ylab='', yaxs='i', yaxt='n', axes=FALSE, col='seagreen')
+  lines(rl100.x, f.rl100.mod[[site]]$gpd4[[year]], col='darkorange3', lwd=2, lty=5)
+  lines(rl100.x, f.rl100.mod[[site]]$gpd5[[year]], col='mediumslateblue', lwd=2, lty=5)
+  lines(rl100.x, f.rl100.mod[[site]]$gpd6[[year]], col='mediumvioletred', lwd=2, lty=5)
+  lines(rl100.x, f.rl100.mod[[site]]$bma[[year]], col='black', lwd=2, lty=3)
+  lines(c(-100,100), c(0,0), col='black', lwd=1.5) # replace the x-axis wonkily
+  #  text(-3, .9, 'BMA lowers upper\ntail of flood risk', pos=4)
+  #  text(.8, .9, 'BMA raises upper\ntail of flood risk', pos=4)
+  u <- par("usr")
+  arrows(u[1], u[3], u[1], .99*u[4], code = 2, length=.15, xpd = TRUE)
+  mtext(side=3, text=expression(bold(' e.')), line=.6, cex=0.75, adj=0)
+  mtext('100-year return level\nincrease by 2065 [m]', side=1, line=3.4, cex=0.75);
+  axis(1, at=seq(-.5, .5, .25), labels=c('-0.5','-0.25','0','0.25','0.5'), cex.axis=1.2)
+#
+par(mai=c(.67,.28,.25,.13))
+site <- 'Norfolk'
+plot(rl100.x, f.rl100.mod[[site]]$gpd3[[year]], type='l', #xlim=c(-2,2), ylim=c(0, 1.34),
+     lwd=2, xlab='', ylab='', yaxs='i', yaxt='n', axes=FALSE, col='seagreen')
+  lines(rl100.x, f.rl100.mod[[site]]$gpd4[[year]], col='darkorange3', lwd=2, lty=5)
+  lines(rl100.x, f.rl100.mod[[site]]$gpd5[[year]], col='mediumslateblue', lwd=2, lty=5)
+  lines(rl100.x, f.rl100.mod[[site]]$gpd6[[year]], col='mediumvioletred', lwd=2, lty=5)
+  lines(rl100.x, f.rl100.mod[[site]]$bma[[year]], col='black', lwd=2, lty=3)
+  lines(c(-100,100), c(0,0), col='black', lwd=1.5) # replace the x-axis wonkily
+  #  text(-3, .9, 'BMA lowers upper\ntail of flood risk', pos=4)
+  #  text(.8, .9, 'BMA raises upper\ntail of flood risk', pos=4)
+  u <- par("usr")
+  arrows(u[1], u[3], u[1], .99*u[4], code = 2, length=.15, xpd = TRUE)
+  mtext(side=3, text=expression(bold(' f.')), line=.6, cex=0.75, adj=0)
+  mtext('100-year return level\nincrease by 2065 [m]', side=1, line=3.4, cex=0.75);
+  axis(1, at=seq(-2, 2, .5), labels=c('-2','','-1','','0','','1','','2'), cex.axis=1.2)
+
+dev.off()
+
+} # end comment out of the figure
+
+#===============================================================================
+#
+
 
 
 
