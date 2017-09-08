@@ -10,6 +10,8 @@ This repository is sandbox for calibrating extreme value models to statistically
 * [Naveau et al. (2016)](http://onlinelibrary.wiley.com/doi/10.1002/2015WR018552/abstract) / [Papastathopoulos and Tawn (2013)](http://www.sciencedirect.com/science/article/pii/S0378375812002388) models (currently, just type (i) of Naveau et al.)
 * others?
 
+This is an ongoing project. At the outset, it is going to be simply the model codes accompanying a paper submission, with hooks for other calibration experiments. Later, there should be easier-to-digest support for all of the model structures listed above, and hopefully clear ways to adapt to new structures and experiments. Suggestions and comments will always be warmly welcomed, and any-/everyone is invited to make use of the codes at any point, under the proper caveats (see below).
+
 ## Directory structure
 
 ./
@@ -39,7 +41,7 @@ To obtain the model codes:
 git clone https://github.com/tonyewong/MESS.git
 ~~~~
 
-## Workflow to reproduce the results of Wong et al. (arXiv link once ready)
+## Workflow to reproduce the results of Wong et al. (paper link once ready)
 
 TODO
 
