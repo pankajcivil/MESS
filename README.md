@@ -1,6 +1,6 @@
 # MESS: Models for Extreme Storm Surges
 
-Questions? Tony Wong <twong@psu.edu>
+Questions? Tony Wong <anthony.e.wong@colorado.edu>
 
 ## Synopsis
 
@@ -137,4 +137,17 @@ source('./old/calibration_yearBM_driver.R')
 
 Please enjoy the code and offer me any suggestions. I am always happy to chat about how the models could be improved, or the design of new numerical experiments especially.
 
-Questions? Tony Wong (twong@psu.edu)
+## Copyright and disclaimers
+
+Copyright 2017 Tony Wong
+
+MESS is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+MESS is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with MESS.  If not, see <http://www.gnu.org/licenses/>.
+
+The datasets, software tools and other resources on this website are provided AS IS without warranty of any kind, express or implied. In no event shall the authors or copyright holders be liable for any claim, damages or other liability in connection with the use of these resources. Any conclusions or recommendations expressed in this material are those of the authors and do not necessarily reflect the views of the funding agencies. Any errors and opinions are, of course, those of the authors.
+
+Questions? Tony Wong <anthony.e.wong@colorado.edu>
+

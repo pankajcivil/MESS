@@ -1,20 +1,35 @@
-##==============================================================================
-##  timeblock_motivating_experiment_fig1.R
-##
-##  Estimate storm surge PP/GPD parameters for one of the three sites using
-##  30-year blocks and stationary model. To assess how sensitive the estimated
-##  return levels are to data availability/length.
-##
-##  This version for submitting on HPC using:
-##    qsub data_sensitivity_run.pbs
-##
-##  You will need to fix the 'setwd(...)' call below to match your local directory
-##  structure, and perhaps need to 'install.packages(...)' for some of the libraries
-##  that you may not have (all of the ones you should need are in the initial
-##  section of code just below this note).
-##
-## Questions? Tony Wong (twong@psu.edu)
-##==============================================================================
+#===============================================================================
+#  timeblock_motivating_experiment_fig1.R
+#
+#  Estimate storm surge PP/GPD parameters for one of the three sites using
+#  30-year blocks and stationary model. To assess how sensitive the estimated
+#  return levels are to data availability/length.
+#
+#  This version for submitting on HPC using:
+#    qsub data_sensitivity_run.pbs
+#
+#  You will need to fix the 'setwd(...)' call below to match your local directory
+#  structure, and perhaps need to 'install.packages(...)' for some of the libraries
+#  that you may not have (all of the ones you should need are in the initial
+#  section of code just below this note).
+#
+# Questions? Tony Wong (twong@psu.edu)
+#===============================================================================
+#===============================================================================
+# Copyright 2017 Tony Wong
+#
+# MESS is free software: you can redistribute it and/or modify it under the
+# terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+#
+# MESS is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# MESS.  If not, see <http://www.gnu.org/licenses/>.
+#===============================================================================
 
 setwd('~/codes/EVT/R')
 #setwd('/home/scrim/axw322/codes/EVT/R')
