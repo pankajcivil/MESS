@@ -275,9 +275,8 @@ log_like_ppgpd <- function(parameters,
   # check extra conditions that would otherwise 'break' the likelihood function
   if( any(lambda < 0) | any(sigma < 0) ) {llik <- -Inf}
   else {
-    # this way is working, but slow. speed up with an "apply" ?
     llik.bin <- dpois(x=data_calib$counts, lambda=(lambda*data_calib$time_length), log=TRUE)
-    hits <- which(data_calib$counts!=0)
+    hits <- which(data_calib$counts!=0)   # gets indices of bins (years) with exceedances
     for (b in hits) {
       llik.bin[b] <- llik.bin[b] +
                      sum(devd(data_calib$excesses[[b]]-data_calib$threshold, threshold=0, scale=sigma[b], shape=xi[b], log=TRUE, type='GP'))
@@ -290,14 +289,6 @@ log_like_ppgpd <- function(parameters,
   if( exists('lambda0') & exists('lambda1') ) {
     if( lambda1[1] < (-lambda0[1]/Tmax) ) {llik <- -Inf}
   }
-
-# this way works, but cannot take nonstationarity in the poisson process
-#if(data_calib$counts_all > 0) {
-#  llik <- dpois(x=data_calib$counts_all, lambda=(lambda*data_calib$time_length_all), log=TRUE) +
-#          sum(devd(data_calib$excesses_all-data_calib$threshold, threshold=0, scale=sigma, shape=xi, log=TRUE, type='GP'))
-#} else {
-#  llik <- dpois(x=data_calib$counts_all, lambda=(lambda*data_calib$time_length_all), log=TRUE)
-#}
 
   return(llik)
 }
