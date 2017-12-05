@@ -12,6 +12,21 @@
 #
 # Questions? Tony Wong (twong@psu.edu)
 #===============================================================================
+#===============================================================================
+# Copyright 2017 Tony Wong
+#
+# MESS is free software: you can redistribute it and/or modify it under the
+# terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
+# version.
+#
+# MESS is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
+# A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along with
+# MESS.  If not, see <http://www.gnu.org/licenses/>.
+#===============================================================================
 
 
 #
@@ -260,9 +275,8 @@ log_like_ppgpd <- function(parameters,
   # check extra conditions that would otherwise 'break' the likelihood function
   if( any(lambda < 0) | any(sigma < 0) ) {llik <- -Inf}
   else {
-    # this way is working, but slow. speed up with an "apply" ?
     llik.bin <- dpois(x=data_calib$counts, lambda=(lambda*data_calib$time_length), log=TRUE)
-    hits <- which(data_calib$counts!=0)
+    hits <- which(data_calib$counts!=0)   # gets indices of bins (years) with exceedances
     for (b in hits) {
       llik.bin[b] <- llik.bin[b] +
                      sum(devd(data_calib$excesses[[b]]-data_calib$threshold, threshold=0, scale=sigma[b], shape=xi[b], log=TRUE, type='GP'))
@@ -275,14 +289,6 @@ log_like_ppgpd <- function(parameters,
   if( exists('lambda0') & exists('lambda1') ) {
     if( lambda1[1] < (-lambda0[1]/Tmax) ) {llik <- -Inf}
   }
-
-# this way works, but cannot take nonstationarity in the poisson process
-#if(data_calib$counts_all > 0) {
-#  llik <- dpois(x=data_calib$counts_all, lambda=(lambda*data_calib$time_length_all), log=TRUE) +
-#          sum(devd(data_calib$excesses_all-data_calib$threshold, threshold=0, scale=sigma, shape=xi, log=TRUE, type='GP'))
-#} else {
-#  llik <- dpois(x=data_calib$counts_all, lambda=(lambda*data_calib$time_length_all), log=TRUE)
-#}
 
   return(llik)
 }

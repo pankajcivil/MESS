@@ -14,7 +14,6 @@ nnode_mcmc_prod000 <- 2          # number of CPUs to use (PRODUCTION chains)
 gamma_mcmc000 <- 0.5             # speed of adaptation (0.5=faster, 1=slowest)
 
 filename.priors   <- 'surge_priors_gev_nav_19Jun2017.rds'  # file holding the 'priors' object
-filename.temperature <- 'temperature_forcing_19Jun2017.csv'  # temperature forcing used
 filename.initvals <- 'surge_initialvalues_gev_nav_19Jun2017.rds'  # file holding the 'deoptim.delfzijl' object
 filename.mles <- 'surge_MLEs_gev_nav_19Jun2017.rds' # file holding the 'mle.fits' object
 filename.datacalib <- 'datacalib_05Jul2017.rds' # file holding the 'data_calib' object (calibration data)
@@ -43,7 +42,7 @@ library(zoo)
 library(adaptMCMC)
 library(lhs)
 library(DEoptim)
-#library(ncdf4)
+library(ncdf4)
 
 #
 #===============================================================================
@@ -242,7 +241,7 @@ for (model in types.of.model) {
 #
 
 today=Sys.Date(); today=format(today,format="%d%b%Y")
-filename.everythingmcmc <- paste(output.dir,'kitchen_sink_mcmc_',appen,'_',today,'.RData', sep='')
+filename.everythingmcmc <- paste(output.dir,'everything_mcmc_',appen,'_',today,'.RData', sep='')
 
 print(paste('saving results as .RData file (',filename.everythingmcmc,') to read and use later...',sep=''))
 

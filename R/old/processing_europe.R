@@ -4,6 +4,8 @@
 # Questions? Tony Wong (twong@psu.edu)
 #===============================================================================
 
+filename.saveprogress <- '../output/processing_europe_test.RData'
+
 print('starting to process many European station data')
 
 #===
@@ -214,7 +216,7 @@ for (dd in 1:length(files.tg)) {
   data_europe[[dd]]$gpd$time_length_all <- max(time.daily) - min(time.daily) + 1
 
   # that takes some time, so save the workspace image after each data set
-  save.image(file='../output/preprocessing.RData')
+  save.image(file=filename.saveprogress)
 
   print('  ... done.')
 
@@ -259,7 +261,7 @@ for (dd in 1:length(data_europe)) {
 }
 
 # that doesn't take as long... so just save it once for good measure
-save.image(file='../output/preprocessing.RData')
+save.image(file=filename.saveprogress)
 
 
 #

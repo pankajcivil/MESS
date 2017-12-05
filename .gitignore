@@ -1,6 +1,11 @@
+../data/tidegauge_processed_*.rds
+returnlevels.csv
+surgelevels.rds
 .DS_Store
 *.log
 *.pbs.*
 figures
 *.RData
 *.nc
+*.o*
+*.pbs*

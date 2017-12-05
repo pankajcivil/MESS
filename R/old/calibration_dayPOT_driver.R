@@ -197,7 +197,7 @@ for (model in types.of.model) {
 #
 
 today=Sys.Date(); today=format(today,format="%d%b%Y")
-filename.everythingmcmc <- paste(output.dir,'kitchen_sink_mcmc_',appen,'_',today,'.RData', sep='')
+filename.everythingmcmc <- paste(output.dir,'everything_mcmc_',appen,'_',today,'.RData', sep='')
 
 print(paste('saving results as .RData file (',filename.everythingmcmc,') to read and use later...',sep=''))
 
