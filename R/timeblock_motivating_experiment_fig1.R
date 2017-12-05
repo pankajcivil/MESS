@@ -16,8 +16,8 @@
 ## Questions? Tony Wong (twong@psu.edu)
 ##==============================================================================
 
-setwd('~/codes/EVT/R')
-#setwd('/home/scrim/axw322/codes/EVT/R')
+#setwd('~/codes/EVT/R')
+setwd('/home/scrim/axw322/codes/EVT/R')
 
 rm(list=ls())
 
@@ -26,7 +26,7 @@ dat.dir <- '../data/'
 
 site <- 'Delfzijl'
 
-nnode_mcmc000 <- 4
+nnode_mcmc000 <- 10
 niter_mcmc000 <- 1e5
 gamma_mcmc000 <- 0.5
 
@@ -207,7 +207,7 @@ for (bb in 1:nblocks) {
 # If no thinning, then this initialization will remain
 chains_burned_thinned <- chains_burned
 
-n.sample <- 10000
+n.sample <- 100000
 
 for (bb in 1:nblocks) {
   if(nnode_mcmc == 1) {
