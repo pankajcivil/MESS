@@ -26,16 +26,26 @@
 # MESS.  If not, see <http://www.gnu.org/licenses/>.
 #===============================================================================
 
+#===============================================================================
+# set things
+
+.dt.decluster <- 3           # declustering time scale (days)
+.detrend.method <- 'annual'  # annual means or linear detrending?
+.pot.threshold <- .99        # percentile for POT threshold
+
+
 if(Sys.info()['nodename']=='Tonys-MacBook-Pro.local') {
   # Tony's local machine (if you aren't me, you almost certainly need to change this...)
+  machine <- 'local'
   setwd('/Users/tony/codes/EVT/R')
   .Ncore <- 0
 } else {
-  # on Napa cluster
+  # assume on Napa cluster
+  machine <- 'remote'
   setwd('/home/scrim/axw322/codes/EVT/R')
   .Ncore <- 15  # use multiple cores to process the many tide gauge stations
 }
-
+#===============================================================================
 
 # install some preliminary packages, or load the libraries if you already have them
 l.installpackages <- FALSE
@@ -78,19 +88,25 @@ source('decluster_timeseries.R')
 
 
 # many long record stations
-source('processing_many_stations.R')
-processing_many_stations(dt.decluster=3, detrend.method='annual', pot.threshold=.99, Ncore=.Ncore)
+if(machine=='local') {
+  source('processing_many_stations.R')
+} else if(machine=='remote') {
+  source('processing_many_stations_parallel.R')
+} else {
+  print('ERROR: unknown machine')
+}
+processing_many_stations(dt.decluster=.dt.decluster, detrend.method='annual', pot.threshold=.99, Ncore=.Ncore)
 
 # Delfzijl, the Netherlands
 source('processing_delfzijl.R')
-processing_delfzijl(dt.decluster=3, detrend.method='annual', pot.threshold=.99)
+processing_delfzijl(dt.decluster=.dt.decluster, detrend.method='annual', pot.threshold=.99)
 
 # Norfolk, Virgina, United State
 source('processing_norfolk.R')
-processing_norfolk(dt.decluster=3, detrend.method='annual', pot.threshold=.99)
+processing_norfolk(dt.decluster=.dt.decluster, detrend.method='annual', pot.threshold=.99)
 
 # Balboa, Panama
-source('processing_balboa.R')
+#source('processing_balboa.R')
 
 #
 #===============================================================================
