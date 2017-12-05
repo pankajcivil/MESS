@@ -106,7 +106,8 @@ processing_norfolk <- function(dt.decluster, detrend.method, pot.threshold) {
   igap <- which(time.diff > (one.hours+10/(24*60*60)))
 
   #===
-  #=== subtract linear sea-level trend (from fit to monthly means)
+  #=== Detrend by either subtracting linear sea-level trend (fit to monthly
+  #=== means) or by subtracting annual means (moving 1-year window)
   #===
 
   print(paste('Detrending using method `',detrend.method,'` ...', sep=''))

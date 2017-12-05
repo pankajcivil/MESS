@@ -29,9 +29,11 @@
 if(Sys.info()['nodename']=='Tonys-MacBook-Pro.local') {
   # Tony's local machine (if you aren't me, you almost certainly need to change this...)
   setwd('/Users/tony/codes/EVT/R')
+  .Ncore <- 0
 } else {
   # on Napa cluster
   setwd('/home/scrim/axw322/codes/EVT/R')
+  .Ncore <- 15  # use multiple cores to process the many tide gauge stations
 }
 
 
@@ -46,6 +48,8 @@ if(l.installpackages) {
   install.packages('adaptMCMC')
   install.packages('lhs')
   install.packages('DEoptim')
+  install.packages('foreach')
+  install.packages('doParallel')
 }
 library(date)
 library(zoo)
@@ -54,6 +58,8 @@ library(ncdf4)
 library(extRemes)
 library(adaptMCMC)
 library(DEoptim)
+library(foreach)
+library(doParallel)
 
 # read global mean temperature data, as covariate for PP/GPD parameters
 source('read_data_temperature.R')
@@ -73,7 +79,7 @@ source('decluster_timeseries.R')
 
 # many long record stations
 source('processing_many_stations.R')
-processing_many_stations(dt.decluster=3, detrend.method='annual', pot.threshold=.99)
+processing_many_stations(dt.decluster=3, detrend.method='annual', pot.threshold=.99, Ncore=.Ncore)
 
 # Delfzijl, the Netherlands
 source('processing_delfzijl.R')

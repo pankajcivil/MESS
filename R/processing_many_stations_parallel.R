@@ -33,7 +33,7 @@
 # MESS.  If not, see <http://www.gnu.org/licenses/>.
 #===============================================================================
 
-processing_many_stations <- function(dt.decluster, detrend.method, pot.threshold) {
+processing_many_stations <- function(dt.decluster, detrend.method, pot.threshold, N.core=0) {
 
   filename.saveprogress <- '../output/processing_many_sites.RData'
 
@@ -69,9 +69,30 @@ processing_many_stations <- function(dt.decluster, detrend.method, pot.threshold
   data_many <- vector('list', length(data_set))
   names(data_many) <- names(data_set)
 
+
   # note: this is all broken up into different chunks of code and processing so
   # the it is digestible and won't die if a single part fo the processing is
   # broken.
+
+
+
+if(Ncore>1) {
+
+
+  # testing in parallel
+  cores=detectCores()
+  #    cl <- makeCluster(cores[1]-1) #not to overload your computer
+  cl <- makeCluster(Ncore)
+  print(paste('Starting cluster with ',Ncore,' cores', sep=''))
+  registerDoParallel(cl)
+
+output <- vector('list', length(files.tg))
+  export.names <- c()
+
+  finalOutput <- foreach(dd=1:length(files.tg),
+                               #.export=export.names,
+                               .inorder=FALSE) %dopar% {
+
 
   #
   #===============================================================================
@@ -79,7 +100,7 @@ processing_many_stations <- function(dt.decluster, detrend.method, pot.threshold
   #===============================================================================
   #
 
-  for (dd in 1:length(files.tg)) {
+  #for (dd in 1:length(files.tg)) {
 
     tbeg <- proc.time()
     print(paste('now processing for pp-gpd data set ',dd,' / ',length(files.tg),sep=''))
@@ -110,69 +131,13 @@ processing_many_stations <- function(dt.decluster, detrend.method, pot.threshold
 
     print(paste('Detrending using method `',detrend.method,'` ...', sep=''))
 
-    if (detrend.method=='linear') {
-
-      # calcualte monthly means
-
-      dates.new <- date.mdy(data_set[[dd]]$time.days)
-      date.beg <- date.mdy(min(data_set[[dd]]$time.days))
-      date.end <- date.mdy(max(data_set[[dd]]$time.days))
-
-      # what the years in which we have data?
-      years.unique <- unique(dates.new$year)
-
-      # in each year, what are the months with at least 90% of the data?
-      months.this.year <- vector('list', length(years.unique))
-      names(months.this.year) <- years.unique
-      years.to.remove <- NULL
-      for (year in years.unique) {
-        ind.this.year <- which(dates.new$year == year)
-        months.to.keep <- NULL
-        for (month in 1:12) {
-          ind.this.month <- which(dates.new$month[ind.this.year] == month)
-          days.this.month <- monthDays(paste(year,'-',month,'-','1', sep=''))
-          hours.this.month <- days.this.month * 24
-          perc.data.this.month <- length(ind.this.month)/hours.this.month
-          if (perc.data.this.month >= 0.9) {months.to.keep <- c(months.to.keep, month)}
-        }
-        if(length(months.to.keep)>0) {months.this.year[[year]] <- months.to.keep }
-        else                         {years.to.remove <- c(years.to.remove, year)}
-      }
-      if(length(years.to.remove)>0) {years.unique <- years.unique[-match(years.to.remove, years.unique)]}
-
-      # get the mean time (in days releative to 1 Jan 1960) of the observations of
-      # each month we are using to fit the trend for SLR
-      times.month <- rep(NA, length(unlist(months.this.year)))
-      sl.month    <- rep(NA, length(unlist(months.this.year)))
-      cnt <- 1
-      for (year in years.unique) {
-        ind.this.year <- which(dates.new$year == year)
-        for (month in months.this.year[[year]]) {
-          ind.this.month <- which(dates.new$month[ind.this.year] == month)
-          times.month[cnt] <- mean(data_set[[dd]]$time.days[ind.this.year[ind.this.month]])
-          sl.month[cnt]    <- mean(data_set[[dd]]$sl[ind.this.year[ind.this.month]])
-          cnt <- cnt + 1
-        }
-      }
-
-      # fit trend
-      slr.trend <- lm(sl.month ~ times.month)
-      slr.trend.1hour <- slr.trend$coefficients[1] + slr.trend$coefficients[2]*data_set[[dd]]$time.days
-
-      # subtract off from the 1-hourly data
-      data_set[[dd]]$sl.detrended <- data_set[[dd]]$sl - slr.trend.1hour
-
-    } else if(detrend.method=='annual') {
-
       # get a placeholder
       data_set[[dd]]$sl.detrended <- data_set[[dd]]$sl
       time.days.beg <- min(data_set[[dd]]$time.days)
       time.days.end <- max(data_set[[dd]]$time.days)
 
-tbeg <- proc.time()
-      pb <- txtProgressBar(min=0,max=length(data_set[[dd]]$time.days),initial=0,style=3)
       #for (tt in 1:length(data_set[[dd]]$time.days)) {
-      for (tt in 1:10000) {
+      for (tt in 1:1000) {
         # if within half a year of either end of the time series, include either the
         # entire first year or entire last year to get a full year's worth of data in
         # the subtracted mean
@@ -184,13 +149,13 @@ tbeg <- proc.time()
           ind.close <- which(abs(data_set[[dd]]$time.days-data_set[[dd]]$time.days[tt]) <= (365.25*0.5) )
         }
         data_set[[dd]]$sl.detrended[tt] <- data_set[[dd]]$sl[tt] - mean(data_set[[dd]]$sl[ind.close])
-        setTxtProgressBar(pb, tt)
       }
-      close(pb)
-tend <- proc.time()
-    } else {
-      print('ERROR: unknown detrend.method value')
+      output[[dd]] <- data_set[[dd]]
     }
+    stopCluster(cl)
+
+
+
 
     # that takes some time, so save the workspace image after each data set
     save.image(file=filename.saveprogress)
@@ -289,7 +254,7 @@ tend <- proc.time()
     tend <- proc.time()
     print(paste('  ... done. Took ', (tend[3]-tbeg[3])/60, ' minutes.',sep=''))
 
-  }
+  #}
 
   #
   #===============================================================================
@@ -298,7 +263,7 @@ tend <- proc.time()
   #===============================================================================
   #
 
-  for (dd in 1:length(data_set)) {
+  #for (dd in 1:length(data_set)) {
     # give an update to the screen
     print(paste('starting to process annual block maxima for European data set ',dd,' / ',length(data_set),sep=''))
 
@@ -313,19 +278,20 @@ tend <- proc.time()
       ind_this_year <- which(data_set[[dd]]$year==data_many[[dd]]$gev_year$year[t])
       data_many[[dd]]$gev_year$lsl_max[t] <- max(data_set[[dd]]$sl.detrended[ind_this_year])
     }
-  }
+  #}
 
   # trim before 1850 (or whenever is time_forc[1]), which is when the temperature
   # forcing starts. also make a note of how long each record is
-  nyear <- rep(NA, length(data_many))
-  for (dd in 1:length(data_many)) {
+  #for (dd in 1:length(data_many)) {
     if(data_many[[dd]]$gev_year$year[1] < time_forc[1]) {
       icut <- which(data_many[[dd]]$gev_year$year < time_forc[1])
       data_many[[dd]]$gev_year$year <- data_many[[dd]]$gev_year$year[-icut]
       data_many[[dd]]$gev_year$lsl_max <- data_many[[dd]]$gev_year$lsl_max[-icut]
     }
-    nyear[dd] <- length(data_many[[dd]]$gev_year$year)
   }
+
+  stopCluster(cl)
+
 
   # that doesn't take as long... so just save it once for good measure
   save.image(file=filename.saveprogress)
