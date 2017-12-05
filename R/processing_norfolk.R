@@ -61,7 +61,7 @@ processing_norfolk <- function(dt.decluster, detrend.method, pot.threshold) {
   data$month  <- as.numeric(substr(as.character(data$date), start=5, stop=6))
   data$day    <- as.numeric(substr(as.character(data$date), start=7, stop=8))
   # where is the ':' in the times? tells us where to separate off hte substring
-  # giving the hour of the observations. and cue the jokes about this variable name.
+  # giving the hour of the observations.
   colon.location <- regexpr(':', data$time)
   ind.one.digit <- which(colon.location==2)
   ind.two.digit <- which(colon.location==3)

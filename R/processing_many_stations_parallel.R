@@ -33,7 +33,7 @@
 # MESS.  If not, see <http://www.gnu.org/licenses/>.
 #===============================================================================
 
-processing_many_stations <- function(dt.decluster, detrend.method, pot.threshold, N.core=0) {
+processing_many_stations <- function(dt.decluster, detrend.method, pot.threshold, Ncore=0) {
 
   filename.saveprogress <- '../output/processing_many_sites.RData'
 
@@ -76,22 +76,6 @@ processing_many_stations <- function(dt.decluster, detrend.method, pot.threshold
 
 
 
-if(Ncore>1) {
-
-
-  # testing in parallel
-  cores=detectCores()
-  #    cl <- makeCluster(cores[1]-1) #not to overload your computer
-  cl <- makeCluster(Ncore)
-  print(paste('Starting cluster with ',Ncore,' cores', sep=''))
-  registerDoParallel(cl)
-
-output <- vector('list', length(files.tg))
-  export.names <- c()
-
-  finalOutput <- foreach(dd=1:length(files.tg),
-                               #.export=export.names,
-                               .inorder=FALSE) %dopar% {
 
 
   #
@@ -100,23 +84,32 @@ output <- vector('list', length(files.tg))
   #===============================================================================
   #
 
-  #for (dd in 1:length(files.tg)) {
+  #cores = detectCores()
+  #cl <- makeCluster(cores[1]-1) #not to overload your computer
+  cl <- makeCluster(Ncore)
+  print(paste('Starting cluster with ',Ncore,' cores', sep=''))
+  registerDoParallel(cl)
+
+  output <- vector('list', length(files.tg))
+  export.names <- c()
+
+  finalOutput <- foreach(dd=1:length(files.tg),
+                               #.export=export.names,
+                               .inorder=FALSE) %dopar% {
+
 
     tbeg <- proc.time()
-    print(paste('now processing for pp-gpd data set ',dd,' / ',length(files.tg),sep=''))
 
     # difference between time stamps (in units of days)
     time.diff <- diff(data_set[[dd]]$time.days)
 
-    # check that they are in the proper order, ascending
-    print(paste('Are there any times out of order? ',any(time.diff < 0), sep=''))
-
+    # check that they are in the proper order, (ascending)
     # put everything back in order - make sure you do this for the sea levels and
     # other fields too, so do as a matrix. also recalculate the time differences,
     # which you will need for averaging
-  # Note -  data from PMSLC is all in order
-  #  data_set[[dd]] <- data_set[[dd]][order(data_set[[dd]]$time.days),]
-  #  time.diff <- diff(data_set[[dd]]$time.days)
+    # Note -  data from PMSLC is all in order
+    ##  data_set[[dd]] <- data_set[[dd]][order(data_set[[dd]]$time.days),]
+    ##  time.diff <- diff(data_set[[dd]]$time.days)
 
     # what is one hour? in units of days
     one.hours <- 1/24
@@ -129,38 +122,31 @@ output <- vector('list', length(files.tg))
     #=== means) or by subtracting annual means (moving 1-year window)
     #===
 
-    print(paste('Detrending using method `',detrend.method,'` ...', sep=''))
+    # get a placeholder
+    data_set[[dd]]$sl.detrended <- data_set[[dd]]$sl
+    time.days.beg <- min(data_set[[dd]]$time.days)
+    time.days.end <- max(data_set[[dd]]$time.days)
 
-      # get a placeholder
-      data_set[[dd]]$sl.detrended <- data_set[[dd]]$sl
-      time.days.beg <- min(data_set[[dd]]$time.days)
-      time.days.end <- max(data_set[[dd]]$time.days)
-
-      #for (tt in 1:length(data_set[[dd]]$time.days)) {
-      for (tt in 1:1000) {
-        # if within half a year of either end of the time series, include either the
-        # entire first year or entire last year to get a full year's worth of data in
-        # the subtracted mean
-        if (data_set[[dd]]$time.days[tt] - time.days.beg < (365.25*0.5)) {
-          ind.close <- which(data_set[[dd]]$time.days - time.days.beg <= 365.25)
-        } else if(time.days.end - data_set[[dd]]$time.days[tt] < (365.25*0.5)) {
-          ind.close <- which(time.days.end - data_set[[dd]]$time.days <= 365.25)
-        } else {
-          ind.close <- which(abs(data_set[[dd]]$time.days-data_set[[dd]]$time.days[tt]) <= (365.25*0.5) )
-        }
-        data_set[[dd]]$sl.detrended[tt] <- data_set[[dd]]$sl[tt] - mean(data_set[[dd]]$sl[ind.close])
+    #for (tt in 1:length(data_set[[dd]]$time.days)) {
+    for (tt in 1:1000) {
+      # if within half a year of either end of the time series, include either the
+      # entire first year or entire last year to get a full year's worth of data in
+      # the subtracted mean
+      if (data_set[[dd]]$time.days[tt] - time.days.beg < (365.25*0.5)) {
+        ind.close <- which(data_set[[dd]]$time.days - time.days.beg <= 365.25)
+      } else if(time.days.end - data_set[[dd]]$time.days[tt] < (365.25*0.5)) {
+        ind.close <- which(time.days.end - data_set[[dd]]$time.days <= 365.25)
+      } else {
+        ind.close <- which(abs(data_set[[dd]]$time.days-data_set[[dd]]$time.days[tt]) <= (365.25*0.5) )
       }
-      output[[dd]] <- data_set[[dd]]
+      data_set[[dd]]$sl.detrended[tt] <- data_set[[dd]]$sl[tt] - mean(data_set[[dd]]$sl[ind.close])
     }
-    stopCluster(cl)
-
-
+    ###output[[dd]] <- data_set[[dd]]
 
 
     # that takes some time, so save the workspace image after each data set
     save.image(file=filename.saveprogress)
 
-    print('  ... done.')
 
     #===
     #=== daily block maxima; calculate 99% quantile as GPD threshold
@@ -170,31 +156,23 @@ output <- vector('list', length(files.tg))
     days.all <- floor(data_set[[dd]]$time.days)
     days.unique <- unique(days.all)
     ind.days.to.remove <- NULL
-    print('... filtering down to do a daily maxima time series of only the days with at least 90% of data ...')
-    pb <- txtProgressBar(min=min(days.unique),max=max(days.unique),initial=0,style=3)
     for (day in days.unique) {
       ind.today <- which(floor(data_set[[dd]]$time.days) == day)
       perc.data.today <- length(ind.today)/24
       if(perc.data.today < 0.9) {ind.days.to.remove <- c(ind.days.to.remove, match(day, days.unique))}
-      setTxtProgressBar(pb, day)
     }
-    close(pb)
     days.daily.max <- days.unique[-ind.days.to.remove]
     n.days <- length(days.daily.max)
 
     # calculate the daily maximum sea levels on the days of 'days.daily.max'
     sl.daily.max <- rep(NA, n.days)
     years.daily.max <- rep(NA, n.days)
-    print('... calculating time series of daily maxima ...')
-    pb <- txtProgressBar(min=0,max=n.days,initial=0,style=3)
     for (day in days.daily.max) {
       cnt <- match(day,days.daily.max)
       ind.today <- which(days.all == day)
       sl.daily.max[cnt] <- max(data_set[[dd]]$sl.detrended[ind.today])
       years.daily.max[cnt] <- data_set[[dd]]$year[ind.today][1]
-      setTxtProgressBar(pb, cnt)
     }
-    close(pb)
 
     #===
     #=== find all the excesses, "declustering" = if two are within a day of each
@@ -202,7 +180,6 @@ output <- vector('list', length(files.tg))
     #=== of each excess)
     #===
 
-    print('... getting threshold excesses ...')
 
     # threshold is 99% quantile of tide gauge's observed values.
     # Buchanan et al (2016) use the 99% quantile of the daily maximum time series.
@@ -251,21 +228,13 @@ output <- vector('list', length(files.tg))
     # that takes some time, so save the workspace image after each data set
     save.image(file=filename.saveprogress)
 
-    tend <- proc.time()
-    print(paste('  ... done. Took ', (tend[3]-tbeg[3])/60, ' minutes.',sep=''))
 
-  #}
-
-  #
-  #===============================================================================
-  # now do the GEV/Naveau annual block maxima. calculate based on the hourly time
-  # series (data_set[[dd]]$sl.detrended)
-  #===============================================================================
-  #
-
-  #for (dd in 1:length(data_set)) {
-    # give an update to the screen
-    print(paste('starting to process annual block maxima for European data set ',dd,' / ',length(data_set),sep=''))
+    #
+    #===============================================================================
+    # now do the GEV/Naveau annual block maxima. calculate based on the hourly time
+    # series (data_set[[dd]]$sl.detrended)
+    #===============================================================================
+    #
 
     # set up object for passing through aclibration routines
     data_many[[dd]]$gev_year <- vector('list', 2)
@@ -278,23 +247,23 @@ output <- vector('list', length(files.tg))
       ind_this_year <- which(data_set[[dd]]$year==data_many[[dd]]$gev_year$year[t])
       data_many[[dd]]$gev_year$lsl_max[t] <- max(data_set[[dd]]$sl.detrended[ind_this_year])
     }
-  #}
 
-  # trim before 1850 (or whenever is time_forc[1]), which is when the temperature
-  # forcing starts. also make a note of how long each record is
-  #for (dd in 1:length(data_many)) {
+    # trim before 1850 (or whenever is time_forc[1]), which is when the temperature
+    # forcing starts. also make a note of how long each record is
     if(data_many[[dd]]$gev_year$year[1] < time_forc[1]) {
       icut <- which(data_many[[dd]]$gev_year$year < time_forc[1])
       data_many[[dd]]$gev_year$year <- data_many[[dd]]$gev_year$year[-icut]
       data_many[[dd]]$gev_year$lsl_max <- data_many[[dd]]$gev_year$lsl_max[-icut]
     }
-  }
 
+    output[[dd]] <- data_many[[dd]]
+  }
   stopCluster(cl)
 
 
-  # that doesn't take as long... so just save it once for good measure
+  # save for good measure
   save.image(file=filename.saveprogress)
+
 
   # save final 'data_many' object to RDS to use later
   today=Sys.Date(); today=format(today,format="%d%b%Y")
@@ -302,8 +271,6 @@ output <- vector('list', length(files.tg))
   saveRDS(data_many, file=filename.output)
 
   #===============================================================================
-
-  print('done processing the long tide gauge data sets')
 
 }
 

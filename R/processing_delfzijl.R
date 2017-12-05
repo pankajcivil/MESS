@@ -43,7 +43,7 @@ read_data <- function(dat.dir, filetype, septype){
 #=====================
 
 
-processing_delfzijl <- function(dt.decluster) {
+processing_delfzijl <- function(dt.decluster, detrend.method, pot.threshold) {
 
   filename.saveprogress <- '../output/processing_delfzijl.RData'
 
@@ -170,59 +170,93 @@ processing_delfzijl <- function(dt.decluster) {
   save.image(file=filename.saveprogress)
 
   #===
-  #=== subtract linear sea-level trend (from fit to monthly means)
+  #=== Detrend by either subtracting linear sea-level trend (fit to monthly
+  #=== means) or by subtracting annual means (moving 1-year window)
   #===
 
-  # calculate monthly means
+  print(paste('Detrending using method `',detrend.method,'` ...', sep=''))
 
-  dates.new <- date.mdy(time.days.3hour)
-  date.beg <- date.mdy(min(time.days.3hour))
-  date.end <- date.mdy(max(time.days.3hour))
+  if (detrend.method=='linear') {
 
-  # what the years in which we have data?
-  years.unique <- unique(dates.new$year)
+    # calculate monthly means
 
-  # in each year, what are the months with at least 90% of the data?
-  months.this.year <- vector('list', length(years.unique))
-  names(months.this.year) <- years.unique
-  years.to.remove <- NULL
-  for (year in years.unique) {
-    ind.this.year <- which(dates.new$year == year)
-    months.to.keep <- NULL
-    for (month in 1:12) {
-      ind.this.month <- which(dates.new$month[ind.this.year] == month)
-      days.this.month <- monthDays(paste(year,'-',month,'-','1', sep=''))
-      hours.this.month <- days.this.month * 24
-      # *3 because these are 3-hourly blocks
-      perc.data.this.month <- 3*length(ind.this.month)/hours.this.month
-      if (perc.data.this.month >= 0.9) {months.to.keep <- c(months.to.keep, month)}
+    dates.new <- date.mdy(time.days.3hour)
+    date.beg <- date.mdy(min(time.days.3hour))
+    date.end <- date.mdy(max(time.days.3hour))
+
+    # what the years in which we have data?
+    years.unique <- unique(dates.new$year)
+
+    # in each year, what are the months with at least 90% of the data?
+    months.this.year <- vector('list', length(years.unique))
+    names(months.this.year) <- years.unique
+    years.to.remove <- NULL
+    for (year in years.unique) {
+      ind.this.year <- which(dates.new$year == year)
+      months.to.keep <- NULL
+      for (month in 1:12) {
+        ind.this.month <- which(dates.new$month[ind.this.year] == month)
+        days.this.month <- monthDays(paste(year,'-',month,'-','1', sep=''))
+        hours.this.month <- days.this.month * 24
+        # *3 because these are 3-hourly blocks
+        perc.data.this.month <- 3*length(ind.this.month)/hours.this.month
+        if (perc.data.this.month >= 0.9) {months.to.keep <- c(months.to.keep, month)}
+      }
+      if(length(months.to.keep)>0) {months.this.year[[year]] <- months.to.keep }
+      else                         {years.to.remove <- c(years.to.remove, year)}
     }
-    if(length(months.to.keep)>0) {months.this.year[[year]] <- months.to.keep }
-    else                         {years.to.remove <- c(years.to.remove, year)}
-  }
-  if(length(years.to.remove)>0) {years.unique <- years.unique[-match(years.to.remove, years.unique)]}
+    if(length(years.to.remove)>0) {years.unique <- years.unique[-match(years.to.remove, years.unique)]}
 
-  # get the mean time (in days releative to 1 Jan 1960) of the observations of
-  # each month we are using to fit the trend for SLR
-  times.month <- rep(NA, length(unlist(months.this.year)))
-  sl.month    <- rep(NA, length(unlist(months.this.year)))
-  cnt <- 1
-  for (year in years.unique) {
-    ind.this.year <- which(dates.new$year == year)
-    for (month in months.this.year[[year]]) {
-      ind.this.month <- which(dates.new$month[ind.this.year] == month)
-      times.month[cnt] <- mean(data$time.days[ind.this.year[ind.this.month]])
-      sl.month[cnt]    <- mean(data$sl[ind.this.year[ind.this.month]])
-      cnt <- cnt + 1
+    # get the mean time (in days releative to 1 Jan 1960) of the observations of
+    # each month we are using to fit the trend for SLR
+    times.month <- rep(NA, length(unlist(months.this.year)))
+    sl.month    <- rep(NA, length(unlist(months.this.year)))
+    cnt <- 1
+    for (year in years.unique) {
+      ind.this.year <- which(dates.new$year == year)
+      for (month in months.this.year[[year]]) {
+        ind.this.month <- which(dates.new$month[ind.this.year] == month)
+        times.month[cnt] <- mean(data$time.days[ind.this.year[ind.this.month]])
+        sl.month[cnt]    <- mean(data$sl[ind.this.year[ind.this.month]])
+        cnt <- cnt + 1
+      }
     }
+
+    # fit trend
+    slr.trend <- lm(sl.month ~ times.month)
+    slr.trend.3hour <- slr.trend$coefficients[1] + slr.trend$coefficients[2]*data$time.days
+
+    # subtract off from the 1-hourly data
+    data$sl.detrended <- data$sl - slr.trend.3hour
+
+  } else if(detrend.method=='annual') {
+
+    # get a placeholder
+    data$sl.detrended <- data$sl
+    time.days.beg <- min(data$time.days)
+    time.days.end <- max(data$time.days)
+
+    pb <- txtProgressBar(min=0,max=length(data$time.days),initial=0,style=3)
+    for (tt in 1:length(data$time.days)) {
+      # if within half a year of either end of the time series, include either the
+      # entire first year or entire last year to get a full year's worth of data in
+      # the subtracted mean
+      if (data$time.days[tt] - time.days.beg < (365.25*0.5)) {
+        ind.close <- which(data$time.days - time.days.beg <= 365.25)
+      } else if(time.days.end - data$time.days[tt] < (365.25*0.5)) {
+        ind.close <- which(time.days.end - data$time.days <= 365.25)
+      } else {
+        ind.close <- which(abs(data$time.days-data$time.days[tt]) <= (365.25*0.5) )
+      }
+      data$sl.detrended[tt] <- data$sl[tt] - mean(data$sl[ind.close])
+      setTxtProgressBar(pb, tt)
+      }
+      close(pb)
+    }
+  } else {
+    print('ERROR: unknown detrend.method value')
   }
 
-  # fit trend
-  slr.trend <- lm(sl.month ~ times.month)
-  slr.trend.3hour <- slr.trend$coefficients[1] + slr.trend$coefficients[2]*data$time.days
-
-  # subtract off from the 1-hourly data
-  data$sl.detrended <- data$sl - slr.trend.3hour
   print('  ... done.')
 
   #===
@@ -271,7 +305,8 @@ processing_delfzijl <- function(dt.decluster) {
   # threshold is 99% quantile of tide gauge's observed values.
   # Buchanan et al (2016) use the 99% quantile of the daily maximum time series.
   #gpd.threshold <- as.numeric(quantile(data$sl.detrended, .99, na.rm=TRUE))
-  gpd.threshold <- as.numeric(quantile(sl.daily.max, .99, na.rm=TRUE))
+  #gpd.threshold <- as.numeric(quantile(sl.daily.max, .99, na.rm=TRUE))
+  gpd.threshold <- as.numeric(quantile(sl.daily.max, pot.threshold, na.rm=TRUE))
   data_delfzijl$dt.decluster <- dt.decluster
 
   ind.exceed <- which(sl.daily.max > gpd.threshold)
@@ -292,6 +327,7 @@ processing_delfzijl <- function(dt.decluster) {
   names(data_delfzijl$gpd) <- c('counts','year','time_length','excesses','threshold')
   # initialize
   data_delfzijl$gpd$threshold <- gpd.threshold
+  data_delfzijl$gpd$p.threshold <- pot.threshold
   data_delfzijl$gpd$counts <- data_delfzijl$gpd$year <- data_delfzijl$gpd$time_length <- rep(NA, length(years.unique))
   data_delfzijl$gpd$excesses <- vector('list', length(years.unique))
 
@@ -375,7 +411,7 @@ processing_delfzijl <- function(dt.decluster) {
 
   # save final 'data_delfzijl' object to RDS to use later
   today=Sys.Date(); today=format(today,format="%d%b%Y")
-  filename.output <- paste('../data/tidegauge_processed_delfzijl_',today,'.rds', sep='')
+  filename.output <- paste('../data/tidegauge_processed_deflzijl_decl',data_delfzijl$dt.decluster,'-pot',pot.threshold*100,'-',detrend.method,'_',today,'.rds', sep='')
   saveRDS(data_delfzijl, file=filename.output)
 
   #===============================================================================
