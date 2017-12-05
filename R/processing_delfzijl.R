@@ -231,6 +231,10 @@ processing_delfzijl <- function(dt.decluster, detrend.method, pot.threshold) {
 
   } else if(detrend.method=='annual') {
 
+    # what the years in which we have data?
+    dates.new <- date.mdy(time.days.3hour)
+    years.unique <- unique(dates.new$year)
+
     # get a placeholder
     data$sl.detrended <- data$sl
     time.days.beg <- min(data$time.days)

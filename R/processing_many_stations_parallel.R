@@ -91,10 +91,11 @@ processing_many_stations <- function(dt.decluster, detrend.method, pot.threshold
   registerDoParallel(cl)
 
   output <- vector('list', length(files.tg))
-  export.names <- c()
+  export.names <- c('decluster_timeseries')
 
   finalOutput <- foreach(dd=1:length(files.tg),
-                               #.export=export.names,
+                               .packages='date',
+                               .export=export.names,
                                .inorder=FALSE) %dopar% {
 
 
@@ -121,6 +122,10 @@ processing_many_stations <- function(dt.decluster, detrend.method, pot.threshold
     #=== Detrend by either subtracting linear sea-level trend (fit to monthly
     #=== means) or by subtracting annual means (moving 1-year window)
     #===
+
+    # what the years in which we have data?
+    dates.new <- date.mdy(data_set[[dd]]$time.days)
+    years.unique <- unique(dates.new$year)
 
     # get a placeholder
     data_set[[dd]]$sl.detrended <- data_set[[dd]]$sl
