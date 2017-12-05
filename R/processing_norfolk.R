@@ -6,10 +6,12 @@
 # has all of the necessary information to estimate (MLE) the PP/GPD parameters
 # for each of the 4 candidate model structures.
 #
-# inputs:
+# File paths expect you are in the EVT/R directory
+#
+# Inputs:
 #   dt.decluster      declustering time scale (in days)
 #   detrend.method    either 'linear' or 'annual' [block means]
-#   pot.threshold     percentile (0-100) for GPD peaks-over-thresholds cutoff
+#   pot.threshold     percentile (0-1) for GPD peaks-over-thresholds cutoff
 #
 # Questions? Tony Wong (twong@psu.edu)
 #===============================================================================
@@ -39,7 +41,7 @@ processing_norfolk <- function(dt.decluster, detrend.method, pot.threshold) {
   #=== read in tide gauge data, they're all already hourly series
   #===
 
-  dat.dir <- '~/codes/EVT/data/tide_gauge_SewellsPoint/'
+  dat.dir <- '../data/tide_gauge_SewellsPoint/'
   filetype <- 'txt'
   septype <- '\t'
 
@@ -189,6 +191,9 @@ processing_norfolk <- function(dt.decluster, detrend.method, pot.threshold) {
     print('ERROR: unknown detrend.method value')
   }
 
+  # that takes some time, so save the workspace image
+  save.image(file=filename.saveprogress)
+
   print('  ... done.')
 
   #===
@@ -237,7 +242,7 @@ processing_norfolk <- function(dt.decluster, detrend.method, pot.threshold) {
   # Buchanan et al (2016) use the 99% quantile of the daily maximum time series.
   #gpd.threshold <- as.numeric(quantile(data$sl.detrended, .99, na.rm=TRUE))
   #gpd.threshold <- as.numeric(quantile(sl.daily.max, .99, na.rm=TRUE))
-  gpd.threshold <- as.numeric(quantile(sl.daily.max, pot.threshold*0.01, na.rm=TRUE))
+  gpd.threshold <- as.numeric(quantile(sl.daily.max, pot.threshold, na.rm=TRUE))
   data_norfolk$dt.decluster <- dt.decluster
 
   ind.exceed <- which(sl.daily.max > gpd.threshold)
@@ -342,7 +347,7 @@ processing_norfolk <- function(dt.decluster, detrend.method, pot.threshold) {
 
   # save final 'data_norfolk' object to RDS to use later
   today=Sys.Date(); today=format(today,format="%d%b%Y")
-  filename.output <- paste('../data/tidegauge_processed_norfolk_decl',data_norfolk$dt.decluster,'_',today,'.rds', sep='')
+  filename.output <- paste('../data/tidegauge_processed_norfolk_decl',data_norfolk$dt.decluster,'-pot',pot.threshold*100,'-',detrend.method,'_',today,'.rds', sep='')
   saveRDS(data_norfolk, file=filename.output)
 
   #===============================================================================

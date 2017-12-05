@@ -6,6 +6,8 @@
 # has all of the necessary information to estimate (MLE) the PP/GPD parameters
 # for each of the 4 candidate model structures.
 #
+# File paths expect you are in the EVT/R directory
+#
 # Questions? Tony Wong (twong@psu.edu)
 #===============================================================================
 #===============================================================================
@@ -51,7 +53,7 @@ processing_delfzijl <- function(dt.decluster) {
   #=== read in tide gauge data
   #===
 
-  dat.dir <- '~/codes/EVT/data/Delfzijl_Oddo_data/'
+  dat.dir <- '../data/Delfzijl_Oddo_data/'
   data <- read_data(dat.dir=dat.dir, filetype='txt', septype='\t')
 
   # convert sea levels from cm to mm, consistent with the other data

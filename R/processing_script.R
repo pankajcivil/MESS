@@ -26,7 +26,14 @@
 # MESS.  If not, see <http://www.gnu.org/licenses/>.
 #===============================================================================
 
-setwd('/Users/tony/codes/EVT/R')
+if(Sys.info()['nodename']=='Tonys-MacBook-Pro.local') {
+  # Tony's local machine (if you aren't me, you almost certainly need to change this...)
+  setwd('/Users/tony/codes/EVT/R')
+} else {
+  # on Napa cluster
+  setwd('/home/scrim/axw322/codes/EVT/R')
+}
+
 
 # install some preliminary packages, or load the libraries if you already have them
 l.installpackages <- FALSE
@@ -54,6 +61,7 @@ source('read_data_temperature.R')
 # read declustering routine that you'll need to process the data files
 source('decluster_timeseries.R')
 
+
 #
 #===============================================================================
 # Read tide gauge data for in-depth analyses at three sites, and for 27 other
@@ -62,17 +70,18 @@ source('decluster_timeseries.R')
 #===============================================================================
 #
 
+
 # many long record stations
 source('processing_many_stations.R')
-processing_many_stations(3)
+processing_many_stations(dt.decluster=3, detrend.method='annual', pot.threshold=.99)
 
 # Delfzijl, the Netherlands
 source('processing_delfzijl.R')
-processing_delfzijl(3)
+processing_delfzijl(dt.decluster=3, detrend.method='annual', pot.threshold=.99)
 
 # Norfolk, Virgina, United State
 source('processing_norfolk.R')
-processing_norfolk(3)
+processing_norfolk(dt.decluster=3, detrend.method='annual', pot.threshold=.99)
 
 # Balboa, Panama
 source('processing_balboa.R')

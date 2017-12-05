@@ -12,6 +12,8 @@
 # own RDS object, for calibration. This is for simplicity and consistency with
 # the other two stations for calibration (Delfzijl and Norfolk).
 #
+# File paths expect you are in the EVT/R directory
+#
 # Questions? Tony Wong (twong@psu.edu)
 #===============================================================================
 #===============================================================================

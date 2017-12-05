@@ -8,6 +8,13 @@
 # has all of the necessary information to estimate (MLE) the PP/GPD parameters
 # for each of the 4 candidate model structures.
 #
+# File paths expect you are in the EVT/R directory
+#
+# Inputs:
+#   dt.decluster      declustering time scale (in days)
+#   detrend.method    either 'linear' or 'annual' [block means]
+#   pot.threshold     percentile (0-1) for GPD peaks-over-thresholds cutoff
+#
 # Questions? Tony Wong (twong@psu.edu)
 #===============================================================================
 #===============================================================================
@@ -26,7 +33,7 @@
 # MESS.  If not, see <http://www.gnu.org/licenses/>.
 #===============================================================================
 
-processing_many_stations <- function(dt.decluster) {
+processing_many_stations <- function(dt.decluster, detrend.method, pot.threshold) {
 
   filename.saveprogress <- '../output/processing_many_sites.RData'
 
@@ -37,7 +44,7 @@ processing_many_stations <- function(dt.decluster) {
   #===
 
   filetype='csv'
-  dat.dir <- '~/codes/EVT/data/tide_gauge_long/'
+  dat.dir <- '../data/tide_gauge_long/'
   files.tg <- list.files(path=dat.dir, pattern=filetype)
 
   data_set <- vector('list', length(files.tg))

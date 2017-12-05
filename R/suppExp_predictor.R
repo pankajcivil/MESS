@@ -33,6 +33,8 @@
 # MESS.  If not, see <http://www.gnu.org/licenses/>.
 #===============================================================================
 
+rm(list=ls())
+
 # some preliminaries
 station <- 'norfolk'
 output.dir <- '../output/'
@@ -46,9 +48,7 @@ appen <- paste('suppExp_temperatures_',station,today,sep='_')
 
 
 # data for calibration:
-
-data_calib <- readRDS('../data/tidegauge_processed_norfolk_decl3_12Nov2017.rds')
-
+data_calib <- readRDS('../data/tidegauge_processed_norfolk_decl3-pot99-annual_05Dec2017.rds')
 
 # install some preliminary packages, or load the libraries if you already have them
 l.installpackages <- FALSE
@@ -121,7 +121,7 @@ for (mm in 1:length(months)) {
 }
 
 # Useful note:  if [year] %% 4 == 0, then you're in a leap year
-for (yy in 1:n_years) {
+for (yy in 1:n_year) {
   if (years[yy] %% 4 == 0) {
     # leap year
     temp_annual[yy] <- sum(temp_monthly[yy,] * wgts_leap)
