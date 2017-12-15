@@ -19,8 +19,9 @@
 # 8. Also write a uniform priors object, using the same bounds as were imposed
 #    on the MLE parameter search
 #
+# Updated 11 Dec 2017 // revised processing // tony wong
+#
 # Questions? Tony Wong (twong@psu.edu)
-#===============================================================================
 #===============================================================================
 # Copyright 2017 Tony Wong
 #
@@ -38,17 +39,18 @@
 #===============================================================================
 
 #rm(list=ls())
-NP.deoptim000 <- 100      # number of DE population members (at least 10*[# parameters])
-niter.deoptim000 <- 100   # number of DE iterations
-#n_node000 <- 1            # number of CPUs to use
+.NP.deoptim <- 100      # number of DE population members (at least 10*[# parameters])
+.niter.deoptim <- 100   # number of DE iterations
+.Ncore <- 1            # number of CPUs to use, if parallelizing something
 output.dir <- '../output/'
 filename.saveprogress <- '../output/fitting_priors.RData'
 l.doprocessing <- 'FALSE'  # true if you need to run the processing
                           # false -> read in some previous RDS processing results,
                           # with the filenames defined below
-filename.many <- '../data/tidegauge_processed_manystations_26Jul2017.rds'
-filename.delfzijl <- '../data/tidegauge_processed_delfzijl_26Jul2017.rds'
-filename.norfolk <- '../data/tidegauge_processed_norfolk_26Jul2017.rds'
+filename.many <- '../data/tidegauge_processed_manystations_decl3-pot99-annual_10Dec2017.rds'
+filename.delfzijl <- '../data/tidegauge_processed_delfzijl_decl3-pot99-annual_06Dec2017.rds'
+filename.norfolk <- '../data/tidegauge_processed_norfolk_decl3-pot99-annual_06Dec2017.rds'
+filename.balboa <- '../data/tidegauge_processed_balboa_decl3-pot99-annual_11Dec2017.rds'
 # don't need filename.balboa because it is a part of 'data_many' object
 #setwd('/storage/home/axw322/work/codes/EVT/R')
 setwd('/Users/tony/codes/EVT/R')
@@ -56,7 +58,7 @@ appen <- 'ppgpd'
 
 #
 #===============================================================================
-# relevant libraries - do 'install.pacakges([library name])' if you do not have
+# relevant libraries - do 'install.packages([library name])' if you do not have
 # one yet
 #===============================================================================
 #
@@ -77,6 +79,7 @@ library(ncdf4)
 
 print('reading temperature data...')
 
+# using global annual mean temperature
 source('read_data_temperature.R')
 
 print('...done.')
@@ -127,8 +130,8 @@ print('...done.')
 
 #NP.deoptim <- 200
 #niter.deoptim <- 200
-NP.deoptim <- NP.deoptim000
-niter.deoptim <- niter.deoptim000
+NP.deoptim <- .NP.deoptim
+niter.deoptim <- .niter.deoptim
 F.deoptim <- 0.8
 CR.deoptim <- 0.9
 

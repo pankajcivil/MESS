@@ -46,9 +46,11 @@ today <- Sys.Date(); today=format(today,format="%d%b%Y")
 
 appen <- paste('suppExp_temperatures_',station,today,sep='_')
 
+filename.saveprogress <- paste('../output/suppExp_predictor_norfolk_',today,'.RData',sep='')
+
 
 # data for calibration:
-data_calib <- readRDS('../data/tidegauge_processed_norfolk_decl3-pot99-annual_05Dec2017.rds')
+data_calib <- readRDS('../data/tidegauge_processed_norfolk_decl3-pot99-annual_06Dec2017.rds')
 
 # install some preliminary packages, or load the libraries if you already have them
 l.installpackages <- FALSE
@@ -238,13 +240,19 @@ for (predictor in names_predictor) {
     metrics$bic[predictor,gpd.type] <- -2*metrics$maxlik[predictor,gpd.type] + length(parnames_all[[gpd.type]])*log(length(data_calib$gpd$counts_all))
   }
 }
-
 #===============================================================================
 
 
+#===============================================================================
+# Save results; can come back later
+save.image(file=filename.saveprogress)
+#===============================================================================
 
 
-
+#===============================================================================
+# TODO - FIGURE? or TABLE?
+#                                      >>> TODO <<<
+#===============================================================================
 
 #
 #===============================================================================

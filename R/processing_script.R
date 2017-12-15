@@ -95,18 +95,19 @@ if(machine=='local') {
 } else {
   print('ERROR: unknown machine')
 }
-processing_many_stations(dt.decluster=.dt.decluster, detrend.method='annual', pot.threshold=.99, Ncore=.Ncore)
+processing_many_stations(dt.decluster=.dt.decluster, detrend.method='annual', pot.threshold=0.99, Ncore=.Ncore)
 
 # Delfzijl, the Netherlands
-#source('processing_delfzijl.R')
-#processing_delfzijl(dt.decluster=.dt.decluster, detrend.method='annual', pot.threshold=.99)
+source('processing_delfzijl.R')
+processing_delfzijl(dt.decluster=.dt.decluster, detrend.method='annual', pot.threshold=0.99)
 
 # Norfolk, Virgina, United State
-#source('processing_norfolk.R')
-#processing_norfolk(dt.decluster=.dt.decluster, detrend.method='annual', pot.threshold=.99)
+source('processing_norfolk.R')
+processing_norfolk(dt.decluster=.dt.decluster, detrend.method='annual', pot.threshold=0.99)
 
 # Balboa, Panama
-#source('processing_balboa.R')
+source('processing_balboa.R')
+processing_balboa(dt.decluster=.dt.decluster, detrend.method='annual', pot.threshold=0.99)
 
 #
 #===============================================================================
