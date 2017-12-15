@@ -33,42 +33,51 @@ type.of.priors <- 'normalgamma'      # can be either 'uniform' or 'normalgamma'
 niter_mcmc_prelim000 <- 5e3      # number of MCMC iterations (PRELIMINARY chains)
 nnode_mcmc_prelim000 <- 1        # number of CPUs to use (PRELIMINARY chains)
 niter_mcmc_prod000 <- 5e5        # number of MCMC iterations (PRODUCTION chains)
-nnode_mcmc_prod000 <- 10          # number of CPUs to use (PRODUCTION chains)
+#nnode_mcmc_prod000 <- 10          # number of CPUs to use (PRODUCTION chains)
 gamma_mcmc000 <- 0.5             # speed of adaptation (0.5=faster, 1=slowest)
 
-filename.mles <- 'surge_MLEs_ppgpd_26Jul2017.rds'  # file holding the 'deoptim.all' object with the MLEs (for initial parameters)
+filename.mles <- 'surge_MLEs_ppgpd_14Dec2017.rds'  # file holding the 'deoptim.all' object with the MLEs (for initial parameters)
 
 output.dir <- '../output/'
 dat.dir <- '../data/'
 
-setwd('/home/scrim/axw322/codes/EVT/R')
-#setwd('/Users/tony/codes/EVT/R')
 
-# ^^^ IMPORTANT SETTINGS YOU SHOULD MODIFY, DEPENDING ON THE EXPERIMENT ^^^ 
+if(Sys.info()['nodename']=='Tonys-MacBook-Pro.local') {
+  # Tony's local machine (if you aren't me, you almost certainly need to change this...)
+  machine <- 'local'
+  setwd('/Users/tony/codes/EVT/R')
+  nnode_mcmc_prod000 <- 1          # number of CPUs to use (PRODUCTION chains)
+} else {
+  # assume on Napa cluster
+  machine <- 'remote'
+  setwd('/home/scrim/axw322/codes/EVT/R')
+  nnode_mcmc_prod000 <- 10          # number of CPUs to use (PRODUCTION chains)
+}
+
+
+
+# ^^^ IMPORTANT SETTINGS YOU SHOULD MODIFY, DEPENDING ON THE EXPERIMENT ^^^
 
 #
 #===============================================================================
-# Nothing below here should need to be modified. And really, all you ought to
-# need to do is adjust the name of the station to calibrate, or the set of prior
-# distributions for a supplementary experiment.
+# Here, set the file names for the prior distribution RDS file from the 'fit
+# priors' script and the calibration data files from the processing scripts.
 #===============================================================================
 #
 
-# On with the show!
-
-filename.priors <- paste('surge_priors_',type.of.priors,'_ppgpd_26Jul2017.rds',sep='')
+filename.priors <- paste('surge_priors_',type.of.priors,'_ppgpd_14Dec2017.rds',sep='')
 
 if (station=='delfzijl') {
   appen <- paste('ppgpd-experiments_delfzijl',type.of.priors,sep='_')
-  filename.datacalib <- 'tidegauge_processed_delfzijl_26Jul2017.rds' # file holding the calibration data object for Delfzijl
+  filename.datacalib <- 'tidegauge_processed_delfzijl_decl3-pot99-annual_06Dec2017.rds' # file holding the calibration data object for Delfzijl
   ind.in.mles <- 29
 } else if (station=='norfolk') {
   appen <- paste('ppgpd-experiments_norfolk',type.of.priors,sep='_')
-  filename.datacalib <- 'tidegauge_processed_norfolk_26Jul2017.rds' # file holding the calibration data object for Norfolk
+  filename.datacalib <- 'tidegauge_processed_norfolk_decl3-pot99-annual_06Dec2017.rds' # file holding the calibration data object for Norfolk
   ind.in.mles <- 30
 } else if (station=='balboa') {
   appen <- paste('ppgpd-experiments_balboa',type.of.priors,sep='_')
-  filename.datacalib <- 'tidegauge_processed_balboa_26Jul2017.rds' # file holding the calibration data object for Balboa
+  filename.datacalib <- 'tidegauge_processed_balboa_decl3-pot99-annual_11Dec2017.rds' # file holding the calibration data object for Balboa
   ind.in.mles <- 10
 }
 
@@ -203,13 +212,13 @@ if(FALSE){
 bounds <- rbind( c(0.007, 0.014), c(240, 550), c(-0.25, 0.45))
 par(mfrow=c(5,3))
 for (gpd.exp in gpd.experiments) {
-  for (p in 1:3) {hist(amcmc_prelim[[gpd.exp]]$gpd3$samples[3e4:5e4,p], xlab=parnames_all$gpd3[p], main='', xlim=bounds[p,])}
+  for (p in 1:3) {hist(amcmc_prelim[[gpd.exp]]$gpd3$samples[(0.5*niter_mcmc):niter_mcmc,p], xlab=parnames_all$gpd3[p], main='', xlim=bounds[p,])}
 }
 # preliminary plot: gpd6
 bounds <- rbind( c(0, 0.015), c(-0.01, 0.02), c(4.4, 7), c(-2, 2), c(-0.7, 1), c(-1.5, 2))
 par(mfrow=c(5,6))
 for (gpd.exp in gpd.experiments) {
-  for (p in 1:6) {hist(amcmc_prelim[[gpd.exp]]$gpd3$samples[3e4:5e4,p], xlab=parnames_all$gpd6[p], main='', xlim=bounds[p,])}
+  for (p in 1:6) {hist(amcmc_prelim[[gpd.exp]]$gpd3$samples[(0.5*niter_mcmc):niter_mcmc,p], xlab=parnames_all$gpd6[p], main='', xlim=bounds[p,])}
 }
 # preliminary plot: all as kernel density estimates
 bounds.plot <- vector('list', nmodel); names(bounds.plot) <- types.of.gpd
@@ -225,7 +234,7 @@ model <- 'gpd3'; nnode <- 512
 colors <- c('black','brown','goldenrod','orange','red')
 for (p in 1:length(parnames_all[[model]])) {
     for (gpd.exp in gpd.experiments) {
-        tmp <- density(x=amcmc_prelim[[gpd.exp]][[model]]$samples[3e4:5e4,p], n=nnode, from=bounds[p,1], to=bounds[p,2])
+        tmp <- density(x=amcmc_prelim[[gpd.exp]][[model]]$samples[(0.5*niter_mcmc):niter_mcmc,p], n=nnode, from=bounds[p,1], to=bounds[p,2])
         if(gpd.exp == 'gpd30') {
             plot(tmp$x, tmp$y, xlab=parnames_all[[model]][p], ylab='Density', main='', xlim=bounds[p,], col=colors[1], type='l', lwd=2, ylim=c(0, 2*max(tmp$y)))
         } else {

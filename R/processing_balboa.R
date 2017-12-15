@@ -32,6 +32,8 @@
 # MESS.  If not, see <http://www.gnu.org/licenses/>.
 #===============================================================================
 
+processing_balboa <- function(dt.decluster, detrend.method, pot.threshold) {
+
 filename.saveprogress <- '../output/processing_balboa.RData'
 
 print('starting to process Balboa tide gauge data')
@@ -40,9 +42,10 @@ print('starting to process Balboa tide gauge data')
 #=== read in previous processed 'data_many' object, and pluck off Balboa
 #===
 
-data_many <- readRDS('../data/tidegauge_processed_manystations_26Jul2017.rds')
+data_many <- readRDS('../data/tidegauge_processed_manystations_decl3-pot99-annual_10Dec2017.rds')
 
 data_balboa <- data_many$rqh0302
+data_balboa$dt.decluster <- dt.decluster
 
 #
 #===============================================================================
@@ -71,12 +74,14 @@ save.image(file=filename.saveprogress)
 
 # save final 'data_balboa' object to RDS to use later
 today=Sys.Date(); today=format(today,format="%d%b%Y")
-filename.output <- paste('../data/tidegauge_processed_balboa_',today,'.rds', sep='')
+filename.output <- paste('../data/tidegauge_processed_balboa_decl',data_balboa$dt.decluster,'-pot',pot.threshold*100,'-',detrend.method,'_',today,'.rds', sep='')
 saveRDS(data_balboa, file=filename.output)
 
 #===============================================================================
 
 print('done processing the Balboa, Panama tide gauge data set')
+
+}
 
 #===============================================================================
 # End
