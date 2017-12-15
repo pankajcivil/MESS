@@ -43,7 +43,7 @@ if(Sys.info()['nodename']=='Tonys-MacBook-Pro.local') {
   # assume on Napa cluster
   machine <- 'remote'
   setwd('/home/scrim/axw322/codes/EVT/R')
-  .Ncore <- 15  # use multiple cores to process the many tide gauge stations
+  .Ncore <- 14  # use multiple cores to process the many tide gauge stations
 }
 #===============================================================================
 
@@ -98,12 +98,12 @@ if(machine=='local') {
 processing_many_stations(dt.decluster=.dt.decluster, detrend.method='annual', pot.threshold=.99, Ncore=.Ncore)
 
 # Delfzijl, the Netherlands
-source('processing_delfzijl.R')
-processing_delfzijl(dt.decluster=.dt.decluster, detrend.method='annual', pot.threshold=.99)
+#source('processing_delfzijl.R')
+#processing_delfzijl(dt.decluster=.dt.decluster, detrend.method='annual', pot.threshold=.99)
 
 # Norfolk, Virgina, United State
-source('processing_norfolk.R')
-processing_norfolk(dt.decluster=.dt.decluster, detrend.method='annual', pot.threshold=.99)
+#source('processing_norfolk.R')
+#processing_norfolk(dt.decluster=.dt.decluster, detrend.method='annual', pot.threshold=.99)
 
 # Balboa, Panama
 #source('processing_balboa.R')

@@ -254,9 +254,8 @@ processing_delfzijl <- function(dt.decluster, detrend.method, pot.threshold) {
       }
       data$sl.detrended[tt] <- data$sl[tt] - mean(data$sl[ind.close])
       setTxtProgressBar(pb, tt)
-      }
-      close(pb)
     }
+    close(pb)
   } else {
     print('ERROR: unknown detrend.method value')
   }
