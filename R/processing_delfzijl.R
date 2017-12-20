@@ -201,9 +201,8 @@ processing_delfzijl <- function(dt.decluster, detrend.method, pot.threshold) {
       }
       sl_3hour_detrended[tt] <- sl_3hour[tt] - mean(sl_3hour[ind.close])
       setTxtProgressBar(pb, tt)
-      }
-      close(pb)
     }
+    close(pb)
   } else {
     print('ERROR: unknown detrend.method value')
   }

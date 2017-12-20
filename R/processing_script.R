@@ -43,7 +43,7 @@ if(Sys.info()['nodename']=='Tonys-MacBook-Pro.local') {
   # assume on Napa cluster
   machine <- 'remote'
   setwd('/home/scrim/axw322/codes/EVT/R')
-  .Ncore <- 15  # use multiple cores to process the many tide gauge stations
+  .Ncore <- 14  # use multiple cores to process the many tide gauge stations
 }
 #===============================================================================
 

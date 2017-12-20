@@ -91,15 +91,13 @@ processing_many_stations <- function(dt.decluster, detrend.method, pot.threshold
   registerDoParallel(cl)
 
   output <- vector('list', length(files.tg))
-  export.names <- c('decluster_timeseries')
+  names(output) <- names(data_set)
+  export.names <- c('decluster_timeseries','time_forc')
 
   finalOutput <- foreach(dd=1:length(files.tg),
                                .packages='date',
                                .export=export.names,
-                               .inorder=FALSE) %dopar% {
-
-
-    tbeg <- proc.time()
+                               .inorder=TRUE) %dopar% {
 
     # difference between time stamps (in units of days)
     time.diff <- diff(data_set[[dd]]$time.days)
@@ -132,8 +130,7 @@ processing_many_stations <- function(dt.decluster, detrend.method, pot.threshold
     time.days.beg <- min(data_set[[dd]]$time.days)
     time.days.end <- max(data_set[[dd]]$time.days)
 
-    #for (tt in 1:length(data_set[[dd]]$time.days)) {
-    for (tt in 1:1000) {
+    for (tt in 1:length(data_set[[dd]]$time.days)) {
       # if within half a year of either end of the time series, include either the
       # entire first year or entire last year to get a full year's worth of data in
       # the subtracted mean
@@ -150,7 +147,7 @@ processing_many_stations <- function(dt.decluster, detrend.method, pot.threshold
 
 
     # that takes some time, so save the workspace image after each data set
-    save.image(file=filename.saveprogress)
+    #save.image(file=filename.saveprogress)
 
 
     #===
@@ -231,7 +228,7 @@ processing_many_stations <- function(dt.decluster, detrend.method, pot.threshold
     data_many[[dd]]$gpd$time_length_all <- length(days.daily.max)
 
     # that takes some time, so save the workspace image after each data set
-    save.image(file=filename.saveprogress)
+    #save.image(file=filename.saveprogress)
 
 
     #
@@ -264,9 +261,12 @@ processing_many_stations <- function(dt.decluster, detrend.method, pot.threshold
     output[[dd]] <- data_many[[dd]]
   }
   stopCluster(cl)
-
+  data_many <- finalOutput
+##  names(data_many) <- names(finalOutput)
+  names(data_many) <- names(data_set)
 
   # save for good measure
+  # in parallel version, only save once so the nodes aren't all tripping over each other
   save.image(file=filename.saveprogress)
 
 
