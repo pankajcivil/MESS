@@ -36,7 +36,7 @@ niter_mcmc_prod000 <- 5e5        # number of MCMC iterations (PRODUCTION chains)
 #nnode_mcmc_prod000 <- 10          # number of CPUs to use (PRODUCTION chains)
 gamma_mcmc000 <- 0.5             # speed of adaptation (0.5=faster, 1=slowest)
 
-filename.mles <- 'surge_MLEs_ppgpd_14Dec2017.rds'  # file holding the 'deoptim.all' object with the MLEs (for initial parameters)
+filename.mles <- 'surge_MLEs_ppgpd_20Dec2017.rds'  # file holding the 'deoptim.all' object with the MLEs (for initial parameters)
 
 output.dir <- '../output/'
 dat.dir <- '../data/'
@@ -65,11 +65,11 @@ if(Sys.info()['nodename']=='Tonys-MacBook-Pro.local') {
 #===============================================================================
 #
 
-filename.priors <- paste('surge_priors_',type.of.priors,'_ppgpd_14Dec2017.rds',sep='')
+filename.priors <- paste('surge_priors_',type.of.priors,'_ppgpd_20Dec2017.rds',sep='')
 
 if (station=='delfzijl') {
   appen <- paste('ppgpd-experiments_delfzijl',type.of.priors,sep='_')
-  filename.datacalib <- 'tidegauge_processed_delfzijl_decl3-pot99-annual_06Dec2017.rds' # file holding the calibration data object for Delfzijl
+  filename.datacalib <- 'tidegauge_processed_deflzijl_decl3-pot99-annual_20Dec2017.rds' # file holding the calibration data object for Delfzijl
   ind.in.mles <- 29
 } else if (station=='norfolk') {
   appen <- paste('ppgpd-experiments_norfolk',type.of.priors,sep='_')

@@ -48,7 +48,7 @@ l.doprocessing <- 'FALSE'  # true if you need to run the processing
                           # false -> read in some previous RDS processing results,
                           # with the filenames defined below
 filename.many <- '../data/tidegauge_processed_manystations_decl3-pot99-annual_10Dec2017.rds'
-filename.delfzijl <- '../data/tidegauge_processed_delfzijl_decl3-pot99-annual_06Dec2017.rds'
+filename.delfzijl <- '../data/tidegauge_processed_deflzijl_decl3-pot99-annual_20Dec2017.rds'
 filename.norfolk <- '../data/tidegauge_processed_norfolk_decl3-pot99-annual_06Dec2017.rds'
 filename.balboa <- '../data/tidegauge_processed_balboa_decl3-pot99-annual_11Dec2017.rds'
 # don't need filename.balboa because it is a part of 'data_many' object

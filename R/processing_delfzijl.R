@@ -201,8 +201,9 @@ processing_delfzijl <- function(dt.decluster, detrend.method, pot.threshold) {
       }
       sl_3hour_detrended[tt] <- sl_3hour[tt] - mean(sl_3hour[ind.close])
       setTxtProgressBar(pb, tt)
+      }
+      close(pb)
     }
-    close(pb)
   } else {
     print('ERROR: unknown detrend.method value')
   }
@@ -247,7 +248,7 @@ processing_delfzijl <- function(dt.decluster, detrend.method, pot.threshold) {
     cnt <- match(day,days.daily.max)
     ind.today <- which(days.all == day)
     sl.daily.max[cnt] <- max(sl_3hour_detrended[ind.today])
-    years.daily.max[cnt] <- data$year[ind.today][1]
+    years.daily.max[cnt] <- year_3hour[ind.today][1]
     setTxtProgressBar(pb, cnt)
   }
   close(pb)
@@ -369,7 +370,7 @@ processing_delfzijl <- function(dt.decluster, detrend.method, pot.threshold) {
 
   # save final 'data_delfzijl' object to RDS to use later
   today=Sys.Date(); today=format(today,format="%d%b%Y")
-  filename.output <- paste('../data/tidegauge_processed_deflzijl_decl',data_delfzijl$dt.decluster,'-pot',pot.threshold*100,'-',detrend.method,'_',today,'.rds', sep='')
+  filename.output <- paste('../data/tidegauge_processed_deflzijl_decl',data_delfzijl$dt.decluster,'_pot',pot.threshold*100,'-',detrend.method,'_',today,'.rds', sep='')
   saveRDS(data_delfzijl, file=filename.output)
 
   #===============================================================================
