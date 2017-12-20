@@ -13,16 +13,16 @@
 #===============================================================================
 # Copyright 2017 Tony Wong
 #
-# MESS is free software: you can redistribute it and/or modify it under the 
-# terms of the GNU General Public License as published by the Free Software 
-# Foundation, either version 3 of the License, or (at your option) any later 
+# MESS is free software: you can redistribute it and/or modify it under the
+# terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later
 # version.
 #
-# MESS is distributed in the hope that it will be useful, but WITHOUT ANY 
-# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR 
+# MESS is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR
 # A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-# 
-# You should have received a copy of the GNU General Public License along with 
+#
+# You should have received a copy of the GNU General Public License along with
 # MESS.  If not, see <http://www.gnu.org/licenses/>.
 #===============================================================================
 
@@ -48,14 +48,14 @@ filename.norfolk.normalgamma <-  paste(output.dir,'calibratedParameters_ppgpd-ex
 filename.norfolk.uniform <-      paste(output.dir,'calibratedParameters_ppgpd-experiments_norfolk_uniform_27Jul2017.nc',     sep='')
 filename.balboa.normalgamma <-   paste(output.dir,'calibratedParameters_ppgpd-experiments_balboa_normalgamma_28Jul2017.nc',  sep='')
 filename.balboa.uniform <-       paste(output.dir,'calibratedParameters_ppgpd-experiments_balboa_uniform_28Jul2017.nc',      sep='')
-filename.delfzijl.normalgamma <- paste(output.dir,'calibratedParameters_ppgpd-experiments_delfzijl_normalgamma_29Jul2017.nc',sep='')
+filename.delfzijl.normalgamma <- paste(output.dir,'calibratedParameters_ppgpd-experiments_delfzijl_normalgamma_15Dec2017.nc',sep='')
 filename.delfzijl.uniform <-     paste(output.dir,'calibratedParameters_ppgpd-experiments_delfzijl_uniform_29Jul2017.nc',    sep='')
 
-filename.norfolk.data <- '../data/tidegauge_processed_norfolk_26Jul2017.rds'
-filename.balboa.data <- '../data/tidegauge_processed_balboa_26Jul2017.rds'
-filename.delfzijl.data <- '../data/tidegauge_processed_delfzijl_26Jul2017.rds'
+filename.norfolk.data <- '../data/tidegauge_processed_norfolk_decl3-pot99-annual_06Dec2017.rds'
+filename.balboa.data <- '../data/tidegauge_processed_balboa_decl3-pot99-annual_11Dec2017.rds'
+filename.delfzijl.data <- '../data/tidegauge_processed_delfzijl_decl3-pot99-annual_06Dec2017.rds'
 
-filename.priors <- '../output/surge_priors_normalgamma_ppgpd_26Jul2017.rds'
+filename.priors <- '../output/surge_priors_normalgamma_ppgpd_14Dec2017.rds'
 
 # file to save progress as you run
 filename.saveprogress <- '../output/analysis_inprogress.RData'
@@ -358,8 +358,8 @@ save.image(file=filename.saveprogress)
 #            each site.
 
 site <- 'Delfzijl'
-load(paste('../output/sensitivity_returnlevels_mcmc_',site,'_04Aug2017.RData', sep=''))
-returnlevel <- readRDS(paste('../output/sensitivity_returnlevels_',site,'_04Aug2017.rds', sep=''))
+load(paste('../output/sensitivity_returnlevels_mcmc_',site,'_16Dec2017.RData', sep=''))
+returnlevel <- readRDS(paste('../output/sensitivity_returnlevels_',site,'_16Dec2017.rds', sep=''))
 nblocks <- length(returnlevel)
 
 ## Calculate the quantiles to plot

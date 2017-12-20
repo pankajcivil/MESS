@@ -26,23 +26,6 @@
 # MESS.  If not, see <http://www.gnu.org/licenses/>.
 #===============================================================================
 
-library(date)
-
-#=====================
-# function to read the tide gauge data set(s)
-read_data <- function(dat.dir, filetype, septype){
-  files.tg <- list.files(path=dat.dir, pattern=filetype)
-  data <- read.table(paste(dat.dir,files.tg[1],sep=''), header = TRUE, sep=septype)
-  if(length(files.tg) > 1) {
-    for (ff in 2:length(files.tg)) {
-      data <- rbind(data, read.table(paste(dat.dir,files.tg[ff],sep=''), header = TRUE, sep=septype))
-    }
-  }
-  return(data)
-}
-#=====================
-
-
 processing_delfzijl <- function(dt.decluster, detrend.method, pot.threshold) {
 
   filename.saveprogress <- '../output/processing_delfzijl.RData'
@@ -53,15 +36,15 @@ processing_delfzijl <- function(dt.decluster, detrend.method, pot.threshold) {
   #=== read in tide gauge data
   #===
 
-  dat.dir <- '../data/Delfzijl_Oddo_data/'
-  data <- read_data(dat.dir=dat.dir, filetype='txt', septype='\t')
+  data <- read.table('../data/id1-DELFZL-187901010000-201701012359.txt', header = TRUE, sep=';', skip=4)
+  data <- data[,c(3,4,6)]
+  names(data) <- c('date','time','sl')
+  data$sl <- data$sl*10 # convert to mm from cm
 
-  # convert sea levels from cm to mm, consistent with the other data
-  data$sl <- 10* data$sl
-
+  # separate date-stamp into year / month / day
   data$year   <- as.numeric(substr(as.character(data$date), start=1, stop=4))
-  data$month  <- as.numeric(substr(as.character(data$date), start=5, stop=6))
-  data$day    <- as.numeric(substr(as.character(data$date), start=7, stop=8))
+  data$month  <- as.numeric(substr(as.character(data$date), start=6, stop=7))
+  data$day    <- as.numeric(substr(as.character(data$date), start=9, stop=10))
   data$hour   <- as.numeric(substr(data$time, 1,2))
   data$minute <- as.numeric(substr(data$time, 4,5))
 
@@ -96,7 +79,7 @@ processing_delfzijl <- function(dt.decluster, detrend.method, pot.threshold) {
   time.diff <- diff(data$time.days)
 
   #===
-  #=== first, need to average up to 3-hourly time series
+  #=== first, need to *subsample* up to 3-hourly time series (c.f. email with Rijkwaterstaat, Alexander Bakker)
   #===
 
   # what is three hours? in units of days
@@ -110,61 +93,25 @@ processing_delfzijl <- function(dt.decluster, detrend.method, pot.threshold) {
   iokay <- which( (time.diff < (three.hours+10/(24*60*60))) & (time.diff > (three.hours-10/(24*60*60))) )
   ishort <- which(time.diff < (three.hours-10/(24*60*60)))
 
-  i10min <- which( (time.diff < (10/60/24+10/(24*60*60))) & (time.diff > (10/60/24-10/(24*60*60))) )
-  i1hour <- which( (time.diff < (1/24+10/(24*60*60))) & (time.diff > (1/24-10/(24*60*60))) )
-  i3hour <- which( (time.diff < (3/24+10/(24*60*60))) & (time.diff > (3/24-10/(24*60*60))) )
+  # turns out with the Rijkwaterstaat data set, have a lot of different time
+  # intervals, but no gaps longer than 3 hours.  upscale the less-than-3-hourly
+  # data to 3-hourly
 
-  tnew.1hour <- seq(from=data$time.days[max(i3hour)]+three.hours, to=data$time.days[max(i1hour)], by=three.hours)
-  tnew.10min <- seq(from=data$time.days[max(i1hour)]+three.hours, to=data$time.days[max(i10min)], by=three.hours)
-  tnew.3hour <- data$time.days[i3hour]
+  # in a perfect world, these are the times at which we have obs, and we just
+  # need to pluck out the observations at these time points
+  time_beg <- min(data$time.days)
+  time_end <- max(data$time.days)
+  delta_t <- 3/24   # time step of 3 hours, units of days
+  time_3hour <- seq(from=time_beg, to=time_end, by=delta_t)
 
-  # there is one missing 3-hour data point, between indices 239599 and 239600
-  # the 3-hourly data get averaged up to daily maxima time series; just ignore
-  # this and any other gaps, since the largest one is 8 hours in November 2014.
-  # still have enough data to get a meaningful daily maximum.
+  # go through the entire time.days vector; you know there are no obs gaps longer
+  # than 3 hours, so each of the 3-hour intervals has at least one observation in
+  # it. grab the one closest to the mark (without going over?)
+  # warning: this will take a while (~1 hour, maybe a bit more, on laptop)
 
-  time.days.3hour <- c(tnew.3hour, tnew.1hour, tnew.10min)
-
-  # average up to three hourly time series
-
-  sl.3hour <- rep(NA, length(time.days.3hour))
-  year.3hour <- rep(NA, length(time.days.3hour))
-
-  # plug in the data that are already 3-hourly
-  sl.3hour[1:length(tnew.3hour)] <- data$sl[i3hour]
-  year.3hour[1:length(tnew.3hour)] <- data$year[i3hour]
-
-  # average up the data that are 1-hourly
-  print('Averaging hourly measurements up to 3-hourly...')
-  pb <- txtProgressBar(min=0,max=length(tnew.1hour),initial=0,style=3)
-  sl.tmp <- rep(NA, length(tnew.1hour))
-  year.tmp <- rep(NA, length(tnew.1hour))
-  for (t in 1:length(tnew.1hour)) {
-    itmp <- which( (data$time.days > (tnew.1hour[t]-three.hours)) & (data$time.days <= tnew.1hour[t]) )
-    sl.tmp[t] <- mean(data$sl[itmp], na.rm=TRUE)
-    year.tmp[t] <- median(data$year[itmp], na.rm=TRUE)
-    setTxtProgressBar(pb, t)
-  }
-  close(pb)
-  print('   ... done.')
-  sl.3hour[(length(tnew.3hour)+1):(length(tnew.3hour)+length(tnew.1hour))] <- sl.tmp
-  year.3hour[(length(tnew.3hour)+1):(length(tnew.3hour)+length(tnew.1hour))] <- year.tmp
-
-  # average up the data that are 10-minutely
-  print('Averaging 10-minutely measurements up to 3-hourly...')
-  pb <- txtProgressBar(min=0,max=length(tnew.10min),initial=0,style=3)
-  sl.tmp <- rep(NA, length(tnew.10min))
-  year.tmp <- rep(NA, length(tnew.10min))
-  for (t in 1:length(tnew.10min)) {
-    itmp <- which( (data$time.days > (tnew.10min[t]-three.hours)) & (data$time.days <= tnew.10min[t]) )
-    sl.tmp[t] <- mean(data$sl[itmp], na.rm=TRUE)
-    year.tmp[t] <- median(data$year[itmp], na.rm=TRUE)
-    setTxtProgressBar(pb, t)
-  }
-  close(pb)
-  print('   ... done.')
-  sl.3hour[(length(tnew.3hour)+length(tnew.1hour)+1):length(sl.3hour)] <- sl.tmp
-  year.3hour[(length(tnew.3hour)+length(tnew.1hour)+1):length(sl.3hour)] <- year.tmp
+  ind_map3hour <- sapply(1:length(time_3hour), function(t) {which.min(abs(time_3hour[t]-data$time.days))})
+  sl_3hour <- data$sl[ind_map3hour]
+  year_3hour <- data$year[ind_map3hour]
 
   # that takes a long time, so save the workspace image
   save.image(file=filename.saveprogress)
@@ -180,9 +127,9 @@ processing_delfzijl <- function(dt.decluster, detrend.method, pot.threshold) {
 
     # calculate monthly means
 
-    dates.new <- date.mdy(time.days.3hour)
-    date.beg <- date.mdy(min(time.days.3hour))
-    date.end <- date.mdy(max(time.days.3hour))
+    dates.new <- date.mdy(time_3hour)
+    date.beg <- date.mdy(min(time_3hour))
+    date.end <- date.mdy(max(time_3hour))
 
     # what the years in which we have data?
     years.unique <- unique(dates.new$year)
@@ -232,27 +179,27 @@ processing_delfzijl <- function(dt.decluster, detrend.method, pot.threshold) {
   } else if(detrend.method=='annual') {
 
     # what the years in which we have data?
-    dates.new <- date.mdy(time.days.3hour)
+    dates.new <- date.mdy(time_3hour)
     years.unique <- unique(dates.new$year)
 
-    # get a placeholder
-    data$sl.detrended <- data$sl
-    time.days.beg <- min(data$time.days)
-    time.days.end <- max(data$time.days)
+    # get a placeholder -- want to be using the 3-hourly time series
+    sl_3hour_detrended <- sl_3hour
+    time.days.beg <- min(time_3hour)
+    time.days.end <- max(time_3hour)
 
-    pb <- txtProgressBar(min=0,max=length(data$time.days),initial=0,style=3)
-    for (tt in 1:length(data$time.days)) {
+    pb <- txtProgressBar(min=0,max=length(time_3hour),initial=0,style=3)
+    for (tt in 1:length(time_3hour)) {
       # if within half a year of either end of the time series, include either the
       # entire first year or entire last year to get a full year's worth of data in
       # the subtracted mean
-      if (data$time.days[tt] - time.days.beg < (365.25*0.5)) {
-        ind.close <- which(data$time.days - time.days.beg <= 365.25)
-      } else if(time.days.end - data$time.days[tt] < (365.25*0.5)) {
-        ind.close <- which(time.days.end - data$time.days <= 365.25)
+      if (time_3hour[tt] - time.days.beg < (365.25*0.5)) {
+        ind.close <- which(time_3hour - time.days.beg <= 365.25)
+      } else if(time.days.end - time_3hour[tt] < (365.25*0.5)) {
+        ind.close <- which(time.days.end - time_3hour <= 365.25)
       } else {
-        ind.close <- which(abs(data$time.days-data$time.days[tt]) <= (365.25*0.5) )
+        ind.close <- which(abs(time_3hour-time_3hour[tt]) <= (365.25*0.5) )
       }
-      data$sl.detrended[tt] <- data$sl[tt] - mean(data$sl[ind.close])
+      sl_3hour_detrended[tt] <- sl_3hour[tt] - mean(sl_3hour[ind.close])
       setTxtProgressBar(pb, tt)
       }
       close(pb)
@@ -268,13 +215,13 @@ processing_delfzijl <- function(dt.decluster, detrend.method, pot.threshold) {
   #===
 
   # how many days in each year have at least 90% of their values?
-  days.all <- floor(data$time.days)
+  days.all <- floor(time_3hour)
   days.unique <- unique(days.all)
   ind.days.to.remove <- NULL
   print('... filtering down to do a daily maxima time series of only the days with at least 90% of data ...')
   pb <- txtProgressBar(min=min(days.unique),max=max(days.unique),initial=0,style=3)
   for (day in days.unique) {
-    ind.today <- which(floor(data$time.days) == day)
+    ind.today <- which(floor(time_3hour) == day)
     # *3 because 3-hourly series instead of 1-hourly
     perc.data.today <- 3*length(ind.today)/24
     if(perc.data.today < 0.9) {ind.days.to.remove <- c(ind.days.to.remove, match(day, days.unique))}
@@ -284,6 +231,14 @@ processing_delfzijl <- function(dt.decluster, detrend.method, pot.threshold) {
   days.daily.max <- days.unique[-ind.days.to.remove]
   n.days <- length(days.daily.max)
 
+
+      TODO HERE NOW
+      TODO HERE NOW
+      TODO HERE NOW
+
+
+
+
   # calculate the daily maximum sea levels on the days of 'days.daily.max'
   sl.daily.max <- rep(NA, n.days)
   years.daily.max <- rep(NA, n.days)
@@ -292,7 +247,7 @@ processing_delfzijl <- function(dt.decluster, detrend.method, pot.threshold) {
   for (day in days.daily.max) {
     cnt <- match(day,days.daily.max)
     ind.today <- which(days.all == day)
-    sl.daily.max[cnt] <- max(data$sl.detrended[ind.today])
+    sl.daily.max[cnt] <- max(sl_3hour_detrended[ind.today])
     years.daily.max[cnt] <- data$year[ind.today][1]
     setTxtProgressBar(pb, cnt)
   }
