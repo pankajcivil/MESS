@@ -34,7 +34,7 @@
 .pot.threshold <- .99        # percentile for POT threshold
 
 
-if(Sys.info()['nodename']=='Tonys-MacBook-Pro.local') {
+if(Sys.info()['user']=='tony') {
   # Tony's local machine (if you aren't me, you almost certainly need to change this...)
   machine <- 'local'
   setwd('/Users/tony/codes/EVT/R')

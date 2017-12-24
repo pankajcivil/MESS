@@ -44,18 +44,18 @@ output.dir <- '../output/'
 
 # calibrated parameter sets (samples; all should be same size)
 # these are the results from 'calibration_dayPOT-experiments_driver.R'
-filename.norfolk.normalgamma <-  paste(output.dir,'calibratedParameters_ppgpd-experiments_norfolk_normalgamma_27Jul2017.nc', sep='')
+filename.norfolk.normalgamma <-  paste(output.dir,'calibratedParameters_ppgpd-experiments_norfolk_normalgamma_21Dec2017.nc', sep='')
 filename.norfolk.uniform <-      paste(output.dir,'calibratedParameters_ppgpd-experiments_norfolk_uniform_27Jul2017.nc',     sep='')
-filename.balboa.normalgamma <-   paste(output.dir,'calibratedParameters_ppgpd-experiments_balboa_normalgamma_28Jul2017.nc',  sep='')
+filename.balboa.normalgamma <-   paste(output.dir,'calibratedParameters_ppgpd-experiments_balboa_normalgamma_21Dec2017.nc',  sep='')
 filename.balboa.uniform <-       paste(output.dir,'calibratedParameters_ppgpd-experiments_balboa_uniform_28Jul2017.nc',      sep='')
-filename.delfzijl.normalgamma <- paste(output.dir,'calibratedParameters_ppgpd-experiments_delfzijl_normalgamma_15Dec2017.nc',sep='')
-filename.delfzijl.uniform <-     paste(output.dir,'calibratedParameters_ppgpd-experiments_delfzijl_uniform_29Jul2017.nc',    sep='')
+filename.delfzijl.normalgamma <- paste(output.dir,'calibratedParameters_ppgpd-experiments_delfzijl_normalgamma_20Dec2017.nc',sep='')
+filename.delfzijl.uniform <-     paste(output.dir,'calibratedParameters_ppgpd-experiments_delfzijl_uniform_20Dec2017.nc',    sep='')
 
 filename.norfolk.data <- '../data/tidegauge_processed_norfolk_decl3-pot99-annual_06Dec2017.rds'
 filename.balboa.data <- '../data/tidegauge_processed_balboa_decl3-pot99-annual_11Dec2017.rds'
-filename.delfzijl.data <- '../data/tidegauge_processed_delfzijl_decl3-pot99-annual_06Dec2017.rds'
+filename.delfzijl.data <- '../data/tidegauge_processed_deflzijl_decl3-pot99-annual_20Dec2017.rds'
 
-filename.priors <- '../output/surge_priors_normalgamma_ppgpd_14Dec2017.rds'
+filename.priors <- '../output/surge_priors_normalgamma_ppgpd_20Dec2017.rds'
 
 # file to save progress as you run
 filename.saveprogress <- '../output/analysis_inprogress.RData'
@@ -358,8 +358,8 @@ save.image(file=filename.saveprogress)
 #            each site.
 
 site <- 'Delfzijl'
-load(paste('../output/sensitivity_returnlevels_mcmc_',site,'_16Dec2017.RData', sep=''))
-returnlevel <- readRDS(paste('../output/sensitivity_returnlevels_',site,'_16Dec2017.rds', sep=''))
+load(paste('../output/sensitivity_returnlevels_mcmc_',site,'_20Dec2017.RData', sep=''))
+returnlevel <- readRDS(paste('../output/sensitivity_returnlevels_',site,'_20Dec2017.rds', sep=''))
 nblocks <- length(returnlevel)
 
 ## Calculate the quantiles to plot
