@@ -27,6 +27,7 @@ library(mvtnorm)  # used for multivariate normal samples and densities
 library(extRemes) # used to compute GEV densities within posterior likelihood function
 library(foreach)
 library(doParallel)
+library(ncdf4)
 
 if(Sys.info()['user']=='tony') {
   # Tony's local machine (if you aren't me, you almost certainly need to change this...)
@@ -49,6 +50,8 @@ if(Sys.info()['user']=='tony') {
 
 # import file containing the log likelihood calculations
 source(paste(path.R,'likelihood_ppgpd.R',sep='/'))
+
+source(paste(path.R,'read_data_temperature.R',sep='/'))
 
 # set up table of experiment parameters
 # some of these combinations (in terms of the data length and sites) don't exist, but they
@@ -84,7 +87,8 @@ irem <- NULL
 irem <- c(irem, which((experiments[,'data.length']==89 | experiments[,'data.length']==107) & experiments[,'station']=='delfzijl'))
 irem <- c(irem, which((experiments[,'data.length']==89 | experiments[,'data.length']==137) & experiments[,'station']=='balboa'))
 irem <- c(irem, which((experiments[,'data.length']==107 | experiments[,'data.length']==137) & experiments[,'station']=='norfolk'))
-
+n_experiments <- nrow(experiments)
+output <- vector('list', n_experiments)
 
 #cores = detectCores()
 #cl <- makeCluster(cores[1]-1) #not to overload your computer
@@ -93,13 +97,14 @@ print(paste('Starting cluster with ',nnode,' cores', sep=''))
 registerDoParallel(cl)
 
 source('bridge_sample_functions.R')
-export.names <- c('bridge.samp.rel.err','bridge.samp.iter','recip.imp.samp','experiments')
+export.names <- c('bridge.samp.rel.err','bridge.samp.iter','recip.imp.samp','experiments','trimmed_forcing','log_post_ppgpd','log_like_ppgpd','log_prior_ppgpd','path.R')
 
 finalOutput <- foreach(ee=1:n_experiments,
                             .packages=c('mvtnorm','extRemes'),
                             .export=export.names,
                             .inorder=FALSE) %dopar% {
 
+source(paste(path.R,'likelihood_ppgpd.R',sep='/'))
   # get parameters for this particular experiment
   print(experiments[ee,])
   station <- experiments[ee,'station']
@@ -109,8 +114,10 @@ finalOutput <- foreach(ee=1:n_experiments,
   # set output (saved as .RData; to be collected into a single output file later) file name
   filename.out <- paste('ml_',station,'_',gpd.model,'_',data.length,'.RData',sep='')
   if (file.exists(paste(path.save, filename.out, sep='/'))) {
-     stop('Output file already exists!')
-  }
+     #stop('Output file already exists!')
+     print('Output file already exists!')
+     output[[ee]] <- 'done!'
+ } else {
 
   # read in calibration output file
   print('loading calibration file...')
@@ -224,17 +231,18 @@ finalOutput <- foreach(ee=1:n_experiments,
 
   # save result of run
   # if save directory doesn't exist, create it
-  ifelse(!dir.exists(path.save), dir.create(path.save), FALSE)
+  #ifelse(!dir.exists(path.save), dir.create(path.save), FALSE)
   setwd(path.save)
 
   save(list=c('post.samp','imp.samp', 'ml', 're.sq', 'station', 'data.length', 'gpd.model'), file=filename.out)
-#  output[[dd]] <- data_many[[dd]]
+#  output[[ee]] <- data_many[[ee]]
+  output[[ee]] <- 'done!'
+ }
 }
 stopCluster(cl)
 #data_many <- finalOutput
 #names(data_many) <- names(data_set)
 
-}
 
 #===============================================================================
 # end
