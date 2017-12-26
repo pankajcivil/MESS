@@ -1,8 +1,10 @@
-###############################################################################
-# This file reads in the output files from the marginal likelihood estimator  #
-# for each model and combines them into a combined .RDS file with bma weights #
-# and marginal likelihoods.                                                   #
-###############################################################################
+#===============================================================================
+# This file reads in the output files from the marginal likelihood estimator
+# for each model and combines them into a combined .RDS file with bma weights
+# and marginal likelihoods.
+#
+# Requires the RData files from the 'bridge_sample.R' routine as input
+#
 #===============================================================================
 # Copyright 2017 Tony Wong
 #
@@ -21,8 +23,8 @@
 
 library(Hmisc)
 
-path.ml <- '/storage/home/vxs914/work/MESS/ml'
-path.out <- '/storage/home/vxs914/work/MESS/output'
+path.ml <- '/home/scrim/axw322/codes/EVT/output/bma'
+path.out <- '/home/scrim/axw322/codes/EVT/output'
 
 filename.out <- 'bma_weights.rds'
 
@@ -30,30 +32,36 @@ types.of.priors <- 'normalgamma'
 
 bma.weights <- vector('list', 3)
 names(bma.weights) <- site.names <- c('Delfzijl', 'Balboa', 'Norfolk')
+n_sites <- length(site.names)
 
 log.marg.lik <- vector('list', 3)
 names(log.marg.lik) <- site.names
 
-data.length.names <- c('y30', 'y50', 'y70', 'y90', 'y110', 'y130')
-
-years=c('30','50','70','89','90','107','110','137')
 
 gpd.models <- c('gpd3','gpd4','gpd5','gpd6')
+n_model <- length(gpd.models)
+
+
+data.lengths <- vector('list', n_sites); names(data.lengths) <- site.names
+data.lengths$Norfolk <- c('30','50','70','89')
+data.lengths$Balboa <- c('30','50','70','90','107')
+data.lengths$Delfzijl <- c('30','50','70','90','110','137')
 
 for (site in site.names) {
-  
-  bma.weights[[site]] <- vector('list', 8)
-  names(bma.weights[[site]]) <- years
-  for (year in years) {
-    bma.weights[[site]][[year]] <- rep(NA, 4)
+
+  bma.weights[[site]] <- vector('list', length(data.lengths[[site]]))
+  names(bma.weights[[site]]) <- data.lengths[[site]]
+
+  for (year in data.lengths[[site]]) {
+    bma.weights[[site]][[year]] <- rep(NA, n_model)
     names(bma.weights[[site]][[year]]) <- gpd.models
   }
-  log.marg.lik[[site]] <- vector('list', 8)
-  names(log.marg.lik[[site]]) <- years
-  for (year in years) {
-      log.marg.lik[[site]][[year]] <- rep(NA, 4)
+  log.marg.lik[[site]] <- vector('list', length(data.lengths[[site]]))
+  names(log.marg.lik[[site]]) <- data.lengths[[site]]
+  for (year in data.lengths[[site]]) {
+      log.marg.lik[[site]][[year]] <- rep(NA, n_model)
       names(log.marg.lik[[site]][[year]]) <- gpd.models
-  
+
   }
 }
 
@@ -65,11 +73,10 @@ for (file in files) {
   year <- unlist(strsplit(file, split="[_. ]"))[4]
 #  data.case <- which.min(abs(as.numeric(levels(data.length)[data.length])-exp.years))]
   log.marg.lik[[site]][[year]][[gpd.model]] <- ml[length(ml)]
-  
 }
 
 for (site in site.names) {
-  for (year in years) {
+  for (year in data.lengths[[site]]) {
     ml <- log.marg.lik[[site]][[year]]
     ml.scale <- ml - max(ml,na.rm=TRUE)
     for (model in gpd.models) {
@@ -80,5 +87,9 @@ for (site in site.names) {
   }
 }
 
-saveRDS(log.marg.lik, "output/log_marginal_likelihood.rds")
-saveRDS(bma.weights, "output/bma_weights.rds")
+saveRDS(log.marg.lik, paste(path.out,"log_marginal_likelihood.rds", sep="/"))
+saveRDS(bma.weights, paste(path.out,"bma_weights.rds", sep="/"))
+
+#===============================================================================
+# End
+#===============================================================================
