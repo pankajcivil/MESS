@@ -25,8 +25,6 @@
 library(mvtnorm)  # used for multivariate normal samples and densities
 #library(coda)     # used to compute spectral density of MCMC draws at frequency 0
 library(extRemes) # used to compute GEV densities within posterior likelihood function
-library(foreach)
-library(doParallel)
 library(ncdf4)
 
 if(Sys.info()['user']=='tony') {
@@ -90,14 +88,7 @@ irem <- c(irem, which((experiments[,'data.length']==107 | experiments[,'data.len
 n_experiments <- nrow(experiments)
 output <- vector('list', n_experiments)
 
-#cores = detectCores()
-#cl <- makeCluster(cores[1]-1) #not to overload your computer
-cl <- makeCluster(nnode)
-print(paste('Starting cluster with ',nnode,' cores', sep=''))
-registerDoParallel(cl)
-
 source('bridge_sample_functions.R')
-export.names <- c('bridge.samp.rel.err','bridge.samp.iter','recip.imp.samp','experiments','trimmed_forcing','log_post_ppgpd','log_like_ppgpd','log_prior_ppgpd','path.R')
 
 for (ee in 1:n_experiments) {
 
@@ -108,8 +99,8 @@ for (ee in 1:n_experiments) {
   data.length <- experiments[ee,'data.length']
 
   # set output (saved as .RData; to be collected into a single output file later) file name
-  filename.out <- paste('ml_',station,'_',gpd.model,'_',data.length,'.RData',sep='')
-  if (file.exists(paste(path.save, filename.out, sep='/'))) {
+  filename.out <- paste(path.save,'/ml_',station,'_',gpd.model,'_',data.length,'.RData',sep='')
+  if (file.exists(filename.out)) {
     #stop('Output file already exists!')
     print('Output file already exists - skipping...')
   } else {
@@ -120,11 +111,11 @@ for (ee in 1:n_experiments) {
     type.of.priors <- 'normalgamma'     # can be 'uniform' or 'normalgamma'
     # use this if multiple files exist for the same location and prior
     #calib_date <- '28Jul2017'
-    setwd(path.data)
+    #setwd(path.data)
     if (exists('calib_date')) {
-      filename.calib <- paste('everything_mcmc_ppgpd-experiments_',station,'_',type.of.priors,'_',calib_date,'.RData',sep='')
+      filename.calib <- paste(path.data,'/everything_mcmc_ppgpd-experiments_',station,'_',type.of.priors,'_',calib_date,'.RData',sep='')
     } else {
-      filename.calib <- Sys.glob(paste('everything_mcmc_ppgpd-experiments_',station,'_',type.of.priors,'_*','.RData',sep=''))
+      filename.calib <- Sys.glob(paste(path.data,'/everything_mcmc_ppgpd-experiments_',station,'_',type.of.priors,'_*','.RData',sep=''))
     }
     load(filename.calib)
 
@@ -227,7 +218,7 @@ for (ee in 1:n_experiments) {
     # save result of run
     # if save directory doesn't exist, create it
     #ifelse(!dir.exists(path.save), dir.create(path.save), FALSE)
-    setwd(path.save)
+    #setwd(path.save)
 
     save(list=c('post.samp','imp.samp', 'ml', 're.sq', 'station', 'data.length', 'gpd.model'), file=filename.out)
   }

@@ -97,14 +97,16 @@ print(paste('Starting cluster with ',nnode,' cores', sep=''))
 registerDoParallel(cl)
 
 source('bridge_sample_functions.R')
-export.names <- c('bridge.samp.rel.err','bridge.samp.iter','recip.imp.samp','experiments','trimmed_forcing','log_post_ppgpd','log_like_ppgpd','log_prior_ppgpd','path.R')
+export.names <- c('bridge.samp.rel.err','bridge.samp.iter','recip.imp.samp','experiments','trimmed_forcing','log_post_ppgpd','log_like_ppgpd','log_prior_ppgpd','path.R','Tmax')
 
 finalOutput <- foreach(ee=1:n_experiments,
-                            .packages=c('mvtnorm','extRemes'),
+                            .packages=c('mvtnorm','extRemes','ncdf4'),
                             .export=export.names,
                             .inorder=FALSE) %dopar% {
 
+setwd(path.R)
 source(paste(path.R,'likelihood_ppgpd.R',sep='/'))
+source(paste(path.R,'read_data_temperature.R',sep='/'))
   # get parameters for this particular experiment
   print(experiments[ee,])
   station <- experiments[ee,'station']
