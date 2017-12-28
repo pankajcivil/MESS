@@ -201,9 +201,8 @@ processing_delfzijl <- function(dt.decluster, detrend.method, pot.threshold) {
       }
       sl_3hour_detrended[tt] <- sl_3hour[tt] - mean(sl_3hour[ind.close])
       setTxtProgressBar(pb, tt)
-      }
-      close(pb)
     }
+    close(pb)
   } else {
     print('ERROR: unknown detrend.method value')
   }
@@ -231,14 +230,6 @@ processing_delfzijl <- function(dt.decluster, detrend.method, pot.threshold) {
   days.daily.max <- days.unique[-ind.days.to.remove]
   n.days <- length(days.daily.max)
 
-
-      TODO HERE NOW
-      TODO HERE NOW
-      TODO HERE NOW
-
-
-
-
   # calculate the daily maximum sea levels on the days of 'days.daily.max'
   sl.daily.max <- rep(NA, n.days)
   years.daily.max <- rep(NA, n.days)
@@ -261,7 +252,7 @@ processing_delfzijl <- function(dt.decluster, detrend.method, pot.threshold) {
 
   print('... getting threshold excesses ...')
 
-  # threshold is 99% quantile of tide gauge's observed values.
+  # threshold is pot.threshold% quantile of tide gauge's observed values.
   # Buchanan et al (2016) use the 99% quantile of the daily maximum time series.
   #gpd.threshold <- as.numeric(quantile(data$sl.detrended, .99, na.rm=TRUE))
   #gpd.threshold <- as.numeric(quantile(sl.daily.max, .99, na.rm=TRUE))
