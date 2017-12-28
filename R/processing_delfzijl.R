@@ -36,17 +36,17 @@ processing_delfzijl <- function(dt.decluster, detrend.method, pot.threshold) {
   #=== read in tide gauge data
   #===
 
-  data <- read.table('../data/id1-DELFZL-187901010000-201701012359.txt', header = TRUE, sep=';', skip=4)
-  data <- data[,c(3,4,6)]
-  names(data) <- c('date','time','sl')
+  data <- read.table('../data/id1-DELFZL-187901010000-201701012359_reduced.csv', header = TRUE, sep=',')
+  names(data)[1:3] <- c('date','time','sl')
   data$sl <- data$sl*10 # convert to mm from cm
 
   # separate date-stamp into year / month / day
-  data$year   <- as.numeric(substr(as.character(data$date), start=1, stop=4))
-  data$month  <- as.numeric(substr(as.character(data$date), start=6, stop=7))
-  data$day    <- as.numeric(substr(as.character(data$date), start=9, stop=10))
-  data$hour   <- as.numeric(substr(data$time, 1,2))
-  data$minute <- as.numeric(substr(data$time, 4,5))
+  # (don't need to do this since in the 'reduced' file version, it is done in excel)
+#  data$year   <- as.numeric(substr(as.character(data$date), start=1, stop=4))
+#  data$month  <- as.numeric(substr(as.character(data$date), start=6, stop=7))
+#  data$day    <- as.numeric(substr(as.character(data$date), start=9, stop=10))
+#  data$hour   <- as.numeric(substr(data$time, 1,2))
+#  data$minute <- as.numeric(substr(data$time, 4,5))
 
   # time in days since 01 January 1960
   data$time.days <- as.numeric(mdy.date(month=data$month, day=data$day, year=data$year)) + data$hour/24 + data$minute/(24*60)
@@ -210,7 +210,7 @@ processing_delfzijl <- function(dt.decluster, detrend.method, pot.threshold) {
   print('  ... done.')
 
   #===
-  #=== daily block maxima; calculate 99% quantile as GPD threshold
+  #=== daily block maxima; calculate pot.threshold% quantile as GPD threshold
   #===
 
   # how many days in each year have at least 90% of their values?
@@ -245,9 +245,9 @@ processing_delfzijl <- function(dt.decluster, detrend.method, pot.threshold) {
   close(pb)
 
   #===
-  #=== find all the excesses, "declustering" = if two are within a day of each
-  #=== other, take only the maximum of the two (so make sure you save the times
-  #=== of each excess)
+  #=== find all the excesses, "declustering" = if two are within dt.decluster of
+  #=== each other, take only the maximum of the two (so make sure you save the
+  #=== times of each excess)
   #===
 
   print('... getting threshold excesses ...')
