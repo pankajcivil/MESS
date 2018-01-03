@@ -31,7 +31,7 @@
 
 .dt.decluster <- 3           # declustering time scale (days)
 .detrend.method <- 'annual'  # annual means or linear detrending?
-.pot.threshold <- .997        # percentile for POT threshold
+.pot.threshold <- .95        # percentile for POT threshold
 
 
 if(Sys.info()['user']=='tony') {
@@ -95,7 +95,7 @@ if(machine=='local') {
 } else {
   print('ERROR: unknown machine')
 }
-#processing_many_stations(dt.decluster=.dt.decluster, detrend.method='annual', pot.threshold=.pot.threshold, Ncore=.Ncore)
+processing_many_stations(dt.decluster=.dt.decluster, detrend.method='annual', pot.threshold=.pot.threshold, Ncore=.Ncore)
 
 # Delfzijl, the Netherlands
 source('processing_delfzijl.R')

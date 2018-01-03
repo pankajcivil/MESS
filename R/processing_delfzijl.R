@@ -36,17 +36,14 @@ processing_delfzijl <- function(dt.decluster, detrend.method, pot.threshold) {
   #=== read in tide gauge data
   #===
 
-  data <- read.table('../data/id1-DELFZL-187901010000-201701012359_reduced.csv', header = TRUE, sep=',')
+  data <- read.table('../data/id1-DELFZL-187901010000-201607072359_reduced.csv', header = TRUE, sep=',')
   names(data)[1:3] <- c('date','time','sl')
   data$sl <- data$sl*10 # convert to mm from cm
 
-  # separate date-stamp into year / month / day
-  # (don't need to do this since in the 'reduced' file version, it is done in excel)
-#  data$year   <- as.numeric(substr(as.character(data$date), start=1, stop=4))
-#  data$month  <- as.numeric(substr(as.character(data$date), start=6, stop=7))
-#  data$day    <- as.numeric(substr(as.character(data$date), start=9, stop=10))
-#  data$hour   <- as.numeric(substr(data$time, 1,2))
-#  data$minute <- as.numeric(substr(data$time, 4,5))
+  # separate date-stamp into year / month / day / hour / minute
+  times.char  <- as.character(data$time)
+  data$hour   <- as.numeric(unlist(strsplit(times.char, split=":"))[2*seq(from=1, to=length(times.char), by=1)-1])
+  data$minute <- as.numeric(unlist(strsplit(times.char, split=":"))[2*seq(from=1, to=length(times.char), by=1)])
 
   # time in days since 01 January 1960
   data$time.days <- as.numeric(mdy.date(month=data$month, day=data$day, year=data$year)) + data$hour/24 + data$minute/(24*60)
@@ -227,7 +224,11 @@ processing_delfzijl <- function(dt.decluster, detrend.method, pot.threshold) {
     setTxtProgressBar(pb, day)
   }
   close(pb)
-  days.daily.max <- days.unique[-ind.days.to.remove]
+  if(length(ind.days.to.remove)>0) {
+    days.daily.max <- days.unique[-ind.days.to.remove]
+  } else {
+    days.daily.max <- days.unique
+  }
   n.days <- length(days.daily.max)
 
   # calculate the daily maximum sea levels on the days of 'days.daily.max'
@@ -253,9 +254,6 @@ processing_delfzijl <- function(dt.decluster, detrend.method, pot.threshold) {
   print('... getting threshold excesses ...')
 
   # threshold is pot.threshold% quantile of tide gauge's observed values.
-  # Buchanan et al (2016) use the 99% quantile of the daily maximum time series.
-  #gpd.threshold <- as.numeric(quantile(data$sl.detrended, .99, na.rm=TRUE))
-  #gpd.threshold <- as.numeric(quantile(sl.daily.max, .99, na.rm=TRUE))
   gpd.threshold <- as.numeric(quantile(sl.daily.max, pot.threshold, na.rm=TRUE))
   data_delfzijl$dt.decluster <- dt.decluster
 
@@ -342,8 +340,10 @@ processing_delfzijl <- function(dt.decluster, detrend.method, pot.threshold) {
   data_delfzijl$gev_year$year <- data_delfzijl$gev_year$year[order(data_delfzijl$gev_year$year)]
   data_delfzijl$gev_year$lsl_max <- rep(NA, length(data_delfzijl$gev_year$year))
   for (t in 1:length(data_delfzijl$gev_year$year)) {
-    ind_this_year <- which(data$year==data_delfzijl$gev_year$year[t])
-    data_delfzijl$gev_year$lsl_max[t] <- max(data$sl.detrended[ind_this_year])
+##    ind_this_year <- which(data$year==data_delfzijl$gev_year$year[t])
+##    data_delfzijl$gev_year$lsl_max[t] <- max(data$sl.detrended[ind_this_year])
+    ind_this_year <- which(year_3hour==data_delfzijl$gev_year$year[t])
+    data_delfzijl$gev_year$lsl_max[t] <- max(sl_3hour_detrended[ind_this_year])
   }
 
   # trim before 1850 (or whenever is time_forc[1]), which is when the temperature

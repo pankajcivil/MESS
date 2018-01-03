@@ -29,6 +29,7 @@ rm(list=ls())
 
 station <- 'delfzijl'             # can be 'delfzijl', 'balboa', or 'norfolk'
 type.of.priors <- 'normalgamma'      # can be either 'uniform' or 'normalgamma'
+pot.threshold <- 0.95            # GPD threshold (percentile, 0-1)
 
 niter_mcmc_prelim000 <- 5e3      # number of MCMC iterations (PRELIMINARY chains)
 nnode_mcmc_prelim000 <- 1        # number of CPUs to use (PRELIMINARY chains)
@@ -42,7 +43,7 @@ output.dir <- '../output/'
 dat.dir <- '../data/'
 
 
-if(Sys.info()['nodename']=='Tonys-MacBook-Pro.local') {
+if(Sys.info()['nodename']=='Tonys-MBP') {
   # Tony's local machine (if you aren't me, you almost certainly need to change this...)
   machine <- 'local'
   setwd('/Users/tony/codes/EVT/R')
@@ -68,16 +69,16 @@ if(Sys.info()['nodename']=='Tonys-MacBook-Pro.local') {
 filename.priors <- paste('surge_priors_',type.of.priors,'_ppgpd_20Dec2017.rds',sep='')
 
 if (station=='delfzijl') {
-  appen <- paste('ppgpd-experiments_delfzijl',type.of.priors,sep='_')
-  filename.datacalib <- 'tidegauge_processed_deflzijl_decl3-pot99-annual_20Dec2017.rds' # file holding the calibration data object for Delfzijl
+  appen <- paste('ppgpd-experiments_delfzijl_',type.of.priors,'_pot',pot.threshold*100,sep='')
+  filename.datacalib <- 'tidegauge_processed_deflzijl_decl3_pot95-annual_31Dec2017.rds' # file holding the calibration data object for Delfzijl
   ind.in.mles <- 29
 } else if (station=='norfolk') {
-  appen <- paste('ppgpd-experiments_norfolk',type.of.priors,sep='_')
-  filename.datacalib <- 'tidegauge_processed_norfolk_decl3-pot99-annual_06Dec2017.rds' # file holding the calibration data object for Norfolk
+  appen <- paste('ppgpd-experiments_norfolk_',type.of.priors,'_pot',pot.threshold*100,sep='')
+  filename.datacalib <- 'tidegauge_processed_norfolk_decl3-pot95-annual_31Dec2017.rds' # file holding the calibration data object for Norfolk
   ind.in.mles <- 30
 } else if (station=='balboa') {
-  appen <- paste('ppgpd-experiments_balboa',type.of.priors,sep='_')
-  filename.datacalib <- 'tidegauge_processed_balboa_decl3-pot99-annual_11Dec2017.rds' # file holding the calibration data object for Balboa
+  appen <- paste('ppgpd-experiments_balboa_',type.of.priors,'_pot',pot.threshold*100,sep='')
+  filename.datacalib <- 'tidegauge_processed_balboa_decl3-pot95-annual_31Dec2017.rds' # file holding the calibration data object for Balboa
   ind.in.mles <- 10
 }
 
@@ -86,7 +87,7 @@ today <- Sys.Date(); today=format(today,format="%d%b%Y")
 filename.parameters <- paste(output.dir,'calibratedParameters_',appen,'_',today,'.nc',sep='')
 
 # Name the saved progress RData workspace image file
-filename.everythingmcmc <- paste(output.dir,'everything_mcmc_',appen,'_',today,'.RData', sep='')
+filename.mcmc <- paste(output.dir,'mcmc_',appen,'_',today,'.RData', sep='')
 
 #
 #===============================================================================
@@ -203,9 +204,9 @@ for (gpd.exp in gpd.experiments) {
 }
 
 # save progress
-print(paste('saving preliminary results as .RData file (',filename.everythingmcmc,') to read and use later...',sep=''))
-save.image(file=filename.everythingmcmc)
-print('...done.')
+##print(paste('saving preliminary results as .RData file (',filename.mcmc,') to read and use later...',sep=''))
+##save.image(file=filename.mcmc)
+##print('...done.')
 
 if(FALSE){
 # preliminary plot: gpd3
@@ -334,9 +335,9 @@ for (gpd.exp in gpd.experiments) {
     } else {print('error - unknown model type')}
     print(paste('... done. Took ',round(as.numeric(tend-tbeg)[3]/60,2),' minutes', sep=''))
   }
-  print(paste('saving production results (so far) as .RData file (',filename.everythingmcmc,') to read and use later...',sep=''))
-  save.image(file=filename.everythingmcmc)
-  print('...done.')
+##  print(paste('saving production results (so far) as .RData file (',filename.mcmc,') to read and use later...',sep=''))
+##  save.image(file=filename.mcmc)
+##  print('...done.')
 }
 
 # test plot
@@ -567,9 +568,10 @@ for (gpd.exp in gpd.experiments) {
 }
 
 # save results in case you need to revisit later
-print(paste('saving MCMC workspace results as .RData file (',filename.everythingmcmc,') to read and use later...',sep=''))
-save.image(file=filename.everythingmcmc)
-print('...done.')
+##print(paste('saving MCMC results as .RData file (',filename.mcmc,') to read and use later...',sep=''))
+##save.image(file=filename.mcmc)
+##save(list=c('amcmc_out','ifirst'), file=filename.mcmc) # just do this later
+##print('...done.')
 
 #
 #===============================================================================
@@ -635,8 +637,9 @@ for (model in types.of.model) {
 nc_close(outnc)
 
 # save results in case you need to revisit later
-print(paste('saving MCMC workspace results as .RData file (',filename.everythingmcmc,') to read and use later...',sep=''))
-save.image(file=filename.everythingmcmc)
+print(paste('saving MCMC results as .RData file (',filename.mcmc,') to read and use later...',sep=''))
+##save.image(file=filename.mcmc)
+save(list=c('amcmc_out','ifirst','data_calib','priors'), file=filename.mcmc)
 print('...done.')
 
 #

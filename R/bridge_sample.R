@@ -29,6 +29,11 @@ library(foreach)
 library(doParallel)
 library(ncdf4)
 
+appen <- '_threshold95'
+calib_date <- '31Dec2017'
+pot.threshold <- '_pot95' # for main text results (_pot99)
+type.of.priors <- 'normalgamma'     # can be 'uniform' or 'normalgamma'
+
 if(Sys.info()['user']=='tony') {
   # Tony's local machine (if you aren't me, you almost certainly need to change this...)
   machine <- 'local'
@@ -36,7 +41,7 @@ if(Sys.info()['user']=='tony') {
   path.R <- '/Users/tony/codes/EVT/R'
   # set data and save directories
   path.data <- '/Users/tony/codes/EVT/output'
-  path.save <- '/Users/tony/codes/EVT/output/bma'
+  path.save <- paste('/Users/tony/codes/EVT/output/bma',appen,sep='')
   nnode <- 2          # number of CPUs to use
 } else {
   # assume on Napa cluster
@@ -45,6 +50,7 @@ if(Sys.info()['user']=='tony') {
   path.R <- '/home/scrim/axw322/codes/EVT/R'
   path.data <- '/home/scrim/axw322/codes/EVT/output'
   path.save <- '/home/scrim/axw322/codes/EVT/output/bma'
+  path.save <- paste('/home/scrim/axw322/codes/EVT/output/bma',appen,sep='')
   nnode <- 10          # number of CPUs to use
 }
 
@@ -97,16 +103,16 @@ print(paste('Starting cluster with ',nnode,' cores', sep=''))
 registerDoParallel(cl)
 
 source('bridge_sample_functions.R')
-export.names <- c('bridge.samp.rel.err','bridge.samp.iter','recip.imp.samp','experiments','trimmed_forcing','log_post_ppgpd','log_like_ppgpd','log_prior_ppgpd','path.R','Tmax')
+export.names <- c('bridge.samp.rel.err','bridge.samp.iter','recip.imp.samp','experiments','trimmed_forcing','log_post_ppgpd','log_like_ppgpd','log_prior_ppgpd','path.R','Tmax','calib_date','pot.threshold','type.of.priors')
 
 finalOutput <- foreach(ee=1:n_experiments,
                             .packages=c('mvtnorm','extRemes','ncdf4'),
                             .export=export.names,
                             .inorder=FALSE) %dopar% {
 
-setwd(path.R)
-source(paste(path.R,'likelihood_ppgpd.R',sep='/'))
-source(paste(path.R,'read_data_temperature.R',sep='/'))
+  setwd(path.R)
+  source(paste(path.R,'likelihood_ppgpd.R',sep='/'))
+  source(paste(path.R,'read_data_temperature.R',sep='/'))
   # get parameters for this particular experiment
   print(experiments[ee,])
   station <- experiments[ee,'station']
@@ -124,14 +130,18 @@ source(paste(path.R,'read_data_temperature.R',sep='/'))
   # read in calibration output file
   print('loading calibration file...')
 
-  type.of.priors <- 'normalgamma'     # can be 'uniform' or 'normalgamma'
+  ##type.of.priors <- 'normalgamma'     # can be 'uniform' or 'normalgamma'
+  filename.priors <- paste('surge_priors_',type.of.priors,'_ppgpd_20Dec2017.rds',sep='') # is in the output directory
+
   # use this if multiple files exist for the same location and prior
-  #calib_date <- '28Jul2017'
+  #calib_date <- '31Dec2017'
+  #pot.threshold <- '_pot95' # for main text results (_pot99)
   setwd(path.data)
+  priors <- readRDS(filename.priors)
   if (exists('calib_date')) {
-    filename.calib <- paste('everything_mcmc_ppgpd-experiments_',station,'_',type.of.priors,'_',calib_date,'.RData',sep='')
+    filename.calib <- paste('mcmc_ppgpd-experiments_',station,'_',type.of.priors,pot.threshold,'_',calib_date,'.RData',sep='')
   } else {
-    filename.calib <- Sys.glob(paste('everything_mcmc_ppgpd-experiments_',station,'_',type.of.priors,'_*','.RData',sep=''))
+    filename.calib <- Sys.glob(paste('mcmc_ppgpd-experiments_',station,'_',type.of.priors,'_*','.RData',sep=''))
   }
   load(filename.calib)
 
@@ -140,10 +150,10 @@ source(paste(path.R,'read_data_temperature.R',sep='/'))
   # set name for data experiment from data.length variable
   gpd.exp <- paste('gpd',data.length,sep='')
 
-  # compute the burn-in length for sampling based on the chains_burned object
+  # compute the burn-in length for sampling based on the ifirst object
   full.length <- nrow(amcmc_out[[gpd.exp]][[gpd.model]][[1]]$samples)
-  burned.length <- nrow(chains_burned[[gpd.exp]][[gpd.model]][[1]])
-  burn.in <- full.length - burned.length
+  ##burned.length <- nrow(chains_burned[[gpd.exp]][[gpd.model]][[1]])
+  burn.in <- ifirst[[gpd.exp]]
 
   # set number of samples to use for estimate
   post.samp.num <- 50000

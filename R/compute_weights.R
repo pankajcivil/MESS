@@ -23,10 +23,12 @@
 
 library(Hmisc)
 
-path.ml <- '/home/scrim/axw322/codes/EVT/output/bma'
+appen <- '_threshold95'
+path.ml <- paste('/home/scrim/axw322/codes/EVT/output/bma',appen,sep='')
 path.out <- '/home/scrim/axw322/codes/EVT/output'
 
-filename.out <- 'bma_weights.rds'
+filename.likelihood <- paste('log_marginal_likelihood',appen,'.rds',sep='')
+filename.weights <- paste('bma_weights',appen,'.rds',sep='')
 
 types.of.priors <- 'normalgamma'
 
@@ -69,8 +71,8 @@ files <- list.files(path=path.ml, full.names=TRUE, recursive=FALSE)
 
 for (file in files) {
   load(file)
-  site <- capitalize(station)
-  year <- unlist(strsplit(file, split="[_. ]"))[4]
+  site <- capitalize(toString(station))
+  year <- unlist(strsplit(file, split="[_. ]"))[5]
 #  data.case <- which.min(abs(as.numeric(levels(data.length)[data.length])-exp.years))]
   log.marg.lik[[site]][[year]][[gpd.model]] <- ml[length(ml)]
 }
@@ -87,8 +89,8 @@ for (site in site.names) {
   }
 }
 
-saveRDS(log.marg.lik, paste(path.out,"log_marginal_likelihood.rds", sep="/"))
-saveRDS(bma.weights, paste(path.out,"bma_weights.rds", sep="/"))
+saveRDS(log.marg.lik, paste(path.out,filename.likelihood, sep="/"))
+saveRDS(bma.weights, paste(path.out,filename.weights, sep="/"))
 
 #===============================================================================
 # End
