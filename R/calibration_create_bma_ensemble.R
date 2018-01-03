@@ -29,9 +29,14 @@
 #===============================================================================
 
 # mcmc results files
-mcmc.balboa <- '../output/everything_mcmc_ppgpd-experiments_balboa_normalgamma_28Jul2017.RData'
-mcmc.norfolk <- '../output/everything_mcmc_ppgpd-experiments_norfolk_normalgamma_27Jul2017.RData'
-mcmc.delfzijl <- '../output/everything_mcmc_ppgpd-experiments_delfzijl_normalgamma_29Jul2017.RData'
+mcmc.balboa <- '../output/everything_mcmc_ppgpd-experiments_balboa_normalgamma_21Dec2017.RData'
+mcmc.norfolk <- '../output/everything_mcmc_ppgpd-experiments_norfolk_normalgamma_21Dec2017.RData'
+mcmc.delfzijl <- '../output/everything_mcmc_ppgpd-experiments_delfzijl_normalgamma_20Dec2017.RData'
+
+
+# TODO -- would need to revise the above because only saving the raw MCMC
+# output now.  that is, need to do the burn-in
+
 
 # bma weight results object
 bma_weights <- readRDS('../output/bma_weights.rds')

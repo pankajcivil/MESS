@@ -229,7 +229,6 @@ for (site in site.names) {
       }
     }
   }
-  save.image(file=filename.saveprogress)
 }
 
 #===============================================================================
@@ -252,11 +251,11 @@ for (site in site.names) {
       print(paste('calculating log-posts/-likelihoods/-priors ',site,data.experiment.names[ind.data],model, sep=' - '))
       if(model=='gpd3') {auxiliary <- NULL
       } else {auxiliary <- trimmed_forcing(data.sites[[site]][[data.lengths[[site]][ind.data]]]$year, time_forc, temperature_forc)$temperature}
-      lpri[[site]][[ind.data]][[model]] <- sapply(1:n.ensemble, function(sow) {log_prior_ppgpd(parameters=gpd.parameters[[site]][[ind.data]][[model]][sow,], parnames=parnames[[model]], priors=priors, model=model)})
+      ##lpri[[site]][[ind.data]][[model]] <- sapply(1:n.ensemble, function(sow) {log_prior_ppgpd(parameters=gpd.parameters[[site]][[ind.data]][[model]][sow,], parnames=parnames[[model]], priors=priors, model=model)})
       llik[[site]][[ind.data]][[model]] <- sapply(1:n.ensemble, function(sow) {log_like_ppgpd(parameters=gpd.parameters[[site]][[ind.data]][[model]][sow,], parnames=parnames[[model]], data_calib=data.sites[[site]][[data.lengths[[site]][ind.data]]], auxiliary=auxiliary)})
-      lpost[[site]][[ind.data]][[model]] <- lpri[[site]][[ind.data]][[model]] + llik[[site]][[ind.data]][[model]]
+      ##lpost[[site]][[ind.data]][[model]] <- lpri[[site]][[ind.data]][[model]] + llik[[site]][[ind.data]][[model]]
       llik.mod[[site]][[ind.data]][[model]] <- mean(llik[[site]][[ind.data]][[model]][is.finite(llik[[site]][[ind.data]][[model]])])
-      lpost.mod[[site]][[ind.data]][[model]] <- mean(lpost[[site]][[ind.data]][[model]][is.finite(lpost[[site]][[ind.data]][[model]])])
+      ##lpost.mod[[site]][[ind.data]][[model]] <- mean(lpost[[site]][[ind.data]][[model]][is.finite(lpost[[site]][[ind.data]][[model]])])
     }
   }
 }
@@ -320,20 +319,22 @@ write.csv(x=comparison_table1, file='../output/model_comparisons.csv')
 
 
 # calculate BMA-weighted ensemble using the ensemble members already drawn
-for (site in site.names) {
-  for (dd in 1:length(data.lengths[[site]])) {
-    rl100[[site]][[dd]]$bma <- vector('list', nyears); names(rl100[[site]][[dd]]$bma) <- year.names
-    for (year in year.names) {
-      rl100[[site]][[dd]]$bma[[year]] <- bma_weights[[site]][[dd]]['gpd3']*rl100[[site]][[dd]]$gpd3[[year]] +
-                                         bma_weights[[site]][[dd]]['gpd4']*rl100[[site]][[dd]]$gpd4[[year]] +
-                                         bma_weights[[site]][[dd]]['gpd5']*rl100[[site]][[dd]]$gpd5[[year]] +
-                                         bma_weights[[site]][[dd]]['gpd6']*rl100[[site]][[dd]]$gpd6[[year]]
+if(TRUE) {
+  rl100.bma <- list.init
+  for (site in site.names) {
+    for (dd in 1:length(data.lengths[[site]])) {
+      for (year in year.names) {
+        rl100.bma[[site]][[dd]][[year]] <- bma_weights[[site]][[dd]]['gpd3']*rl100[[site]][[dd]]$gpd3[[year]] +
+                                           bma_weights[[site]][[dd]]['gpd4']*rl100[[site]][[dd]]$gpd4[[year]] +
+                                           bma_weights[[site]][[dd]]['gpd5']*rl100[[site]][[dd]]$gpd5[[year]] +
+                                           bma_weights[[site]][[dd]]['gpd6']*rl100[[site]][[dd]]$gpd6[[year]]
+      }
     }
   }
+} else {
+  # alternatively, calculate BMA-weighted ensemble using the full MCMC reuslts
+  #source('calibration_create_bma_ensemble.R')
 }
-
-# alternatively, calculate BMA-weighted ensemble using the full MCMC reuslts
-source('calibration_create_bma_ensemble.R')
 
 # save progress
 save.image(file=filename.saveprogress)
@@ -514,7 +515,7 @@ x[which.max(fc)]
 
 # normalize the convolutions
 
-TODO
+#TODO
 
 } else {
 
