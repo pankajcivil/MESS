@@ -29,19 +29,14 @@ rm(list=ls())
 
 station <- 'delfzijl'             # can be 'delfzijl', 'balboa', or 'norfolk'
 type.of.priors <- 'normalgamma'      # can be either 'uniform' or 'normalgamma'
-pot.threshold <- 0.95            # GPD threshold (percentile, 0-1)
+pot.threshold <- 0.99            # GPD threshold (percentile, 0-1)
+dt.decluster <- 3                # declustering time-scale (days)
 
 niter_mcmc_prelim000 <- 5e3      # number of MCMC iterations (PRELIMINARY chains)
 nnode_mcmc_prelim000 <- 1        # number of CPUs to use (PRELIMINARY chains)
 niter_mcmc_prod000 <- 5e5        # number of MCMC iterations (PRODUCTION chains)
 #nnode_mcmc_prod000 <- 10          # number of CPUs to use (PRODUCTION chains)
 gamma_mcmc000 <- 0.5             # speed of adaptation (0.5=faster, 1=slowest)
-
-filename.mles <- 'surge_MLEs_ppgpd_20Dec2017.rds'  # file holding the 'deoptim.all' object with the MLEs (for initial parameters)
-
-output.dir <- '../output/'
-dat.dir <- '../data/'
-
 
 if(Sys.info()['nodename']=='Tonys-MBP') {
   # Tony's local machine (if you aren't me, you almost certainly need to change this...)
@@ -55,32 +50,37 @@ if(Sys.info()['nodename']=='Tonys-MBP') {
   nnode_mcmc_prod000 <- 10          # number of CPUs to use (PRODUCTION chains)
 }
 
-
-
-# ^^^ IMPORTANT SETTINGS YOU SHOULD MODIFY, DEPENDING ON THE EXPERIMENT ^^^
-
 #
 #===============================================================================
 # Here, set the file names for the prior distribution RDS file from the 'fit
 # priors' script and the calibration data files from the processing scripts.
+# This shoudl work, as long as you have not repeated experiments.
 #===============================================================================
 #
 
-filename.priors <- paste('surge_priors_',type.of.priors,'_ppgpd_20Dec2017.rds',sep='')
+output.dir <- '../output/'
+dat.dir <- '../data/'
+
+filename.mles <- Sys.glob(paste(output.dir,'surge_MLEs_ppgpd_decl',dt.decluster,'-pot',100*pot.threshold,'_*','.rds',sep=''))
+filename.priors <- Sys.glob(paste(output.dir,'surge_priors_',type.of.priors,'_ppgpd_decl',dt.decluster,'-pot',100*pot.threshold,'_*','.rds',sep=''))
+filename.datacalib <- Sys.glob(paste('../data/tidegauge_processed_',station,'_decl',dt.decluster,'-pot',100*pot.threshold,'-annual_*','.rds',sep=''))
 
 if (station=='delfzijl') {
   appen <- paste('ppgpd-experiments_delfzijl_',type.of.priors,'_pot',pot.threshold*100,sep='')
-  filename.datacalib <- 'tidegauge_processed_deflzijl_decl3_pot95-annual_31Dec2017.rds' # file holding the calibration data object for Delfzijl
   ind.in.mles <- 29
 } else if (station=='norfolk') {
   appen <- paste('ppgpd-experiments_norfolk_',type.of.priors,'_pot',pot.threshold*100,sep='')
-  filename.datacalib <- 'tidegauge_processed_norfolk_decl3-pot95-annual_31Dec2017.rds' # file holding the calibration data object for Norfolk
   ind.in.mles <- 30
 } else if (station=='balboa') {
   appen <- paste('ppgpd-experiments_balboa_',type.of.priors,'_pot',pot.threshold*100,sep='')
-  filename.datacalib <- 'tidegauge_processed_balboa_decl3-pot95-annual_31Dec2017.rds' # file holding the calibration data object for Balboa
   ind.in.mles <- 10
 }
+
+
+
+# ^^^ IMPORTANT SETTINGS YOU SHOULD MODIFY, DEPENDING ON THE EXPERIMENT ^^^
+
+
 
 # Name the calibrated parameters output file
 today <- Sys.Date(); today=format(today,format="%d%b%Y")
@@ -140,7 +140,7 @@ print('...done.')
 
 print('reading processed tide gauge data...')
 
-data_calib <- readRDS(paste(dat.dir,filename.datacalib,sep=''))
+data_calib <- readRDS(filename.datacalib)
 gpd.experiments <- names(data_calib)[intersect(which(nchar(names(data_calib))>3) , grep('gpd', names(data_calib)))]
 
 print('...done.')
@@ -156,8 +156,8 @@ print('setting up PP-GPD model parameters from DE optimization...')
 source('parameter_setup_dayPOT.R')
 source('likelihood_ppgpd.R')
 
-priors <- readRDS(paste(output.dir,filename.priors,sep=''))
-mle.fits <- readRDS(paste(output.dir,filename.mles,sep=''))
+priors <- readRDS(filename.priors)
+mle.fits <- readRDS(filename.mles)
 
 initial.values <- vector('list', nmodel); names(initial.values) <- types.of.gpd
 for (model in types.of.gpd) {initial.values[[model]] <- mle.fits[[model]][ind.in.mles,]}

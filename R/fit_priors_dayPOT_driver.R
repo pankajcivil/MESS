@@ -42,19 +42,49 @@
 .NP.deoptim <- 100      # number of DE population members (at least 10*[# parameters])
 .niter.deoptim <- 100   # number of DE iterations
 .Ncore <- 1            # number of CPUs to use, if parallelizing something
+pot.threshold <- 0.99   # POT threshold (percentile)
+dt.decluster <- 1       # declustering time-scale (days)
 output.dir <- '../output/'
 filename.saveprogress <- '../output/fitting_priors.RData'
 l.doprocessing <- 'FALSE'  # true if you need to run the processing
                           # false -> read in some previous RDS processing results,
                           # with the filenames defined below
-filename.many <- '../data/tidegauge_processed_manystations_decl3-pot99-annual_10Dec2017.rds'
-filename.delfzijl <- '../data/tidegauge_processed_deflzijl_decl3-pot99-annual_20Dec2017.rds'
-filename.norfolk <- '../data/tidegauge_processed_norfolk_decl3-pot99-annual_06Dec2017.rds'
-filename.balboa <- '../data/tidegauge_processed_balboa_decl3-pot99-annual_11Dec2017.rds'
-# don't need filename.balboa because it is a part of 'data_many' object
-#setwd('/storage/home/axw322/work/codes/EVT/R')
-setwd('/Users/tony/codes/EVT/R')
-appen <- 'ppgpd'
+
+appen <- paste('ppgpd_decl',dt.decluster,'-pot',100*pot.threshold,sep='')
+
+if(pot.threshold==0.99 & dt.decluster==3) {
+  filename.many <- '../data/tidegauge_processed_manystations_decl3-pot99-annual_10Dec2017.rds'
+  filename.delfzijl <- '../data/tidegauge_processed_delfzijl_decl3-pot99-annual_20Dec2017.rds'
+  filename.norfolk <- '../data/tidegauge_processed_norfolk_decl3-pot99-annual_06Dec2017.rds'
+  filename.balboa <- '../data/tidegauge_processed_balboa_decl3-pot99-annual_11Dec2017.rds'
+} else if(pot.threshold==0.99 & dt.decluster==1) {
+  filename.many <- '../data/tidegauge_processed_manystations_decl1-pot99-annual_06Jan2018.rds'
+  filename.delfzijl <- '../data/tidegauge_processed_delfzijl_decl1-pot99-annual_06Jan2018.rds'
+  filename.norfolk <- '../data/tidegauge_processed_norfolk_decl1-pot99-annual_06Jan2018.rds'
+  filename.balboa <- '../data/tidegauge_processed_balboa_decl1-pot99-annual_06Jan2018.rds'
+} else if(pot.threshold==0.997) {
+#todo
+  filename.many <- '../data/tidegauge_processed_manystations_decl3-pot997-annual_27Dec2017.rds'
+  filename.delfzijl <- '../data/tidegauge_processed_delfzijl_decl3-pot997-annual_28Dec2017.rds'
+  filename.norfolk <- '../data/tidegauge_processed_norfolk_decl3-pot997-annual_28Dec2017.rds'
+  filename.balboa <- '../data/tidegauge_processed_balboa_decl3-pot997-annual_28Dec2017.rds'
+} else if(pot.threshold==0.95) {
+#todo
+  filename.many <- '../data/tidegauge_processed_manystations_decl3-pot95-annual_31Dec2017.rds'
+  filename.delfzijl <- '../data/tidegauge_processed_delfzijl_decl3-pot95-annual_31Dec2017.rds'
+  filename.norfolk <- '../data/tidegauge_processed_norfolk_decl3-pot95-annual_31Dec2017.rds'
+  filename.balboa <- '../data/tidegauge_processed_balboa_decl3-pot95-annual_31Dec2017.rds'
+}
+
+if(Sys.info()['nodename']=='Tonys-MBP') {
+  # Tony's local machine (if you aren't me, you almost certainly need to change this...)
+  machine <- 'local'
+  setwd('/Users/tony/codes/EVT/R')
+} else {
+  # assume on Napa cluster
+  machine <- 'remote'
+  setwd('/home/scrim/axw322/codes/EVT/R')
+}
 
 #
 #===============================================================================

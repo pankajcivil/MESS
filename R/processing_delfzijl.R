@@ -361,7 +361,7 @@ processing_delfzijl <- function(dt.decluster, detrend.method, pot.threshold) {
 
   # save final 'data_delfzijl' object to RDS to use later
   today=Sys.Date(); today=format(today,format="%d%b%Y")
-  filename.output <- paste('../data/tidegauge_processed_deflzijl_decl',data_delfzijl$dt.decluster,'_pot',pot.threshold*100,'-',detrend.method,'_',today,'.rds', sep='')
+  filename.output <- paste('../data/tidegauge_processed_delfzijl_decl',data_delfzijl$dt.decluster,'-pot',pot.threshold*100,'-',detrend.method,'_',today,'.rds', sep='')
   saveRDS(data_delfzijl, file=filename.output)
 
   #===============================================================================
