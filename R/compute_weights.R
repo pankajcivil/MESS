@@ -23,7 +23,7 @@
 
 library(Hmisc)
 
-appen <- '_threshold95'
+appen <- '_decl1'
 path.ml <- paste('/home/scrim/axw322/codes/EVT/output/bma',appen,sep='')
 path.out <- '/home/scrim/axw322/codes/EVT/output'
 

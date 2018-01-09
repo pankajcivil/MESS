@@ -38,14 +38,24 @@
 # MESS.  If not, see <http://www.gnu.org/licenses/>.
 #===============================================================================
 
-#rm(list=ls())
+rm(list=ls())
+
+if(Sys.info()['nodename']=='Tonys-MBP') {
+  # Tony's local machine (if you aren't me, you almost certainly need to change this...)
+  machine <- 'local'
+  setwd('/Users/tony/codes/EVT/R')
+} else {
+  # assume on Napa cluster
+  machine <- 'remote'
+  setwd('/home/scrim/axw322/codes/EVT/R')
+}
+
+pot.threshold <- 0.95   # POT threshold (percentile)
+dt.decluster <- 3       # declustering time-scale (days)
+
 .NP.deoptim <- 100      # number of DE population members (at least 10*[# parameters])
 .niter.deoptim <- 100   # number of DE iterations
-.Ncore <- 1            # number of CPUs to use, if parallelizing something
-pot.threshold <- 0.99   # POT threshold (percentile)
-dt.decluster <- 1       # declustering time-scale (days)
 output.dir <- '../output/'
-filename.saveprogress <- '../output/fitting_priors.RData'
 l.doprocessing <- 'FALSE'  # true if you need to run the processing
                           # false -> read in some previous RDS processing results,
                           # with the filenames defined below
@@ -62,28 +72,18 @@ if(pot.threshold==0.99 & dt.decluster==3) {
   filename.delfzijl <- '../data/tidegauge_processed_delfzijl_decl1-pot99-annual_06Jan2018.rds'
   filename.norfolk <- '../data/tidegauge_processed_norfolk_decl1-pot99-annual_06Jan2018.rds'
   filename.balboa <- '../data/tidegauge_processed_balboa_decl1-pot99-annual_06Jan2018.rds'
-} else if(pot.threshold==0.997) {
+} else if(pot.threshold==0.997 & dt.decluster==3) {
 #todo
-  filename.many <- '../data/tidegauge_processed_manystations_decl3-pot997-annual_27Dec2017.rds'
-  filename.delfzijl <- '../data/tidegauge_processed_delfzijl_decl3-pot997-annual_28Dec2017.rds'
-  filename.norfolk <- '../data/tidegauge_processed_norfolk_decl3-pot997-annual_28Dec2017.rds'
-  filename.balboa <- '../data/tidegauge_processed_balboa_decl3-pot997-annual_28Dec2017.rds'
-} else if(pot.threshold==0.95) {
+  filename.many <- '../data/tidegauge_processed_manystations_decl3-pot99.7-annual_27Dec2017.rds'
+  filename.delfzijl <- '../data/tidegauge_processed_delfzijl_decl3-pot99.7-annual_28Dec2017.rds'
+  filename.norfolk <- '../data/tidegauge_processed_norfolk_decl3-pot99.7-annual_28Dec2017.rds'
+  filename.balboa <- '../data/tidegauge_processed_balboa_decl3-pot99.7-annual_28Dec2017.rds'
+} else if(pot.threshold==0.95 & dt.decluster==3) {
 #todo
   filename.many <- '../data/tidegauge_processed_manystations_decl3-pot95-annual_31Dec2017.rds'
   filename.delfzijl <- '../data/tidegauge_processed_delfzijl_decl3-pot95-annual_31Dec2017.rds'
   filename.norfolk <- '../data/tidegauge_processed_norfolk_decl3-pot95-annual_31Dec2017.rds'
   filename.balboa <- '../data/tidegauge_processed_balboa_decl3-pot95-annual_31Dec2017.rds'
-}
-
-if(Sys.info()['nodename']=='Tonys-MBP') {
-  # Tony's local machine (if you aren't me, you almost certainly need to change this...)
-  machine <- 'local'
-  setwd('/Users/tony/codes/EVT/R')
-} else {
-  # assume on Napa cluster
-  machine <- 'remote'
-  setwd('/home/scrim/axw322/codes/EVT/R')
 }
 
 #
@@ -225,7 +225,6 @@ for (dd in 1:length(data_all)) {
     tend <- proc.time()
     print(paste('... done. Took ',round(as.numeric(tend-tbeg)[3]/60,2),' minutes', sep=''))
   }
-  save.image(filename.saveprogress)
   tend0 <- proc.time()
   print(paste('... done. Took ',round(as.numeric(tend0-tbeg0)[3]/60,2),' minutes', sep=''))
 }
@@ -344,7 +343,6 @@ filename.mles <- paste(output.dir,'surge_MLEs_',appen,'_',today,'.rds', sep='')
 
 print(paste('saving priors and DE optim output as .rds files to read and use later...',sep=''))
 
-save.image(file=filename.saveprogress)
 saveRDS(priors_normalgamma, file=filename.priors.normalgamma)
 saveRDS(priors_uniform, file=filename.priors.uniform)
 saveRDS(deoptim.all, file=filename.mles)

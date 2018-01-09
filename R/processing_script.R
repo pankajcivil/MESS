@@ -29,9 +29,9 @@
 #===============================================================================
 # set things
 
-.dt.decluster <- 3           # declustering time scale (days)
+.dt.decluster <- 1           # declustering time scale (days)
 .detrend.method <- 'annual'  # annual means or linear detrending?
-.pot.threshold <- .95        # percentile for POT threshold
+.pot.threshold <- .99        # percentile for POT threshold
 
 
 if(Sys.info()['user']=='tony') {

@@ -29,9 +29,10 @@ library(foreach)
 library(doParallel)
 library(ncdf4)
 
-appen <- '_threshold95'
-calib_date <- '31Dec2017'
-pot.threshold <- '_pot95' # for main text results (_pot99)
+appen <- '_decl1'
+calib_date <- '07Jan2018'
+dt.decluster <- 1
+pot.threshold <- 0.99
 type.of.priors <- 'normalgamma'     # can be 'uniform' or 'normalgamma'
 
 if(Sys.info()['user']=='tony') {
@@ -103,7 +104,7 @@ print(paste('Starting cluster with ',nnode,' cores', sep=''))
 registerDoParallel(cl)
 
 source('bridge_sample_functions.R')
-export.names <- c('bridge.samp.rel.err','bridge.samp.iter','recip.imp.samp','experiments','trimmed_forcing','log_post_ppgpd','log_like_ppgpd','log_prior_ppgpd','path.R','Tmax','calib_date','pot.threshold','type.of.priors')
+export.names <- c('bridge.samp.rel.err','bridge.samp.iter','recip.imp.samp','experiments','trimmed_forcing','log_post_ppgpd','log_like_ppgpd','log_prior_ppgpd','path.R','Tmax','calib_date','dt.decluster','pot.threshold','type.of.priors')
 
 finalOutput <- foreach(ee=1:n_experiments,
                             .packages=c('mvtnorm','extRemes','ncdf4'),
@@ -130,18 +131,19 @@ finalOutput <- foreach(ee=1:n_experiments,
   # read in calibration output file
   print('loading calibration file...')
 
+  setwd(path.data)
+
   ##type.of.priors <- 'normalgamma'     # can be 'uniform' or 'normalgamma'
-  filename.priors <- paste('surge_priors_',type.of.priors,'_ppgpd_20Dec2017.rds',sep='') # is in the output directory
+  filename.priors <- Sys.glob(paste('surge_priors_',type.of.priors,'_ppgpd_decl',dt.decluster,'-pot',pot.threshold*100,'_*','.rds',sep='')) # is in the output directory
 
   # use this if multiple files exist for the same location and prior
   #calib_date <- '31Dec2017'
   #pot.threshold <- '_pot95' # for main text results (_pot99)
-  setwd(path.data)
   priors <- readRDS(filename.priors)
   if (exists('calib_date')) {
-    filename.calib <- paste('mcmc_ppgpd-experiments_',station,'_',type.of.priors,pot.threshold,'_',calib_date,'.RData',sep='')
+    filename.calib <- paste('mcmc_ppgpd-experiments_',station,'_',type.of.priors,'_decl',dt.decluster,'-pot',pot.threshold*100,'_',calib_date,'.RData',sep='')
   } else {
-    filename.calib <- Sys.glob(paste('mcmc_ppgpd-experiments_',station,'_',type.of.priors,'_*','.RData',sep=''))
+    filename.calib <- Sys.glob(paste('mcmc_ppgpd-experiments_',station,'_',type.of.priors,'_decl',dt.decluster,'-pot',pot.threshold*100,'_*','.RData',sep=''))
   }
   load(filename.calib)
 

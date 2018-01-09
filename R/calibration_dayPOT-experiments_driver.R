@@ -27,10 +27,10 @@ rm(list=ls())
 
 # vvv IMPORTANT SETTINGS YOU SHOULD MODIFY, DEPENDING ON THE EXPERIMENT vvv
 
-station <- 'delfzijl'             # can be 'delfzijl', 'balboa', or 'norfolk'
+station <- 'norfolk'             # can be 'delfzijl', 'balboa', or 'norfolk'
 type.of.priors <- 'normalgamma'      # can be either 'uniform' or 'normalgamma'
 pot.threshold <- 0.99            # GPD threshold (percentile, 0-1)
-dt.decluster <- 3                # declustering time-scale (days)
+dt.decluster <- 1                # declustering time-scale (days)
 
 niter_mcmc_prelim000 <- 5e3      # number of MCMC iterations (PRELIMINARY chains)
 nnode_mcmc_prelim000 <- 1        # number of CPUs to use (PRELIMINARY chains)
@@ -65,18 +65,25 @@ filename.mles <- Sys.glob(paste(output.dir,'surge_MLEs_ppgpd_decl',dt.decluster,
 filename.priors <- Sys.glob(paste(output.dir,'surge_priors_',type.of.priors,'_ppgpd_decl',dt.decluster,'-pot',100*pot.threshold,'_*','.rds',sep=''))
 filename.datacalib <- Sys.glob(paste('../data/tidegauge_processed_',station,'_decl',dt.decluster,'-pot',100*pot.threshold,'-annual_*','.rds',sep=''))
 
+appen <- paste('ppgpd-experiments_',station,'_',type.of.priors,'_decl',dt.decluster,'-pot',pot.threshold*100,sep='')
+
 if (station=='delfzijl') {
-  appen <- paste('ppgpd-experiments_delfzijl_',type.of.priors,'_pot',pot.threshold*100,sep='')
   ind.in.mles <- 29
 } else if (station=='norfolk') {
-  appen <- paste('ppgpd-experiments_norfolk_',type.of.priors,'_pot',pot.threshold*100,sep='')
   ind.in.mles <- 30
 } else if (station=='balboa') {
-  appen <- paste('ppgpd-experiments_balboa_',type.of.priors,'_pot',pot.threshold*100,sep='')
   ind.in.mles <- 10
 }
 
-
+print('')
+print('-------------------------------------------------------------')
+print(paste('Declustering time-scale:',dt.decluster,sep=' '))
+print(paste('POT threshold:',pot.threshold,sep=' '))
+print(paste('Prior MLEs filename:',filename.mles,sep=' '))
+print(paste('Prior fits filename:',filename.priors,sep=' '))
+print(paste('Calibration data filename:',filename.datacalib,sep=' '))
+print('-------------------------------------------------------------')
+print('')
 
 # ^^^ IMPORTANT SETTINGS YOU SHOULD MODIFY, DEPENDING ON THE EXPERIMENT ^^^
 
