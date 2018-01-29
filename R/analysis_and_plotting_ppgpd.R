@@ -26,6 +26,8 @@
 # MESS.  If not, see <http://www.gnu.org/licenses/>.
 #===============================================================================
 
+rm(list=ls())
+
 # Some preliminaries
 
 setwd('~/codes/EVT/R')
@@ -44,16 +46,16 @@ output.dir <- '../output/'
 
 # calibrated parameter sets (samples; all should be same size)
 # these are the results from 'calibration_dayPOT-experiments_driver.R'
-filename.norfolk.normalgamma <-  paste(output.dir,'calibratedParameters_ppgpd-experiments_norfolk_normalgamma_21Dec2017.nc', sep='')
-filename.norfolk.uniform <-      paste(output.dir,'calibratedParameters_ppgpd-experiments_norfolk_uniform_26Dec2017.nc',     sep='')
-filename.balboa.normalgamma <-   paste(output.dir,'calibratedParameters_ppgpd-experiments_balboa_normalgamma_25Dec2017.nc',  sep='')
-filename.balboa.uniform <-       paste(output.dir,'calibratedParameters_ppgpd-experiments_balboa_uniform_22Dec2017.nc',      sep='')
-filename.delfzijl.normalgamma <- paste(output.dir,'calibratedParameters_ppgpd-experiments_delfzijl_normalgamma_20Dec2017.nc',sep='')
-filename.delfzijl.uniform <-     paste(output.dir,'calibratedParameters_ppgpd-experiments_delfzijl_uniform_20Dec2017.nc',    sep='')
+filename.norfolk.normalgamma <-  paste(output.dir,'calibratedParameters_ppgpd-experiments_norfolk_normalgamma_decl3-pot99_21Dec2017.nc', sep='')
+filename.balboa.normalgamma <-   paste(output.dir,'calibratedParameters_ppgpd-experiments_balboa_normalgamma_decl3-pot99_25Dec2017.nc',  sep='')
+filename.delfzijl.normalgamma <- paste(output.dir,'calibratedParameters_ppgpd-experiments_delfzijl_normalgamma_decl3-pot99_20Dec2017.nc',sep='')
+filename.norfolk.uniform <-      paste(output.dir,'calibratedParameters_ppgpd-experiments_norfolk_uniform_decl3-pot99_26Dec2017.nc',     sep='')
+filename.balboa.uniform <-       paste(output.dir,'calibratedParameters_ppgpd-experiments_balboa_uniform_decl3-pot99_29Dec2017.nc',      sep='')
+filename.delfzijl.uniform <-     paste(output.dir,'calibratedParameters_ppgpd-experiments_delfzijl_uniform_decl3-pot99_20Dec2017.nc',    sep='')
 
 filename.norfolk.data <- '../data/tidegauge_processed_norfolk_decl3-pot99-annual_06Dec2017.rds'
 filename.balboa.data <- '../data/tidegauge_processed_balboa_decl3-pot99-annual_11Dec2017.rds'
-filename.delfzijl.data <- '../data/tidegauge_processed_deflzijl_decl3-pot99-annual_20Dec2017.rds'
+filename.delfzijl.data <- '../data/tidegauge_processed_delfzijl_decl3-pot99-annual_20Dec2017.rds'
 
 filename.priors <- '../output/surge_priors_normalgamma_ppgpd_20Dec2017.rds'
 
@@ -303,14 +305,16 @@ for (site in site.names) {
 }
 
 # bma weight results object
-bma_weights <- readRDS('../output/bma_weights.rds')
+bma_weights <- readRDS('../output/bma_weights_threshold99.rds')
 
 # create table 1 for paper
-comparison_table1 <- cbind( c(aic$Delfzijl['y130',], aic$Norfolk['y90',], aic$Balboa['y110',]) ,
+comparison_table1 <- cbind( c(rep('delfzijl', nmodel), rep('norfolk', nmodel), rep('balboa', nmodel)),
+                            c(aic$Delfzijl['y130',], aic$Norfolk['y90',], aic$Balboa['y110',]) ,
                             c(bic$Delfzijl['y130',], bic$Norfolk['y90',], bic$Balboa['y110',]) ,
                             c(dic$Delfzijl['y130',], dic$Norfolk['y90',], dic$Balboa['y110',]) ,
                             c(bma_weights$Delfzijl$`137`, bma_weights$Norfolk$`89`, bma_weights$Balboa$`107`))
-write.csv(x=comparison_table1, file='../output/model_comparisons.csv')
+colnames(comparison_table1) <- c('site','aic','bic','dic','bma')
+write.csv(x=comparison_table1, file='../output/model_comparisons_threshold99.csv')
 
 # map from Vivek's BMA weights object to match the data.lengths one here
 #bma_weights$Delfzijl <- bma_weights$Delfzijl[-6]   # get rid of `107` experiment
@@ -400,7 +404,7 @@ par(mfrow=c(1,1), mai=c(.8,.7,.15,.2))
 halfwidth <- 2 # half the width of the boxes, in years
 # put the first median bar down, to get hte plot started
 plot(c(block.years.center[1]-halfwidth, block.years.center[1]+halfwidth), rep(returnlevel.quantiles[1,'q50'],2),
-     type='l', lwd=3, col='black', xlim=c(1900,2000), ylim=c(0,8), xlab='', ylab='', las=1)
+     type='l', lwd=3, col='black', xlim=c(1900,2004), ylim=c(0,8), xlab='', ylab='', las=1)
 # now add the darker 25-75% range polygon before the median bars, ...
 for (bb in 1:nblocks) {
     times.beg.end <- c(block.years.center[bb]-halfwidth, block.years.center[bb]+halfwidth)
@@ -607,7 +611,7 @@ par(mfrow=c(2,3), mai=c(.67,.32,.25,.09))
 
 year <- 'y2016'
 site <- 'Delfzijl'
-plot(rl100.x, f.rl100.bma_mod[[site]]$gpd3[[year]], type='l', xlim=c(-3,3), ylim=c(0, 1.10),
+plot(rl100.x, f.rl100.bma_mod[[site]]$gpd3[[year]], type='l', xlim=c(-3,3), ylim=c(0, 1.24),
      lwd=2, xlab='', ylab='', yaxs='i', yaxt='n', axes=FALSE, col='seagreen')
 lines(rl100.x, f.rl100.bma_mod[[site]]$gpd4[[year]], col='darkorange3', lwd=2, lty=5)
 lines(rl100.x, f.rl100.bma_mod[[site]]$gpd5[[year]], col='mediumslateblue', lwd=2, lty=5)
@@ -623,12 +627,12 @@ mtext('Delfzijl', side=3, line=.6, cex=0.75)
 mtext(side=3, text=expression(bold(' a.')), line=.6, cex=0.75, adj=0)
 mtext('100-year return level in 2016 [m],\nBMA relative to each model', side=1, line=3.4, cex=0.75);
 axis(1, at=seq(-3, 3, 1), labels=c('-3','-2','-1','0','1','2','3'), cex.axis=1.2)
-legend(-3.1,1.1, c('ST','NS1','NS2','NS3'), lty=c(1,5,5,5), cex=1.1, bty='n', lwd=2,
+legend(-3.1,1.2, c('ST','NS1','NS2','NS3'), lty=c(1,5,5,5), cex=1.1, bty='n', lwd=2,
        col=c('seagreen','darkorange3','mediumslateblue','mediumvioletred'))
 #
 par(mai=c(.67,.3,.25,.11))
 site <- 'Balboa'
-plot(rl100.x, f.rl100.bma_mod[[site]]$gpd3[[year]], type='l', xlim=c(-.5,.5), ylim=c(0, 15),
+plot(rl100.x, f.rl100.bma_mod[[site]]$gpd3[[year]], type='l', xlim=c(-.5,.5), ylim=c(0, 16),
      lwd=2, xlab='', ylab='', yaxs='i', yaxt='n', axes=FALSE, col='seagreen')
 lines(rl100.x, f.rl100.bma_mod[[site]]$gpd4[[year]], col='darkorange3', lwd=2, lty=5)
 lines(rl100.x, f.rl100.bma_mod[[site]]$gpd5[[year]], col='mediumslateblue', lwd=2, lty=5)
@@ -666,7 +670,7 @@ year <- 'y2065'
 #
 par(mai=c(.67,.32,.25,.09))
 site <- 'Delfzijl'
-plot(rl100.x, f.rl100.bma_mod[[site]]$gpd3[[year]], type='l', xlim=c(-3,3), ylim=c(0, .75),
+plot(rl100.x, f.rl100.bma_mod[[site]]$gpd3[[year]], type='l', xlim=c(-3,3), ylim=c(0, 1),
      lwd=2, xlab='', ylab='', yaxs='i', yaxt='n', axes=FALSE, col='seagreen')
 lines(rl100.x, f.rl100.bma_mod[[site]]$gpd4[[year]], col='darkorange3', lwd=2, lty=5)
 lines(rl100.x, f.rl100.bma_mod[[site]]$gpd5[[year]], col='mediumslateblue', lwd=2, lty=5)
@@ -679,12 +683,12 @@ u <- par("usr")
 arrows(u[1], u[3], u[1], .99*u[4], code = 2, length=.15, xpd = TRUE)
 mtext('Probability density', side=2, line=1, cex=.75);
 mtext(side=3, text=expression(bold(' d.')), line=.6, cex=0.75, adj=0)
-mtext('100-year return level increase by\n2065 [m], BMA relative to each model', side=1, line=3.4, cex=0.75);
+mtext('100-year return level in 2065 [m], \nBMA relative to each model', side=1, line=3.4, cex=0.75);
 axis(1, at=seq(-3, 3, 1), labels=c('-3','-2','-1','0','1','2','3'), cex.axis=1.2)
 #
 par(mai=c(.67,.3,.25,.11))
 site <- 'Balboa'
-plot(rl100.x, f.rl100.bma_mod[[site]]$gpd3[[year]], type='l', xlim=c(-.5,.5), ylim=c(0,13),
+plot(rl100.x, f.rl100.bma_mod[[site]]$gpd3[[year]], type='l', xlim=c(-.5,.5), ylim=c(0,13.7),
      lwd=2, xlab='', ylab='', yaxs='i', yaxt='n', axes=FALSE, col='seagreen')
 lines(rl100.x, f.rl100.bma_mod[[site]]$gpd4[[year]], col='darkorange3', lwd=2, lty=5)
 lines(rl100.x, f.rl100.bma_mod[[site]]$gpd5[[year]], col='mediumslateblue', lwd=2, lty=5)
@@ -696,7 +700,7 @@ lines(c(-100,100), c(0,0), col='black', lwd=1.5) # replace the x-axis wonkily
 u <- par("usr")
 arrows(u[1], u[3], u[1], .99*u[4], code = 2, length=.15, xpd = TRUE)
 mtext(side=3, text=expression(bold(' e.')), line=.6, cex=0.75, adj=0)
-mtext('100-year return level increase by\n2065 [m], BMA relative to each model', side=1, line=3.4, cex=0.75);
+mtext('100-year return level in 2065 [m], \nBMA relative to each model', side=1, line=3.4, cex=0.75);
 axis(1, at=seq(-.5, .5, .25), labels=c('-0.5','-0.25','0','0.25','0.5'), cex.axis=1.2)
 #
 par(mai=c(.67,.28,.25,.13))
@@ -713,13 +717,77 @@ lines(c(-100,100), c(0,0), col='black', lwd=1.5) # replace the x-axis wonkily
 u <- par("usr")
 arrows(u[1], u[3], u[1], .99*u[4], code = 2, length=.15, xpd = TRUE)
 mtext(side=3, text=expression(bold(' f.')), line=.6, cex=0.75, adj=0)
-mtext('100-year return level increase by\n2065 [m], BMA relative to each model', side=1, line=3.4, cex=0.75);
+mtext('100-year return level in 2065 [m], \nBMA relative to each model', side=1, line=3.4, cex=0.75);
 axis(1, at=seq(-2, 2, .5), labels=c('-2','','-1','','0','','1','','2'), cex.axis=1.2)
 
 dev.off()
 
 #===============================================================================
 #
+
+
+
+#
+#===============================================================================
+# Further analysis:
+#==================
+# Take the ensemble of 100-year return levels in year 2016 and see what the
+# return period is for these heights in year 2065.
+
+year_project <- 2065
+temperature_project <- temperature_forc[which(time_forc == year_project)]
+rl100_reduced <- vector('list', nsites); names(rl100_reduced) <- site.names
+
+for (site in site.names) {
+  rl100_reduced[[site]] <- vector('list', nmodel); names(rl100_reduced[[site]]) <- types.of.gpd
+  for (model in types.of.gpd) {
+    rl100_reduced[[site]][[model]] <- rep(NA, n.ensemble)
+    data.len <- all.data[site]
+    pb <- txtProgressBar(min=0,max=n.ensemble, initial=0,style=3)
+    for (sow in 1:n.ensemble) {
+      if (length(parnames[[model]])==3) {
+        lambda <- gpd.parameters[[site]][[data.len]][[model]][sow,match('lambda', parnames[[model]])]
+        sigma <- gpd.parameters[[site]][[data.len]][[model]][sow,match('sigma', parnames[[model]])]
+        xi <- gpd.parameters[[site]][[data.len]][[model]][sow,match('xi', parnames[[model]])]
+      } else if(length(parnames[[model]])==4) {
+        lambda <- gpd.parameters[[site]][[data.len]][[model]][sow,match('lambda0', parnames[[model]])] +
+                  gpd.parameters[[site]][[data.len]][[model]][sow,match('lambda1', parnames[[model]])]*temperature_project
+        sigma <- gpd.parameters[[site]][[data.len]][[model]][sow,match('sigma', parnames[[model]])]
+        xi <- gpd.parameters[[site]][[data.len]][[model]][sow,match('xi', parnames[[model]])]
+      } else if(length(parnames[[model]])==5) {
+        lambda <- gpd.parameters[[site]][[data.len]][[model]][sow,match('lambda0', parnames[[model]])] +
+                  gpd.parameters[[site]][[data.len]][[model]][sow,match('lambda1', parnames[[model]])]*temperature_project
+        sigma <- exp(gpd.parameters[[site]][[data.len]][[model]][sow,match('sigma0', parnames[[model]])] +
+                     gpd.parameters[[site]][[data.len]][[model]][sow,match('sigma1', parnames[[model]])]*temperature_project)
+        xi <- gpd.parameters[[site]][[data.len]][[model]][sow,match('xi', parnames[[model]])]
+      } else if(length(parnames[[model]])==6) {
+        lambda <- gpd.parameters[[site]][[data.len]][[model]][sow,match('lambda0', parnames[[model]])] +
+                  gpd.parameters[[site]][[data.len]][[model]][sow,match('lambda1', parnames[[model]])]*temperature_project
+        sigma <- exp(gpd.parameters[[site]][[data.len]][[model]][sow,match('sigma0', parnames[[model]])] +
+                     gpd.parameters[[site]][[data.len]][[model]][sow,match('sigma1', parnames[[model]])]*temperature_project)
+        xi <- gpd.parameters[[site]][[data.len]][[model]][sow,match('xi0', parnames[[model]])] +
+              gpd.parameters[[site]][[data.len]][[model]][sow,match('xi1', parnames[[model]])]*temperature_project
+      }
+      rl100_reduced[[site]][[model]][sow] <- ppgpd_overtop(h=rl100[[site]][[data.len]][[model]]$y2016[sow],
+                                                           lambda=lambda,
+                                                           sigma=sigma,
+                                                           xi=xi,
+                                                           threshold=data.sites[[site]]$gpd$threshold,
+                                                           nmax=182.5,
+                                                           time.length=365.25)
+      setTxtProgressBar(pb, sow)
+    }
+    close(pb)
+  }
+}
+
+print('(GPD4) 2016 100-year return heights for Delfzijl are in 2065 return periods of:')
+print(quantile(1/rl100_reduced$Delfzijl$gpd4, c(.05,.5,.95)))
+
+#===============================================================================
+#
+
+
 
 
 #
@@ -768,7 +836,7 @@ halfwidth <- 2 # half the width of the boxes, in years
 # put the first median bar down, to get hte plot started
 site <- 'Delfzijl'
 plot(rep(returnlevel.quantiles[[site]][1,'q50'],2), c(y.datalengths[1]-halfwidth, y.datalengths[1]+halfwidth),
-     type='l', lwd=1.5, col='black', xlim=c(4,8), ylim=c(130,30), xlab='', ylab='', las=1, yaxt='n', cex.axis=1.15)
+     type='l', lwd=1.5, col='black', xlim=c(4, 7), ylim=c(130,30), xlab='', ylab='', las=1, xaxt='n', yaxt='n', cex.axis=1.15)
 # ... and add the 25-75% range polygon...
 for (dd in 1:length(data.lengths[[site]])) {
     times.beg.end <- c(y.datalengths[dd]-halfwidth, y.datalengths[dd]+halfwidth)
@@ -787,12 +855,13 @@ mtext('Delfzijl', side=3, line=.6, cex=0.8)
 mtext(side=3, text=expression(bold(' a.')), line=.6, cex=0.8, adj=0)
 mtext('Years of data', side=2, line=2.4, cex=0.8);
 mtext('100-year return level [m]', side=1, line=2.5, cex=0.8);
+axis(1, at=seq(4, 7, by=0.5), labels=c('4','','5','','6','','7'), cex.axis=1.15)
 axis(2, at=y.datalengths, labels=y.datalengths, cex.axis=1.15)
 
 # put the first median bar down, to get hte plot started
 site <- 'Balboa'
 plot(rep(returnlevel.quantiles[[site]][1,'q50'],2), c(y.datalengths[1]-halfwidth, y.datalengths[1]+halfwidth),
-     type='l', lwd=1.5, col='black', xlim=c(3,4.6), ylim=c(130,30), xlab='', ylab='', las=1, yaxt='n', cex.axis=1.15)
+     type='l', lwd=1.5, col='black', xlim=c(3, 5.2), ylim=c(130,30), xlab='', ylab='', las=1, xaxt='n', yaxt='n', cex.axis=1.15)
 # ... and add the 25-75% range polygon...
 for (dd in 1:length(data.lengths[[site]])) {
     times.beg.end <- c(y.datalengths[dd]-halfwidth, y.datalengths[dd]+halfwidth)
@@ -810,12 +879,13 @@ for (dd in 1:length(data.lengths[[site]])) {lines(rep(returnlevel.quantiles[[sit
 mtext('Balboa', side=3, line=.6, cex=0.8)
 mtext(side=3, text=expression(bold(' b.')), line=.6, cex=0.8, adj=0)
 mtext('100-year return level [m]', side=1, line=2.5, cex=0.8);
+axis(1, at=seq(3, 5.5, by=0.5), labels=c('3','3.5','4','4.5','5','5.5'), cex.axis=1.15)
 axis(2, at=y.datalengths, labels=y.datalengths, cex.axis=1.15)
 
 # put the first median bar down, to get hte plot started
 site <- 'Norfolk'
 plot(rep(returnlevel.quantiles[[site]][1,'q50'],2), c(y.datalengths[1]-halfwidth, y.datalengths[1]+halfwidth),
-     type='l', lwd=1.5, col='black', xlim=c(2,8), ylim=c(130,30), xlab='', ylab='', las=1, yaxt='n', cex.axis=1.15)
+     type='l', lwd=1.5, col='black', xlim=c(2,16), ylim=c(130,30), xlab='', ylab='', las=1, xaxt='n', yaxt='n', cex.axis=1.15)
 # ... and add the 25-75% range polygon...
 for (dd in 1:length(data.lengths[[site]])) {
     times.beg.end <- c(y.datalengths[dd]-halfwidth, y.datalengths[dd]+halfwidth)
@@ -833,6 +903,7 @@ for (dd in 1:length(data.lengths[[site]])) {lines(rep(returnlevel.quantiles[[sit
 mtext('Norfolk', side=3, line=.6, cex=0.8)
 mtext(side=3, text=expression(bold(' c.')), line=.6, cex=0.8, adj=0)
 mtext('100-year return level [m]', side=1, line=2.5, cex=0.8);
+axis(1, at=seq(2,16,by=2), labels=c('2','','6','','10','','14',''), cex.axis=1.15)
 axis(2, at=y.datalengths, labels=y.datalengths, cex.axis=1.15)
 
 dev.off()
@@ -854,7 +925,7 @@ library(plyr)
 library(reshape2)
 library(ggplot2)
 
-bma.weights <- readRDS('../output/bma_weights.rds')
+bma.weights <- readRDS('../output/bma_weights_threshold99.rds')
 bma.dfs <- lapply(bma.weights, data.frame, stringsAsFactors = FALSE)
 bma.all <- ldply(bma.dfs, .id = 'Site')
 bma.all$Model <- rep(c('ST','NS1','NS2','NS3'),3)
@@ -873,8 +944,9 @@ p <- ggplot(bma.melt[!is.na(bma.melt$ModelWeight),]) +
   facet_grid(Site~.) + theme_bw(base_size=9) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
   scale_color_brewer('Model',type='qual',palette='Set2') +
   scale_linetype_discrete('Model Class') +
-  scale_y_continuous('BMA Weight') +
-  scale_x_continuous('Data Length [years]', breaks=seq(30,130,20), expand=c(.01,.01))
+  scale_y_continuous('BMA Weight [dimensionless]') +
+  scale_x_continuous('Data Length [years]', breaks=seq(30,130,20), expand=c(.01,.01)) +
+  theme(strip.text.y = element_text(angle = 90))
 print(p)
 dev.off()
 #===============================================================================
@@ -887,7 +959,8 @@ dev.off()
 # SOM FIGURE S1 -- show the histograms of the MLE parameters and superimpose the
 #                  prior distribution (normal or gamma)
 
-load('../output/fitting_priors.RData')
+deoptim.all <- readRDS('../output/surge_MLEs_ppgpd_decl3-pot99_20Dec2017.rds')
+priors_normalgamma <- readRDS('../output/surge_priors_normalgamma_ppgpd_decl3-pot99_20Dec2017.rds')
 
 nbins <- 12 # note that there are only 30 sites...
 frac.ran <- 0.35 # extend axes above/below max/min range
@@ -921,7 +994,7 @@ pp <- 6 # xi1
 
 
 
-pdf(paste(plot.dir,'priors_normalgamma.pdf',sep=''), height=7, width=10, colormodel='cmyk')
+pdf(paste(plot.dir,'priors_normalgamma_SOM.pdf',sep=''), height=7, width=10, colormodel='cmyk')
 par(mfrow=c(4,6))
 ##=============================
 model <- 'gpd3'
@@ -1091,8 +1164,8 @@ for (site in site.names) {
 kde.uniform <- kde.normalgamma <- list.init
 for (site in site.names) {
   for (model in types.of.gpd) {
-    kde.normalgamma[[site]][[all.data[[site]]]][[model]] <- vector('list', length(parnames[[model]])); names(kde.normalgamma[[site]][[all.data[[site]]]][[model]]) <- parnames[[model]]
-    for (pp in 1:length(parnames[[model]])) {
+    kde.normalgamma[[site]][[all.data[[site]]]][[model]] <- vector('list', length(parnames_all[[model]])); names(kde.normalgamma[[site]][[all.data[[site]]]][[model]]) <- parnames_all[[model]]
+    for (pp in 1:length(parnames_all[[model]])) {
       kde.normalgamma[[site]][[all.data[[site]]]][[model]][[pp]] <- density(gpd.parameters[[site]][[all.data[[site]]]][[model]][,pp])
       kde.uniform[[site]][[all.data[[site]]]][[model]][[pp]] <- density(gpd.parameters.uniform[[site]][[all.data[[site]]]][[model]][,pp])
     }
@@ -1222,7 +1295,7 @@ lims.p[pp,2] <- max(kde.normalgamma[[1]][[all.data[[1]]]]$gpd6$xi1$x[rev(which(k
 # Delfzijl posterior results
 #
 
-pdf(paste(plot.dir,'posteriors_normalgamma_delfzijl.pdf',sep=''), height=7, width=10, colormodel='cmyk')
+pdf(paste(plot.dir,'posteriors_normalgamma_delfzijl_SOM.pdf',sep=''), height=7, width=10, colormodel='cmyk')
 par(mfrow=c(4,6))
 ##=============================
 site <- 'Delfzijl'
@@ -1393,7 +1466,7 @@ dev.off()
 # Balboa posterior results
 #
 
-pdf(paste(plot.dir,'posteriors_normalgamma_balboa.pdf',sep=''), height=7, width=10, colormodel='cmyk')
+pdf(paste(plot.dir,'posteriors_normalgamma_balboa_SOM.pdf',sep=''), height=7, width=10, colormodel='cmyk')
 par(mfrow=c(4,6))
 ##=============================
 site <- 'Balboa'
@@ -1565,7 +1638,7 @@ dev.off()
 # Norfolk posterior results
 #
 
-pdf(paste(plot.dir,'posteriors_normalgamma_norfolk.pdf',sep=''), height=7, width=10, colormodel='cmyk')
+pdf(paste(plot.dir,'posteriors_normalgamma_norfolk_SOM.pdf',sep=''), height=7, width=10, colormodel='cmyk')
 par(mfrow=c(4,6))
 ##=============================
 site <- 'Norfolk'
@@ -1747,8 +1820,8 @@ dev.off()
 
 
 # all index combinations between the BMA ensemble and each specific model ensemble
-# don't even set up 'all.indices', because it is probably going to be HUGE (and
-# in R, therefore slow)
+# don't even set up 'all.indices', because it is going to be HUGE (and in R,
+# therefore slow)
 #all.indices <- expand.grid(bma=1:n.ensemble, model=1:n.ensemble)
 n.sample <- 1e6 # 1e6 chosen because quantiles seem to stabilize; 1e4 not enough,
                 # but 1e5 and 1e6 yield similar results across all 3 sites
@@ -1814,7 +1887,7 @@ for (site in site.names) {
 }
 
 ## Here we write the CSV file that is the basis for supplemental tables S1-S3
-write.csv(x=rbind(q.rl100.mod$Delfzijl, q.rl100.mod$Balboa, q.rl100.mod$Norfolk), file='../output/returnlevels.csv')
+write.csv(x=rbind(q.rl100.mod$Delfzijl, q.rl100.mod$Balboa, q.rl100.mod$Norfolk), file='../output/returnlevels_threshold99.csv')
 
 ## NOTE: not actually using the figure code below - it is not complete
 ## went with presenting as a table instead.
@@ -1942,6 +2015,94 @@ plot(rl100.x, f.rl100.mod[[site]]$gpd3[[year]], type='l', #xlim=c(-2,2), ylim=c(
 dev.off()
 
 } # end comment out of the figure
+
+#===============================================================================
+#
+
+
+
+#
+#===============================================================================
+# SOM FIGURE - BMA weights for POT threshold of 95th and 99.7th quantiles
+#              and 1-day declustering time-scale
+
+library(plyr)
+library(reshape2)
+library(ggplot2)
+
+bma.weights <- readRDS('../output/bma_weights_threshold95.rds')
+bma.dfs <- lapply(bma.weights, data.frame, stringsAsFactors = FALSE)
+bma.all <- ldply(bma.dfs, .id = 'Site')
+bma.all$Model <- rep(c('ST','NS1','NS2','NS3'),3)
+bma.all$Model <- ordered(bma.all$Model, levels=c('ST', 'NS1', 'NS2', 'NS3'))
+colnames(bma.all)[2:9] <- gsub("X", "", colnames(bma.all)[2:9], fixed=TRUE)
+bma.all$ModelType <- ifelse(bma.all$Model == 'ST', 'Stationary', 'Nonstationary')
+bma.all$ModelType <- ordered(bma.all$ModelType, levels=c('Stationary', 'Nonstationary'))
+
+bma.melt <- melt(bma.all, id.vars=c('Site','Model', 'ModelType'),variable.name="DataLength", value.name= "ModelWeight")
+bma.melt$DataLength <- as.numeric(levels(bma.melt$DataLength)[bma.melt$DataLength])
+
+pdf(paste(plot.dir,'bma_weights_threshold95_SOM.pdf',sep=''), height=3, width=5)
+p <- ggplot(bma.melt[!is.na(bma.melt$ModelWeight),]) +
+  geom_line(aes(x=DataLength, y=ModelWeight, linetype=ModelType, color=Model)) +
+  geom_point(aes(x=DataLength, y=ModelWeight, color=Model), shape=20) +
+  facet_grid(Site~.) + theme_bw(base_size=9) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  scale_color_brewer('Model',type='qual',palette='Set2') +
+  scale_linetype_discrete('Model Class') +
+  scale_y_continuous('BMA Weight') +
+  scale_x_continuous('Data Length [years]', breaks=seq(30,130,20), expand=c(.01,.01))
+print(p)
+dev.off()
+
+
+bma.weights <- readRDS('../output/bma_weights_threshold997.rds')
+bma.dfs <- lapply(bma.weights, data.frame, stringsAsFactors = FALSE)
+bma.all <- ldply(bma.dfs, .id = 'Site')
+bma.all$Model <- rep(c('ST','NS1','NS2','NS3'),3)
+bma.all$Model <- ordered(bma.all$Model, levels=c('ST', 'NS1', 'NS2', 'NS3'))
+colnames(bma.all)[2:9] <- gsub("X", "", colnames(bma.all)[2:9], fixed=TRUE)
+bma.all$ModelType <- ifelse(bma.all$Model == 'ST', 'Stationary', 'Nonstationary')
+bma.all$ModelType <- ordered(bma.all$ModelType, levels=c('Stationary', 'Nonstationary'))
+
+bma.melt <- melt(bma.all, id.vars=c('Site','Model', 'ModelType'),variable.name="DataLength", value.name= "ModelWeight")
+bma.melt$DataLength <- as.numeric(levels(bma.melt$DataLength)[bma.melt$DataLength])
+
+pdf(paste(plot.dir,'bma_weights_threshold997_SOM.pdf',sep=''), height=3, width=5)
+p <- ggplot(bma.melt[!is.na(bma.melt$ModelWeight),]) +
+  geom_line(aes(x=DataLength, y=ModelWeight, linetype=ModelType, color=Model)) +
+  geom_point(aes(x=DataLength, y=ModelWeight, color=Model), shape=20) +
+  facet_grid(Site~.) + theme_bw(base_size=9) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  scale_color_brewer('Model',type='qual',palette='Set2') +
+  scale_linetype_discrete('Model Class') +
+  scale_y_continuous('BMA Weight') +
+  scale_x_continuous('Data Length [years]', breaks=seq(30,130,20), expand=c(.01,.01))
+print(p)
+dev.off()
+
+
+bma.weights <- readRDS('../output/bma_weights_decl1.rds')
+bma.dfs <- lapply(bma.weights, data.frame, stringsAsFactors = FALSE)
+bma.all <- ldply(bma.dfs, .id = 'Site')
+bma.all$Model <- rep(c('ST','NS1','NS2','NS3'),3)
+bma.all$Model <- ordered(bma.all$Model, levels=c('ST', 'NS1', 'NS2', 'NS3'))
+colnames(bma.all)[2:9] <- gsub("X", "", colnames(bma.all)[2:9], fixed=TRUE)
+bma.all$ModelType <- ifelse(bma.all$Model == 'ST', 'Stationary', 'Nonstationary')
+bma.all$ModelType <- ordered(bma.all$ModelType, levels=c('Stationary', 'Nonstationary'))
+
+bma.melt <- melt(bma.all, id.vars=c('Site','Model', 'ModelType'),variable.name="DataLength", value.name= "ModelWeight")
+bma.melt$DataLength <- as.numeric(levels(bma.melt$DataLength)[bma.melt$DataLength])
+
+pdf(paste(plot.dir,'bma_weights_decl1_SOM.pdf',sep=''), height=3, width=5)
+p <- ggplot(bma.melt[!is.na(bma.melt$ModelWeight),]) +
+  geom_line(aes(x=DataLength, y=ModelWeight, linetype=ModelType, color=Model)) +
+  geom_point(aes(x=DataLength, y=ModelWeight, color=Model), shape=20) +
+  facet_grid(Site~.) + theme_bw(base_size=9) + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  scale_color_brewer('Model',type='qual',palette='Set2') +
+  scale_linetype_discrete('Model Class') +
+  scale_y_continuous('BMA Weight') +
+  scale_x_continuous('Data Length [years]', breaks=seq(30,130,20), expand=c(.01,.01))
+print(p)
+dev.off()
 
 #===============================================================================
 #
@@ -2165,24 +2326,7 @@ dev.off()
 
 
 
-#
-#===============================================================================
-# FIGURE ? – Comparison of the empirical survival function calculated from the
-#            observed tide gauge data at each site (red points, different columns)
-#            against the modeled survival function in the ensemble median (black
-#            points) and 5-95% credible range (error bars) for models (a) ST:
-#            all parameters stationary, (b) NS1: lambda non-stationary, (c) NS3:
-#            lambda and sigma non-stationary, (d) NS3: all non-stationary and
-#            (e) the BMA-weighted ensemble.
 
-# for each site, what are the return
-
-# for each site, for each model structure, find the modeled return period for
-# each empirical survival function value
-
-
-#===============================================================================
-#
 
 
 

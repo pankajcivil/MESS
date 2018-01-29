@@ -250,9 +250,26 @@ save.image(file=filename.saveprogress)
 
 
 #===============================================================================
-# TODO - FIGURE? or TABLE?
-#                                      >>> TODO <<<
+# write table with the metrics
+
+likrat <- metrics$maxlik
+for (i in 1:4) {
+    likrat[,i] <- exp(likrat[,i]-likrat[1,i])
+}
+
+to_file <- rbind( cbind(rep('bic',nrow(metrics$bic)), round(metrics$bic,2)),
+                  cbind(rep('maxlik',nrow(metrics$maxlik)), round(metrics$maxlik,2)),
+                  cbind(rep('likrat',nrow(likrat)), round(likrat,2)))
+
+write.csv(x=t(to_file), file='../output/predictors_norfolk_SOM.csv')
 #===============================================================================
+
+
+#want to get ratio lik1/lik2
+#have llik1 and llik2
+#llik1 - llik2 = log(lik1/lik2)
+#<=>  exp(llik1 - llik2) = lik1/lik2
+
 
 #
 #===============================================================================
