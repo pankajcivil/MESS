@@ -40,7 +40,7 @@
 
 rm(list=ls())
 
-if(Sys.info()['nodename']=='Tonys-MBP') {
+if(Sys.info()['user']=='tony') {
   # Tony's local machine (if you aren't me, you almost certainly need to change this...)
   machine <- 'local'
   setwd('/Users/tony/codes/EVT/R')
@@ -50,7 +50,7 @@ if(Sys.info()['nodename']=='Tonys-MBP') {
   setwd('/home/scrim/axw322/codes/EVT/R')
 }
 
-pot.threshold <- 0.95   # POT threshold (percentile)
+pot.threshold <- 0.99   # POT threshold (percentile)
 dt.decluster <- 3       # declustering time-scale (days)
 
 .NP.deoptim <- 100      # number of DE population members (at least 10*[# parameters])
@@ -102,15 +102,18 @@ library(ncdf4)
 
 #
 #===============================================================================
-# read and process data for temperature (auxiliary covariate for nonstationary
-# parameters). yields: temperature_forc, time_forc
+# read and process data for forcing (auxiliary covariate for nonstationary
+# parameters). yields: [field]_forc, time_forc
 #===============================================================================
 #
 
-print('reading temperature data...')
+print('reading forcing data...')
 
-# using global annual mean temperature
-source('read_data_temperature.R')
+# using global annual mean temperature (temperature_forc)
+#source('read_data_temperature.R')
+
+# using NAO index (nao_forc)
+source('read_data_naoindex.R')
 
 print('...done.')
 
@@ -196,9 +199,8 @@ for (dd in 1:length(data_all)) {
   for (gpd.type in types.of.gpd) {
     print(paste('  - starting DE optimization for model ',gpd.type,'...', sep=''))
     tbeg <- proc.time()
-    if(gpd.type=='gpd3') {auxiliary <- NULL
-    } else {auxiliary <- trimmed_forcing(data_all[[dd]]$gpd$year, time_forc, temperature_forc)$temperature}
-    # if tide gauge record starts before temperatures, clip it
+
+    # if tide gauge record starts before auxiliary forcing, clip it
     if(data_all[[dd]]$gpd$year[1] < time_forc[1]) {
       irem <- which(data_all[[dd]]$gpd$year < time_forc[1])
       auxiliary <- auxiliary[-irem]
@@ -212,6 +214,24 @@ for (dd in 1:length(data_all)) {
       data_all[[dd]]$gpd$counts_all <- sum(unlist(data_all[[dd]]$gpd$counts), na.rm=TRUE)
       data_all[[dd]]$gpd$excesses_all <- unlist(data_all[[dd]]$gpd$excesses)[!is.na(unlist(data_all[[dd]]$gpd$excesses))]
     }
+    # if tide gauge record ends after auxiliary forcing, clip it
+    if(max(data_all[[dd]]$gpd$year) > max(time_forc)) {
+      irem <- which(data_all[[dd]]$gpd$year > max(time_forc))
+      auxiliary <- auxiliary[-irem]
+      data_all[[dd]]$gev_year$year <- data_all[[dd]]$gev_year$year[-irem]
+      data_all[[dd]]$gev_year$lsl_max <- data_all[[dd]]$gev_year$lsl_max[-irem]
+      data_all[[dd]]$gpd$year <- data_all[[dd]]$gpd$year[-irem]
+      data_all[[dd]]$gpd$counts <- data_all[[dd]]$gpd$counts[-irem]
+      data_all[[dd]]$gpd$excesses <- data_all[[dd]]$gpd$excesses[-irem]
+      data_all[[dd]]$gpd$time_length <- data_all[[dd]]$gpd$time_length[-irem]
+      data_all[[dd]]$gpd$time_length_all <- sum(data_all[[dd]]$gpd$time_length)
+      data_all[[dd]]$gpd$counts_all <- sum(unlist(data_all[[dd]]$gpd$counts), na.rm=TRUE)
+      data_all[[dd]]$gpd$excesses_all <- unlist(data_all[[dd]]$gpd$excesses)[!is.na(unlist(data_all[[dd]]$gpd$excesses))]
+    }
+
+    if(gpd.type=='gpd3') {auxiliary <- NULL
+    } else {auxiliary <- trimmed_forcing(data_all[[dd]]$gpd$year, time_forc, nao_forc)$forcing}
+
     out.deoptim <- DEoptim(neg_log_like_ppgpd, lower=bound_lower_set[[gpd.type]], upper=bound_upper_set[[gpd.type]],
                          DEoptim.control(NP=NP.deoptim,itermax=niter.deoptim,F=F.deoptim,CR=CR.deoptim,trace=FALSE),
                          parnames=parnames_all[[gpd.type]], data_calib=data_all[[dd]]$gpd, auxiliary=auxiliary)

@@ -170,7 +170,7 @@ for (ee in 1:n_experiments) {
 
     # set auxiliary parameters as trimmed_forcing for the relevant model
     if (gpd.model == 'gpd3') {aux <- NULL
-    } else {aux <-  trimmed_forcing(data_calib[[gpd.exp]]$year, time_forc, temperature_forc)$temperature}
+    } else {aux <-  trimmed_forcing(data_calib[[gpd.exp]]$year, time_forc, temperature_forc)$forcing}
 
     imp.samp$log.p <- apply(imp.samp$samples, 1, log_post_ppgpd,
                             parnames=colnames(post.samp$samples),

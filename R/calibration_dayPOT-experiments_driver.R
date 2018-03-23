@@ -27,7 +27,7 @@ rm(list=ls())
 
 # vvv IMPORTANT SETTINGS YOU SHOULD MODIFY, DEPENDING ON THE EXPERIMENT vvv
 
-station <- 'norfolk'             # can be 'delfzijl', 'balboa', or 'norfolk'
+station <- 'delfzijl'             # can be 'delfzijl', 'balboa', or 'norfolk'
 type.of.priors <- 'normalgamma'      # can be either 'uniform' or 'normalgamma'
 pot.threshold <- 0.99            # GPD threshold (percentile, 0-1)
 dt.decluster <- 1                # declustering time-scale (days)
@@ -38,7 +38,7 @@ niter_mcmc_prod000 <- 5e5        # number of MCMC iterations (PRODUCTION chains)
 #nnode_mcmc_prod000 <- 10          # number of CPUs to use (PRODUCTION chains)
 gamma_mcmc000 <- 0.5             # speed of adaptation (0.5=faster, 1=slowest)
 
-if(Sys.info()['nodename']=='Tonys-MBP') {
+if(Sys.info()['user']=='tony') {
   # Tony's local machine (if you aren't me, you almost certainly need to change this...)
   machine <- 'local'
   setwd('/Users/tony/codes/EVT/R')
@@ -122,20 +122,18 @@ library(ncdf4)
 
 #
 #===============================================================================
-# read and process data for temperature (auxiliary covariate for nonstationary
-# parameters)
-# yields: temperature_forc, time_forc
+# read and process data for forcing (auxiliary covariate for nonstationary
+# parameters). yields: [field]_forc, time_forc
 #===============================================================================
 #
 
-print('reading temperature data...')
+print('reading forcing data...')
 
-source('read_data_temperature.R')
+# using global annual mean temperature (temperature_forc)
+#source('read_data_temperature.R')
 
-# maximum temperature serves as an additinoal prior constraint on kappa0, kappa1
-# that is, kappa1 > -kappa0/Tmax (otherwise, kappa = kappa0 + kappa1*T might be
-# negative)
-Tmax <- max(temperature_forc)
+# using NAO index (nao_forc)
+source('read_data_naoindex.R')
 
 print('...done.')
 
@@ -195,7 +193,7 @@ for (gpd.exp in gpd.experiments) {
   for (model in types.of.gpd) {
     print(paste('Starting preliminary calibration for model ',model,' (',nnode_mcmc,' cores x ',niter_mcmc,' iterations)...', sep=''))
     if(model=='gpd3') {auxiliary <- NULL
-    } else {auxiliary <- trimmed_forcing(data_calib[[gpd.exp]]$year, time_forc, temperature_forc)$temperature}
+    } else {auxiliary <- trimmed_forcing(data_calib[[gpd.exp]]$year, time_forc, nao_forc)$forcing}
     accept_mcmc <- accept_mcmc_many + (accept_mcmc_few - accept_mcmc_many)/length(parnames_all[[model]])
     step_mcmc <- as.numeric(0.05*apply(X=mle.fits[[model]], MARGIN=2, FUN=sd))
     tbeg=proc.time()
@@ -316,7 +314,7 @@ for (gpd.exp in gpd.experiments) {
     if (model %in% types.of.gpd) {
       initial_parameters <- amcmc_prelim[[gpd.exp]][[model]]$samples[amcmc_prelim[[gpd.exp]][[model]]$n.sample,]
       if(model=='gpd3') {auxiliary <- NULL
-      } else {auxiliary <- trimmed_forcing(data_calib[[gpd.exp]]$year, time_forc, temperature_forc)$temperature}
+      } else {auxiliary <- trimmed_forcing(data_calib[[gpd.exp]]$year, time_forc, nao_forc)$forcing}
       accept_mcmc <- accept_mcmc_many + (accept_mcmc_few - accept_mcmc_many)/length(parnames_all[[model]])
       step_mcmc <- amcmc_prelim[[gpd.exp]][[model]]$cov.jump
       if(nnode_mcmc==1) {

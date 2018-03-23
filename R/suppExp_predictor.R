@@ -214,7 +214,7 @@ for (predictor in names_predictor) {
   for (gpd.type in types.of.gpd) {
     print(paste(' - starting DE optimization for model ',gpd.type,'...',sep=''))
     if(gpd.type=='gpd3') {auxiliary <- NULL
-    } else {auxiliary <- trimmed_forcing(data_calib$gpd$year, year_auxiliary[[predictor]], forc_auxiliary[[predictor]])$temperature}
+    } else {auxiliary <- trimmed_forcing(data_calib$gpd$year, year_auxiliary[[predictor]], forc_auxiliary[[predictor]])$forcing}
     # if tide gauge record starts before temperatures, clip it
     if(data_calib$gpd$year[1] < time_forc[1]) {
       irem <- which(data_calib$gpd$year < time_forc[1])

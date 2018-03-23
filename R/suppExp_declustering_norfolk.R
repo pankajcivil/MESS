@@ -149,7 +149,7 @@ for (ii in 1:length(dt.decluster.test)) {
   for (gpd.type in types.of.gpd) {
     print(paste(' - starting DE optimization for model ',gpd.type,'...',sep=''))
     if(gpd.type=='gpd3') {auxiliary <- NULL
-    } else {auxiliary <- trimmed_forcing(data_calib$gpd$year, time_forc, temperature_forc)$temperature}
+    } else {auxiliary <- trimmed_forcing(data_calib$gpd$year, time_forc, temperature_forc)$forcing}
     # if tide gauge record starts before temperatures, clip it
     if(data_calib$gpd$year[1] < time_forc[1]) {
       irem <- which(data_calib$gpd$year < time_forc[1])

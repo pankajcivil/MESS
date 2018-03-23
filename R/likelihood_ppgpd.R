@@ -273,7 +273,7 @@ log_like_ppgpd <- function(parameters,
   } else {print('ERROR - invalid number of parameters for PP-GPD')}
 
   # check extra conditions that would otherwise 'break' the likelihood function
-  if( any(lambda < 0) | any(sigma < 0) ) {llik <- -Inf}
+  if( any(lambda < 0) | any(sigma < 0) | any(is.na(lambda)) | any(is.na(sigma)) ) {llik <- -Inf}
   else {
     llik.bin <- dpois(x=data_calib$counts, lambda=(lambda*data_calib$time_length), log=TRUE)
     hits <- which(data_calib$counts!=0)   # gets indices of bins (years) with exceedances
@@ -285,9 +285,9 @@ log_like_ppgpd <- function(parameters,
     llik <- sum(llik.bin)
   }
 
-  # constraint on lambda0, lambda1 and Tmax
+  # constraint on lambda0, lambda1 and forc_max
   if( exists('lambda0') & exists('lambda1') ) {
-    if( lambda1[1] < (-lambda0[1]/Tmax) ) {llik <- -Inf}
+    if( lambda1[1] < (-lambda0[1]/forc_max) ) {llik <- -Inf}
   }
 
   return(llik)

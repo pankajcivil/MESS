@@ -252,7 +252,7 @@ for (site in site.names) {
     for (model in types.of.gpd) {
       print(paste('calculating log-posts/-likelihoods/-priors ',site,data.experiment.names[ind.data],model, sep=' - '))
       if(model=='gpd3') {auxiliary <- NULL
-      } else {auxiliary <- trimmed_forcing(data.sites[[site]][[data.lengths[[site]][ind.data]]]$year, time_forc, temperature_forc)$temperature}
+      } else {auxiliary <- trimmed_forcing(data.sites[[site]][[data.lengths[[site]][ind.data]]]$year, time_forc, temperature_forc)$forcing}
       ##lpri[[site]][[ind.data]][[model]] <- sapply(1:n.ensemble, function(sow) {log_prior_ppgpd(parameters=gpd.parameters[[site]][[ind.data]][[model]][sow,], parnames=parnames[[model]], priors=priors, model=model)})
       llik[[site]][[ind.data]][[model]] <- sapply(1:n.ensemble, function(sow) {log_like_ppgpd(parameters=gpd.parameters[[site]][[ind.data]][[model]][sow,], parnames=parnames[[model]], data_calib=data.sites[[site]][[data.lengths[[site]][ind.data]]], auxiliary=auxiliary)})
       ##lpost[[site]][[ind.data]][[model]] <- lpri[[site]][[ind.data]][[model]] + llik[[site]][[ind.data]][[model]]
@@ -295,7 +295,7 @@ for (site in site.names) {
       bic[[site]][ind.data, model] <- -2*llik[[site]][[ind.data]][[model]][imax] + length(parnames[[model]])*log(ndata)
       dev[[site]][[ind.data]][[model]] <- -2*llik[[site]][[ind.data]][[model]]
       if(model=='gpd3') {auxiliary <- NULL
-      } else {auxiliary <- trimmed_forcing(data.sites[[site]][[data.lengths[[site]][ind.data]]]$year, time_forc, temperature_forc)$temperature}
+      } else {auxiliary <- trimmed_forcing(data.sites[[site]][[data.lengths[[site]][ind.data]]]$year, time_forc, temperature_forc)$forcing}
       par.mean[[site]][[ind.data]][[model]] <- apply(gpd.parameters[[site]][[ind.data]][[model]], MARGIN=2, FUN=mean)
       dev.mean[[site]][[ind.data]][[model]] <- log_like_ppgpd(parameters=par.mean[[site]][[ind.data]][[model]], parnames=parnames[[model]], data_calib=data.sites[[site]][[data.lengths[[site]][ind.data]]], auxiliary=auxiliary)
       np.eff[[site]][[ind.data]][[model]] <- mean(dev[[site]][[ind.data]][[model]]) - dev.mean[[site]][[ind.data]][[model]]
@@ -597,12 +597,64 @@ for (site in site.names) {
   }
 }
 
+# Calculate the survival functions (empirical)
+
+# empirical cumulative density (distribution) and survival function
+# (the probabilities)
+ecdf.vals.bma <- seq(from=0, to=1, length.out=n.sample)
+esf.vals.bma  <- 1 - ecdf.vals.bma
+ecdf.vals <- seq(from=0, to=1, length.out=n.ensemble)
+esf.vals  <- 1 - ecdf.vals
+x.lims <- c(0, 100, 10000) # lower lim, upper lim, number of nodes
+
+# values corresponding to those probabilities
+sf.rl100.bma_mod <- vector('list', nsites); names(sf.rl100.bma_mod) <- site.names
+sf.rl100 <- vector('list', nsites); names(sf.rl100) <- site.names
+pdf.rl100 <- vector('list', nsites); names(pdf.rl100) <- site.names
+
+for (site in site.names) {
+  sf.rl100.bma_mod[[site]] <- vector('list', nmodel); names(sf.rl100.bma_mod[[site]]) <- types.of.gpd
+  sf.rl100[[site]] <- vector('list', nmodel+1); names(sf.rl100[[site]]) <- c(types.of.gpd, 'bma')
+  pdf.rl100[[site]] <- vector('list', nmodel+1); names(pdf.rl100[[site]]) <- c(types.of.gpd, 'bma')
+  for (model in types.of.gpd) {
+    sf.rl100.bma_mod[[site]][[model]] <- vector('list', nyears); names(sf.rl100.bma_mod[[site]][[model]]) <- year.names
+    sf.rl100[[site]][[model]] <- vector('list', nyears); names(sf.rl100[[site]][[model]]) <- year.names
+    pdf.rl100[[site]][[model]] <- vector('list', nyears); names(pdf.rl100[[site]][[model]]) <- year.names
+    for (year in year.names[2:3]) {
+      sf.rl100.bma_mod[[site]][[model]][[year]] <- 0.001*rl100.bma_mod[[site]][[model]][[year]][order(rl100.bma_mod[[site]][[model]][[year]])]
+      sf.rl100[[site]][[model]][[year]] <- 0.001*rl100[[site]][[all.data[[site]]]][[model]][[year]][order(rl100[[site]][[all.data[[site]]]][[model]][[year]])]
+      pdf.rl100[[site]][[model]][[year]] <- density(x=0.001*rl100[[site]][[all.data[[site]]]][[model]][[year]], from=x.lims[1], to=x.lims[2], n=x.lims[3], kernel='gaussian')
+    }
+  }
+  for (year in year.names[2:3]) {
+    sf.rl100[[site]]$bma[[year]] <- 0.001*rl100.bma[[site]][[all.data[[site]]]][[year]][order(rl100.bma[[site]][[all.data[[site]]]][[year]])]
+    pdf.rl100[[site]]$bma[[year]] <- density(x=0.001*rl100.bma[[site]][[all.data[[site]]]][[year]], from=x.lims[1], to=x.lims[2], n=x.lims[3], kernel='gaussian')
+  }
+}
+
+#
+# cap the pdfs that are just spikes and give no useful information
+# otherwise they'll just be hard to plot with good, god-fearing pdfs
+#
+capping <- function(fx, softcap, hardcap) {
+  ind_high <- which(fx > softcap)
+  if(length(ind_high)==0) {
+    return(fx)
+  } else {
+    scl <- ((fx[ind_high] - softcap)/(max(fx)-softcap)) * 0.5 * (hardcap-softcap)
+    fx_cap <- fx
+    fx_cap[ind_high] <- scl + softcap
+    return(fx_cap)
+  }
+}
+
+
 saveRDS(rl100.bma_mod, file='bma_minus_model_anomalies.rds')
 
 } # end check if(l.do.convolution)
 
 #
-# the actual figure
+# the actual figure -- WITHOUT survival function version
 #
 
 pdf(paste(plot.dir,'returnlevels_bma.pdf',sep=''),width=7,height=5,colormodel='rgb')
@@ -722,6 +774,431 @@ axis(1, at=seq(-2, 2, .5), labels=c('-2','','-1','','0','','1','','2'), cex.axis
 
 dev.off()
 
+
+
+#
+# the actual figure -- WITH survival function version
+#
+
+# for survival functions, since 1e6 is a lot of data points to plot, only plot
+# every n.skip of them (seq(1, n.sample, n.skip)).  Checked this in preliminary
+# test plot with n.skip = 1 ( all of them), 10, 20, 100, 200, and the results are
+# visually identical down to the 1:10,000 return level
+n.skip <- 50
+sf.plot <- seq(1, n.sample, n.skip)
+
+pdf(paste(plot.dir,'returnlevels_bma_sf.pdf',sep=''),width=7,height=9.5,colormodel='rgb')
+
+par(mfrow=c(4,3), mai=c(.67,.60,.25,.01))
+#####################
+# pdfs in year 2016 #
+#####################
+year <- 'y2016'
+site <- 'Delfzijl'
+plot(rl100.x, f.rl100.bma_mod[[site]]$gpd3[[year]], type='l', xlim=c(-3,3), ylim=c(0, 1.24),
+     lwd=2, xlab='', ylab='', yaxs='i', yaxt='n', axes=FALSE, col='seagreen')
+lines(rl100.x, f.rl100.bma_mod[[site]]$gpd4[[year]], col='darkorange3', lwd=2, lty=5)
+lines(rl100.x, f.rl100.bma_mod[[site]]$gpd5[[year]], col='mediumslateblue', lwd=2, lty=5)
+lines(rl100.x, f.rl100.bma_mod[[site]]$gpd6[[year]], col='mediumvioletred', lwd=2, lty=5)
+lines(c(0,0), c(-100,100), col='black', lwd=1.5)
+lines(c(-100,100), c(0,0), col='black', lwd=1.5) # replace the x-axis wonkily
+u <- par("usr")
+arrows(u[1], u[3], u[1], .99*u[4], code = 2, length=.15, xpd = TRUE)
+mtext('Probability density', side=2, line=1, cex=.75);
+mtext('Delfzijl', side=3, line=.6, cex=0.75)
+mtext(side=3, text=expression(bold(' a.')), line=.6, cex=0.75, adj=0)
+mtext('100-year return level in 2016 [m],\nBMA relative to each model', side=1, line=3.4, cex=0.75);
+axis(1, at=seq(-3, 3, 1), labels=c('-3','-2','-1','0','1','2','3'), cex.axis=1.1)
+legend(-3.3,1.1, c('ST','NS1','NS2','NS3'), lty=c(1,5,5,5), cex=1.1, bty='n', lwd=2,
+       col=c('seagreen','darkorange3','mediumslateblue','mediumvioletred'))
+#
+par(mai=c(.67,.51,.25,.10))
+site <- 'Balboa'
+plot(rl100.x, f.rl100.bma_mod[[site]]$gpd3[[year]], type='l', xlim=c(-.5,.5), ylim=c(0, 16),
+     lwd=2, xlab='', ylab='', yaxs='i', yaxt='n', axes=FALSE, col='seagreen')
+lines(rl100.x, f.rl100.bma_mod[[site]]$gpd4[[year]], col='darkorange3', lwd=2, lty=5)
+lines(rl100.x, f.rl100.bma_mod[[site]]$gpd5[[year]], col='mediumslateblue', lwd=2, lty=5)
+lines(rl100.x, f.rl100.bma_mod[[site]]$gpd6[[year]], col='mediumvioletred', lwd=2, lty=5)
+lines(c(0,0), c(-100,100), col='black', lwd=1.5)
+lines(c(-100,100), c(0,0), col='black', lwd=1.5) # replace the x-axis wonkily
+u <- par("usr")
+arrows(u[1], u[3], u[1], .99*u[4], code = 2, length=.15, xpd = TRUE)
+mtext('Balboa', side=3, line=.6, cex=0.75)
+mtext(side=3, text=expression(bold(' b.')), line=.6, cex=0.75, adj=0)
+mtext('100-year return level in 2016 [m],\nBMA relative to each model', side=1, line=3.4, cex=0.75);
+axis(1, at=seq(-.5, .5, .25), labels=c('-0.5','-0.25','0','0.25','0.5'), cex.axis=1.1)
+#
+par(mai=c(.67,.42,.25,.19))
+site <- 'Norfolk'
+plot(rl100.x, f.rl100.bma_mod[[site]]$gpd3[[year]], type='l', xlim=c(-2,2), ylim=c(0, 1.6),
+     lwd=2, xlab='', ylab='', yaxs='i', yaxt='n', axes=FALSE, col='seagreen')
+lines(rl100.x, f.rl100.bma_mod[[site]]$gpd4[[year]], col='darkorange3', lwd=2, lty=5)
+lines(rl100.x, f.rl100.bma_mod[[site]]$gpd5[[year]], col='mediumslateblue', lwd=2, lty=5)
+lines(rl100.x, f.rl100.bma_mod[[site]]$gpd6[[year]], col='mediumvioletred', lwd=2, lty=5)
+lines(c(0,0), c(-100,100), col='black', lwd=1.5)
+lines(c(-100,100), c(0,0), col='black', lwd=1.5) # replace the x-axis wonkily
+#  text(-3, .9, 'BMA lowers upper\ntail of flood risk', pos=4)
+#  text(.8, .9, 'BMA raises upper\ntail of flood risk', pos=4)
+u <- par("usr")
+arrows(u[1], u[3], u[1], .99*u[4], code = 2, length=.15, xpd = TRUE)
+mtext('Norfolk', side=3, line=.6, cex=0.75)
+mtext(side=3, text=expression(bold(' c.')), line=.6, cex=0.75, adj=0)
+mtext('100-year return level in 2016 [m],\nBMA relative to each model', side=1, line=3.4, cex=0.75);
+axis(1, at=seq(-2, 2, .5), labels=c('-2','','-1','','0','','1','','2'), cex.axis=1.1)
+
+#####################
+#   sf in year 2016 #
+#####################
+
+par(mai=c(.67,.60,.25,.01))
+site <- 'Delfzijl'
+plot(sf.rl100.bma_mod[[site]]$gpd3[[year]][sf.plot], log10(esf.vals.bma[sf.plot]), type='l', xlim=c(-3,3), ylim=c(-4, 0.2),
+     lwd=2, xlab='', ylab='', yaxs='i', yaxt='n', axes=FALSE, col='seagreen')
+lines(sf.rl100.bma_mod[[site]]$gpd4[[year]][sf.plot], log10(esf.vals.bma[sf.plot]), col='darkorange3', lwd=2, lty=5)
+lines(sf.rl100.bma_mod[[site]]$gpd5[[year]][sf.plot], log10(esf.vals.bma[sf.plot]), col='mediumslateblue', lwd=2, lty=5)
+lines(sf.rl100.bma_mod[[site]]$gpd6[[year]][sf.plot], log10(esf.vals.bma[sf.plot]), col='mediumvioletred', lwd=2, lty=5)
+lines(c(0,0), c(-100,100), col='black', lwd=1.5)
+mtext('Survival function', side=2, line=3, cex=.75);
+mtext(side=3, text=expression(bold(' d.')), line=.6, cex=0.75, adj=0)
+mtext('100-year return level in 2016 [m], \nBMA relative to each model', side=1, line=3.4, cex=0.75);
+axis(1, at=seq(-3, 3, 1), labels=c('-3','-2','-1','0','1','2','3'), cex.axis=1.1)
+axis(2, at=seq(-4,0), label=parse(text=paste("10^", seq(-4,0), sep="")), las=1, cex.axis=1.1, mgp=c(3,.7,0))
+#
+par(mai=c(.67,.51,.25,.10))
+site <- 'Balboa'
+plot(sf.rl100.bma_mod[[site]]$gpd3[[year]][sf.plot], log10(esf.vals.bma[sf.plot]), type='l', xlim=c(-.5,.5), ylim=c(-4, 0.2),
+     lwd=2, xlab='', ylab='', yaxs='i', yaxt='n', axes=FALSE, col='seagreen')
+lines(sf.rl100.bma_mod[[site]]$gpd4[[year]][sf.plot], log10(esf.vals.bma[sf.plot]), col='darkorange3', lwd=2, lty=5)
+lines(sf.rl100.bma_mod[[site]]$gpd5[[year]][sf.plot], log10(esf.vals.bma[sf.plot]), col='mediumslateblue', lwd=2, lty=5)
+lines(sf.rl100.bma_mod[[site]]$gpd6[[year]][sf.plot], log10(esf.vals.bma[sf.plot]), col='mediumvioletred', lwd=2, lty=5)
+lines(c(0,0), c(-100,100), col='black', lwd=1.5)
+mtext(side=3, text=expression(bold(' e.')), line=.6, cex=0.75, adj=0)
+mtext('100-year return level in 2016 [m], \nBMA relative to each model', side=1, line=3.4, cex=0.75);
+axis(1, at=seq(-.5, .5, .25), labels=c('-0.5','-0.25','0','0.25','0.5'), cex.axis=1.1)
+axis(2, at=seq(-4,0), label=parse(text=paste("10^", seq(-4,0), sep="")), las=1, cex.axis=1.1, mgp=c(3,.7,0))
+#
+par(mai=c(.67,.42,.25,.19))
+site <- 'Norfolk'
+plot(sf.rl100.bma_mod[[site]]$gpd3[[year]][sf.plot], log10(esf.vals.bma[sf.plot]), type='l', xlim=c(-2,2), ylim=c(-4, 0.2),
+     lwd=2, xlab='', ylab='', yaxs='i', yaxt='n', axes=FALSE, col='seagreen')
+lines(sf.rl100.bma_mod[[site]]$gpd4[[year]][sf.plot], log10(esf.vals.bma[sf.plot]), col='darkorange3', lwd=2, lty=5)
+lines(sf.rl100.bma_mod[[site]]$gpd5[[year]][sf.plot], log10(esf.vals.bma[sf.plot]), col='mediumslateblue', lwd=2, lty=5)
+lines(sf.rl100.bma_mod[[site]]$gpd6[[year]][sf.plot], log10(esf.vals.bma[sf.plot]), col='mediumvioletred', lwd=2, lty=5)
+lines(c(0,0), c(-100,100), col='black', lwd=1.5)
+mtext(side=3, text=expression(bold(' f.')), line=.6, cex=0.75, adj=0)
+mtext('100-year return level in 2016 [m], \nBMA relative to each model', side=1, line=3.4, cex=0.75);
+axis(1, at=seq(-2, 2, .5), labels=c('-2','','-1','','0','','1','','2'), cex.axis=1.1)
+axis(2, at=seq(-4,0), label=parse(text=paste("10^", seq(-4,0), sep="")), las=1, cex.axis=1.1, mgp=c(3,.7,0))
+
+#####################
+# pdfs in year 2065 #
+#####################
+year <- 'y2065'
+#
+par(mai=c(.67,.60,.25,.01))
+site <- 'Delfzijl'
+plot(rl100.x, f.rl100.bma_mod[[site]]$gpd3[[year]], type='l', xlim=c(-3,3), ylim=c(0, 1),
+     lwd=2, xlab='', ylab='', yaxs='i', yaxt='n', axes=FALSE, col='seagreen')
+lines(rl100.x, f.rl100.bma_mod[[site]]$gpd4[[year]], col='darkorange3', lwd=2, lty=5)
+lines(rl100.x, f.rl100.bma_mod[[site]]$gpd5[[year]], col='mediumslateblue', lwd=2, lty=5)
+lines(rl100.x, f.rl100.bma_mod[[site]]$gpd6[[year]], col='mediumvioletred', lwd=2, lty=5)
+lines(c(0,0), c(-100,100), col='black', lwd=1.5)
+lines(c(-100,100), c(0,0), col='black', lwd=1.5) # replace the x-axis wonkily
+#  text(-3, .9, 'BMA lowers upper\ntail of flood risk', pos=4)
+#  text(.8, .9, 'BMA raises upper\ntail of flood risk', pos=4)
+u <- par("usr")
+arrows(u[1], u[3], u[1], .99*u[4], code = 2, length=.15, xpd = TRUE)
+mtext('Probability density', side=2, line=1, cex=.75);
+mtext(side=3, text=expression(bold(' g.')), line=.6, cex=0.75, adj=0)
+mtext('100-year return level in 2065 [m], \nBMA relative to each model', side=1, line=3.4, cex=0.75);
+axis(1, at=seq(-3, 3, 1), labels=c('-3','-2','-1','0','1','2','3'), cex.axis=1.1)
+#
+par(mai=c(.67,.51,.25,.10))
+site <- 'Balboa'
+plot(rl100.x, f.rl100.bma_mod[[site]]$gpd3[[year]], type='l', xlim=c(-.5,.5), ylim=c(0,13.7),
+     lwd=2, xlab='', ylab='', yaxs='i', yaxt='n', axes=FALSE, col='seagreen')
+lines(rl100.x, f.rl100.bma_mod[[site]]$gpd4[[year]], col='darkorange3', lwd=2, lty=5)
+lines(rl100.x, f.rl100.bma_mod[[site]]$gpd5[[year]], col='mediumslateblue', lwd=2, lty=5)
+lines(rl100.x, f.rl100.bma_mod[[site]]$gpd6[[year]], col='mediumvioletred', lwd=2, lty=5)
+lines(c(0,0), c(-100,100), col='black', lwd=1.5)
+lines(c(-100,100), c(0,0), col='black', lwd=1.5) # replace the x-axis wonkily
+#  text(-3, .9, 'BMA lowers upper\ntail of flood risk', pos=4)
+#  text(.8, .9, 'BMA raises upper\ntail of flood risk', pos=4)
+u <- par("usr")
+arrows(u[1], u[3], u[1], .99*u[4], code = 2, length=.15, xpd = TRUE)
+mtext(side=3, text=expression(bold(' h.')), line=.6, cex=0.75, adj=0)
+mtext('100-year return level in 2065 [m], \nBMA relative to each model', side=1, line=3.4, cex=0.75);
+axis(1, at=seq(-.5, .5, .25), labels=c('-0.5','-0.25','0','0.25','0.5'), cex.axis=1.1)
+#
+par(mai=c(.67,.42,.25,.19))
+site <- 'Norfolk'
+plot(rl100.x, f.rl100.bma_mod[[site]]$gpd3[[year]], type='l', xlim=c(-2,2), ylim=c(0, 1.5),
+     lwd=2, xlab='', ylab='', yaxs='i', yaxt='n', axes=FALSE, col='seagreen')
+lines(rl100.x, f.rl100.bma_mod[[site]]$gpd4[[year]], col='darkorange3', lwd=2, lty=5)
+lines(rl100.x, f.rl100.bma_mod[[site]]$gpd5[[year]], col='mediumslateblue', lwd=2, lty=5)
+lines(rl100.x, f.rl100.bma_mod[[site]]$gpd6[[year]], col='mediumvioletred', lwd=2, lty=5)
+lines(c(0,0), c(-100,100), col='black', lwd=1.5)
+lines(c(-100,100), c(0,0), col='black', lwd=1.5) # replace the x-axis wonkily
+#  text(-3, .9, 'BMA lowers upper\ntail of flood risk', pos=4)
+#  text(.8, .9, 'BMA raises upper\ntail of flood risk', pos=4)
+u <- par("usr")
+arrows(u[1], u[3], u[1], .99*u[4], code = 2, length=.15, xpd = TRUE)
+mtext(side=3, text=expression(bold(' i.')), line=.6, cex=0.75, adj=0)
+mtext('100-year return level in 2065 [m], \nBMA relative to each model', side=1, line=3.4, cex=0.75);
+axis(1, at=seq(-2, 2, .5), labels=c('-2','','-1','','0','','1','','2'), cex.axis=1.1)
+
+#####################
+#   sf in year 2065 #
+#####################
+
+par(mai=c(.67,.60,.25,.01))
+site <- 'Delfzijl'
+plot(sf.rl100.bma_mod[[site]]$gpd3[[year]][sf.plot], log10(esf.vals.bma[sf.plot]), type='l', xlim=c(-3,3), ylim=c(-4, 0.2),
+     lwd=2, xlab='', ylab='', yaxs='i', yaxt='n', axes=FALSE, col='seagreen')
+lines(sf.rl100.bma_mod[[site]]$gpd4[[year]][sf.plot], log10(esf.vals.bma[sf.plot]), col='darkorange3', lwd=2, lty=5)
+lines(sf.rl100.bma_mod[[site]]$gpd5[[year]][sf.plot], log10(esf.vals.bma[sf.plot]), col='mediumslateblue', lwd=2, lty=5)
+lines(sf.rl100.bma_mod[[site]]$gpd6[[year]][sf.plot], log10(esf.vals.bma[sf.plot]), col='mediumvioletred', lwd=2, lty=5)
+lines(c(0,0), c(-100,100), col='black', lwd=1.5)
+mtext('Survival function', side=2, line=3, cex=.75);
+mtext(side=3, text=expression(bold(' j.')), line=.6, cex=0.75, adj=0)
+mtext('100-year return level in 2065 [m], \nBMA relative to each model', side=1, line=3.4, cex=0.75);
+axis(1, at=seq(-3, 3, 1), labels=c('-3','-2','-1','0','1','2','3'), cex.axis=1.1)
+axis(2, at=seq(-4,0), label=parse(text=paste("10^", seq(-4,0), sep="")), las=1, cex.axis=1.1, mgp=c(3,.7,0))
+#
+par(mai=c(.67,.51,.25,.10))
+site <- 'Balboa'
+plot(sf.rl100.bma_mod[[site]]$gpd3[[year]][sf.plot], log10(esf.vals.bma[sf.plot]), type='l', xlim=c(-.5,.5), ylim=c(-4, 0.2),
+     lwd=2, xlab='', ylab='', yaxs='i', yaxt='n', axes=FALSE, col='seagreen')
+lines(sf.rl100.bma_mod[[site]]$gpd4[[year]][sf.plot], log10(esf.vals.bma[sf.plot]), col='darkorange3', lwd=2, lty=5)
+lines(sf.rl100.bma_mod[[site]]$gpd5[[year]][sf.plot], log10(esf.vals.bma[sf.plot]), col='mediumslateblue', lwd=2, lty=5)
+lines(sf.rl100.bma_mod[[site]]$gpd6[[year]][sf.plot], log10(esf.vals.bma[sf.plot]), col='mediumvioletred', lwd=2, lty=5)
+lines(c(0,0), c(-100,100), col='black', lwd=1.5)
+mtext(side=3, text=expression(bold(' k.')), line=.6, cex=0.75, adj=0)
+mtext('100-year return level in 2065 [m], \nBMA relative to each model', side=1, line=3.4, cex=0.75);
+axis(1, at=seq(-.5, .5, .25), labels=c('-0.5','-0.25','0','0.25','0.5'), cex.axis=1.1)
+axis(2, at=seq(-4,0), label=parse(text=paste("10^", seq(-4,0), sep="")), las=1, cex.axis=1.1, mgp=c(3,.7,0))
+#
+par(mai=c(.67,.42,.25,.19))
+site <- 'Norfolk'
+plot(sf.rl100.bma_mod[[site]]$gpd3[[year]][sf.plot], log10(esf.vals.bma[sf.plot]), type='l', xlim=c(-2,2), ylim=c(-4, 0.2),
+     lwd=2, xlab='', ylab='', yaxs='i', yaxt='n', axes=FALSE, col='seagreen')
+lines(sf.rl100.bma_mod[[site]]$gpd4[[year]][sf.plot], log10(esf.vals.bma[sf.plot]), col='darkorange3', lwd=2, lty=5)
+lines(sf.rl100.bma_mod[[site]]$gpd5[[year]][sf.plot], log10(esf.vals.bma[sf.plot]), col='mediumslateblue', lwd=2, lty=5)
+lines(sf.rl100.bma_mod[[site]]$gpd6[[year]][sf.plot], log10(esf.vals.bma[sf.plot]), col='mediumvioletred', lwd=2, lty=5)
+lines(c(0,0), c(-100,100), col='black', lwd=1.5)
+mtext(side=3, text=expression(bold(' l.')), line=.6, cex=0.75, adj=0)
+mtext('100-year return level in 2065 [m], \nBMA relative to each model', side=1, line=3.4, cex=0.75);
+axis(1, at=seq(-2, 2, .5), labels=c('-2','','-1','','0','','1','','2'), cex.axis=1.1)
+axis(2, at=seq(-4,0), label=parse(text=paste("10^", seq(-4,0), sep="")), las=1, cex.axis=1.1, mgp=c(3,.7,0))
+
+dev.off()
+
+
+
+#
+# the actual figure -- WITH pdfs and survival function of ACTUAL SURGE LEVELS
+#
+
+
+#    <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<    EDITING HERE
+
+
+pdf(paste(plot.dir,'returnlevels_pdf_sf.pdf',sep=''),width=7,height=9.5,colormodel='rgb')
+
+par(mfrow=c(4,3), mai=c(.67,.60,.25,.01))
+#####################
+# pdfs in year 2016 #
+#####################
+year <- 'y2016'
+site <- 'Delfzijl'
+plot(pdf.rl100[[site]]$bma[[year]]$x, pdf.rl100[[site]]$bma[[year]]$y, type='l', xlim=c(2, 10.2), ylim=c(0, 2),
+     lwd=2.5, lty=1, xlab='', ylab='', xaxs='i', yaxs='i', yaxt='n', axes=FALSE, col='black')
+lines(pdf.rl100[[site]]$gpd4[[year]]$x, pdf.rl100[[site]]$gpd4[[year]]$y, col='darkorange3', lwd=2, lty=2)
+lines(pdf.rl100[[site]]$gpd5[[year]]$x, pdf.rl100[[site]]$gpd5[[year]]$y, col='mediumslateblue', lwd=2, lty=2)
+lines(pdf.rl100[[site]]$gpd6[[year]]$x, pdf.rl100[[site]]$gpd6[[year]]$y, col='mediumvioletred', lwd=2, lty=2)
+lines(pdf.rl100[[site]]$gpd3[[year]]$x, pdf.rl100[[site]]$gpd3[[year]]$y, col='seagreen', lwd=2, lty=4)
+u <- par("usr")
+arrows(u[1], u[3], u[1], .99*u[4], code = 2, length=.15, xpd = TRUE)
+mtext('Probability density', side=2, line=1, cex=.75);
+mtext('Delfzijl', side=3, line=.6, cex=0.75)
+mtext(side=3, text=expression(bold(' a.')), line=.6, cex=0.75, adj=0)
+mtext('100-year return level in 2016 [m]', side=1, line=3.4, cex=0.75);
+axis(1, at=seq(2, 11, 1), labels=c('2','','4','','6','','8','','10',''), cex.axis=1.1)
+legend(6, 2, c('ST','NS1','NS2','NS3','BMA'), lty=c(4,2,2,2,1), cex=1.1, bty='n', lwd=2,
+       col=c('seagreen','darkorange3','mediumslateblue','mediumvioletred', 'black'))
+#
+par(mai=c(.67,.51,.25,.10))
+site <- 'Balboa'
+plot(pdf.rl100[[site]]$bma[[year]]$x, capping(pdf.rl100[[site]]$bma[[year]]$y, 12, 15), type='l', xlim=c(2.8,4.2), ylim=c(0, 15),
+     lwd=2.5, lty=1, xlab='', ylab='', xaxs='i', yaxs='i', yaxt='n', axes=FALSE, col='black')
+lines(pdf.rl100[[site]]$gpd4[[year]]$x, capping(pdf.rl100[[site]]$gpd4[[year]]$y, 12, 15), col='darkorange3', lwd=2, lty=2)
+lines(pdf.rl100[[site]]$gpd5[[year]]$x, pdf.rl100[[site]]$gpd5[[year]]$y, col='mediumslateblue', lwd=2, lty=2)
+lines(pdf.rl100[[site]]$gpd6[[year]]$x, pdf.rl100[[site]]$gpd6[[year]]$y, col='mediumvioletred', lwd=2, lty=2)
+lines(pdf.rl100[[site]]$gpd3[[year]]$x, capping(pdf.rl100[[site]]$gpd3[[year]]$y, 12, 15), col='seagreen', lwd=2, lty=4)
+u <- par("usr")
+arrows(u[1], u[3], u[1], .99*u[4], code = 2, length=.15, xpd = TRUE)
+mtext('Probability density', side=2, line=1, cex=.75);
+mtext('Balboa', side=3, line=.6, cex=0.75)
+mtext(side=3, text=expression(bold(' b.')), line=.6, cex=0.75, adj=0)
+mtext('100-year return level in 2016 [m]', side=1, line=3.4, cex=0.75);
+axis(1, at=seq(2, 5.5, .5), labels=c('2','','3','','4','','5',''), cex.axis=1.1)
+#
+par(mai=c(.67,.42,.25,.19))
+site <- 'Norfolk'
+plot(pdf.rl100[[site]]$bma[[year]]$x, pdf.rl100[[site]]$bma[[year]]$y, type='l', xlim=c(0.8,7.2), ylim=c(0, 3),
+     lwd=2.5, lty=1, xlab='', ylab='', xaxs='i', yaxs='i', yaxt='n', axes=FALSE, col='black')
+lines(pdf.rl100[[site]]$gpd4[[year]]$x, pdf.rl100[[site]]$gpd4[[year]]$y, col='darkorange3', lwd=2, lty=2)
+lines(pdf.rl100[[site]]$gpd5[[year]]$x, pdf.rl100[[site]]$gpd5[[year]]$y, col='mediumslateblue', lwd=2, lty=2)
+lines(pdf.rl100[[site]]$gpd6[[year]]$x, pdf.rl100[[site]]$gpd6[[year]]$y, col='mediumvioletred', lwd=2, lty=2)
+lines(pdf.rl100[[site]]$gpd3[[year]]$x, pdf.rl100[[site]]$gpd3[[year]]$y, col='seagreen', lwd=2, lty=4)
+#lines(c(0,0), c(-100,100), col='black', lwd=1.5)
+lines(c(-100,100), c(0,0), col='black', lwd=1.5) # replace the x-axis wonkily
+u <- par("usr")
+arrows(u[1], u[3], u[1], .99*u[4], code = 2, length=.15, xpd = TRUE)
+mtext('Probability density', side=2, line=1, cex=.75);
+mtext('Norfolk', side=3, line=.6, cex=0.75)
+mtext(side=3, text=expression(bold(' c.')), line=.6, cex=0.75, adj=0)
+mtext('100-year return level in 2016 [m]', side=1, line=3.4, cex=0.75);
+axis(1, at=seq(0, 10, 1), labels=c('','1','','3','','5','','7','','9',''), cex.axis=1.1)
+
+#####################
+#   sf in year 2016 #
+#####################
+
+par(mai=c(.67,.60,.25,.01))
+site <- 'Delfzijl'
+plot(c(0,sf.rl100[[site]]$bma[[year]]), c(0,log10(esf.vals)), type='l', xlim=c(2,10.2), ylim=c(-2.5, 0.2),
+     lwd=2.5, lty=1, xlab='', ylab='', xaxs='i', yaxs='i', yaxt='n', axes=FALSE, col='black')
+lines(sf.rl100[[site]]$gpd4[[year]], log10(esf.vals), col='darkorange3', lwd=2, lty=2)
+lines(sf.rl100[[site]]$gpd5[[year]], log10(esf.vals), col='mediumslateblue', lwd=2, lty=2)
+lines(sf.rl100[[site]]$gpd6[[year]], log10(esf.vals), col='mediumvioletred', lwd=2, lty=2)
+lines(sf.rl100[[site]]$gpd3[[year]], log10(esf.vals), col='seagreen', lwd=2, lty=4)
+mtext('Survival function', side=2, line=3, cex=.75);
+mtext(side=3, text=expression(bold(' d.')), line=.1, cex=0.75, adj=0)
+mtext('100-year return level in 2016 [m]', side=1, line=3.4, cex=0.75);
+axis(1, at=seq(2, 11, 1), labels=c('2','','4','','6','','8','','10',''), cex.axis=1.1)
+axis(2, at=seq(-4,0), label=parse(text=paste("10^", seq(-4,0), sep="")), las=1, cex.axis=1.1, mgp=c(3,.7,0))
+#
+par(mai=c(.67,.51,.25,.10))
+site <- 'Balboa'
+plot(c(0,sf.rl100[[site]]$bma[[year]]), c(0,log10(esf.vals)), type='l', xlim=c(2.8,4.2), ylim=c(-2.5, 0.2),
+     lwd=2.5, lty=1, xlab='', ylab='', xaxs='i', yaxs='i', yaxt='n', axes=FALSE, col='black')
+lines(sf.rl100[[site]]$gpd4[[year]], log10(esf.vals), col='darkorange3', lwd=2, lty=2)
+lines(sf.rl100[[site]]$gpd5[[year]], log10(esf.vals), col='mediumslateblue', lwd=2, lty=2)
+lines(sf.rl100[[site]]$gpd6[[year]], log10(esf.vals), col='mediumvioletred', lwd=2, lty=2)
+lines(sf.rl100[[site]]$gpd3[[year]], log10(esf.vals), col='seagreen', lwd=2, lty=4)
+mtext(side=3, text=expression(bold(' e.')), line=.1, cex=0.75, adj=0)
+mtext('100-year return level in 2016 [m]', side=1, line=3.4, cex=0.75);
+axis(1, at=seq(2, 5.5, .5), labels=c('2','','3','','4','','5',''), cex.axis=1.1)
+axis(2, at=seq(-4,0), label=parse(text=paste("10^", seq(-4,0), sep="")), las=1, cex.axis=1.1, mgp=c(3,.7,0))
+#
+par(mai=c(.67,.42,.25,.19))
+site <- 'Norfolk'
+plot(c(0,sf.rl100[[site]]$bma[[year]]), c(0,log10(esf.vals)), type='l', xlim=c(0.8,7.2), ylim=c(-2.5, 0.2),
+     lwd=2.5, lty=1, xlab='', ylab='', xaxs='i', yaxs='i', yaxt='n', axes=FALSE, col='black')
+lines(sf.rl100[[site]]$gpd4[[year]], log10(esf.vals), col='darkorange3', lwd=2, lty=2)
+lines(sf.rl100[[site]]$gpd5[[year]], log10(esf.vals), col='mediumslateblue', lwd=2, lty=2)
+lines(sf.rl100[[site]]$gpd6[[year]], log10(esf.vals), col='mediumvioletred', lwd=2, lty=2)
+lines(sf.rl100[[site]]$gpd3[[year]], log10(esf.vals), col='seagreen', lwd=2, lty=4)
+mtext(side=3, text=expression(bold(' f.')), line=.1, cex=0.75, adj=0)
+mtext('100-year return level in 2016 [m]', side=1, line=3.4, cex=0.75);
+axis(1, at=seq(0, 10, 1), labels=c('','1','','3','','5','','7','','9',''), cex.axis=1.1)
+axis(2, at=seq(-4,0), label=parse(text=paste("10^", seq(-4,0), sep="")), las=1, cex.axis=1.1, mgp=c(3,.7,0))
+
+#####################
+# pdfs in year 2065 #
+#####################
+year <- 'y2065'
+#
+par(mai=c(.67,.60,.25,.01))
+site <- 'Delfzijl'
+plot(pdf.rl100[[site]]$bma[[year]]$x, pdf.rl100[[site]]$bma[[year]]$y, type='l', xlim=c(2,10.2), ylim=c(0, 2),
+     lwd=2.5, lty=1, xlab='', ylab='', xaxs='i', yaxs='i', yaxt='n', axes=FALSE, col='black')
+lines(pdf.rl100[[site]]$gpd4[[year]]$x, pdf.rl100[[site]]$gpd4[[year]]$y, col='darkorange3', lwd=2, lty=2)
+lines(pdf.rl100[[site]]$gpd5[[year]]$x, pdf.rl100[[site]]$gpd5[[year]]$y, col='mediumslateblue', lwd=2, lty=2)
+lines(pdf.rl100[[site]]$gpd6[[year]]$x, pdf.rl100[[site]]$gpd6[[year]]$y, col='mediumvioletred', lwd=2, lty=2)
+lines(pdf.rl100[[site]]$gpd3[[year]]$x, pdf.rl100[[site]]$gpd3[[year]]$y, col='seagreen', lwd=2, lty=4)
+u <- par("usr")
+arrows(u[1], u[3], u[1], .99*u[4], code = 2, length=.15, xpd = TRUE)
+mtext('Probability density', side=2, line=1, cex=.75);
+mtext(side=3, text=expression(bold(' g.')), line=.6, cex=0.75, adj=0)
+mtext('100-year return level in 2065 [m]', side=1, line=3.4, cex=0.75);
+axis(1, at=seq(2, 11, 1), labels=c('2','','4','','6','','8','','10',''), cex.axis=1.1)
+#
+par(mai=c(.67,.51,.25,.10))
+site <- 'Balboa'
+plot(pdf.rl100[[site]]$bma[[year]]$x, capping(pdf.rl100[[site]]$bma[[year]]$y, 8, 10), type='l', xlim=c(2.8,4.2), ylim=c(0, 10),
+     lwd=2.5, lty=1, xlab='', ylab='', xaxs='i', yaxs='i', yaxt='n', axes=FALSE, col='black')
+lines(pdf.rl100[[site]]$gpd4[[year]]$x, capping(pdf.rl100[[site]]$gpd4[[year]]$y, 8, 10), col='darkorange3', lwd=2, lty=2)
+lines(pdf.rl100[[site]]$gpd5[[year]]$x, pdf.rl100[[site]]$gpd5[[year]]$y, col='mediumslateblue', lwd=2, lty=2)
+lines(pdf.rl100[[site]]$gpd6[[year]]$x, pdf.rl100[[site]]$gpd6[[year]]$y, col='mediumvioletred', lwd=2, lty=2)
+lines(pdf.rl100[[site]]$gpd3[[year]]$x, capping(pdf.rl100[[site]]$gpd3[[year]]$y, 8, 10), col='seagreen', lwd=2, lty=4)
+u <- par("usr")
+arrows(u[1], u[3], u[1], .99*u[4], code = 2, length=.15, xpd = TRUE)
+mtext(side=3, text=expression(bold(' h.')), line=.6, cex=0.75, adj=0)
+mtext('100-year return level in 2065 [m]', side=1, line=3.4, cex=0.75);
+axis(1, at=seq(2, 5.5, .5), labels=c('2','','3','','4','','5',''), cex.axis=1.1)
+#
+par(mai=c(.67,.42,.25,.19))
+site <- 'Norfolk'
+plot(pdf.rl100[[site]]$bma[[year]]$x, pdf.rl100[[site]]$bma[[year]]$y, type='l', xlim=c(0.8,7.2), ylim=c(0, 2.5),
+     lwd=2.5, lty=1, xlab='', ylab='', xaxs='i', yaxs='i', yaxt='n', axes=FALSE, col='black')
+lines(pdf.rl100[[site]]$gpd4[[year]]$x, pdf.rl100[[site]]$gpd4[[year]]$y, col='darkorange3', lwd=2, lty=2)
+lines(pdf.rl100[[site]]$gpd5[[year]]$x, pdf.rl100[[site]]$gpd5[[year]]$y, col='mediumslateblue', lwd=2, lty=2)
+lines(pdf.rl100[[site]]$gpd6[[year]]$x, pdf.rl100[[site]]$gpd6[[year]]$y, col='mediumvioletred', lwd=2, lty=2)
+lines(pdf.rl100[[site]]$gpd3[[year]]$x, pdf.rl100[[site]]$gpd3[[year]]$y, col='seagreen', lwd=2, lty=4)
+u <- par("usr")
+arrows(u[1], u[3], u[1], .99*u[4], code = 2, length=.15, xpd = TRUE)
+mtext(side=3, text=expression(bold(' i.')), line=.6, cex=0.75, adj=0)
+mtext('100-year return level in 2065 [m]', side=1, line=3.4, cex=0.75);
+axis(1, at=seq(0, 10, 1), labels=c('','1','','3','','5','','7','','9',''), cex.axis=1.1)
+
+#####################
+#   sf in year 2065 #
+#####################
+
+par(mai=c(.67,.60,.25,.01))
+site <- 'Delfzijl'
+plot(c(0,sf.rl100[[site]]$bma[[year]]), c(0,log10(esf.vals)), type='l', xlim=c(2,10.2), ylim=c(-2.5, 0.2),
+     lwd=2.5, lty=1, xlab='', ylab='', xaxs='i', yaxs='i', yaxt='n', axes=FALSE, col='black')
+lines(sf.rl100[[site]]$gpd4[[year]], log10(esf.vals), col='darkorange3', lwd=2, lty=2)
+lines(sf.rl100[[site]]$gpd5[[year]], log10(esf.vals), col='mediumslateblue', lwd=2, lty=2)
+lines(sf.rl100[[site]]$gpd6[[year]], log10(esf.vals), col='mediumvioletred', lwd=2, lty=2)
+lines(sf.rl100[[site]]$gpd3[[year]], log10(esf.vals), col='seagreen', lwd=2, lty=4)
+mtext('Survival function', side=2, line=3, cex=.75);
+mtext(side=3, text=expression(bold(' j.')), line=.1, cex=0.75, adj=0)
+mtext('100-year return level in 2065 [m]', side=1, line=3.4, cex=0.75);
+axis(1, at=seq(2, 11, 1), labels=c('2','','4','','6','','8','','10',''), cex.axis=1.1)
+axis(2, at=seq(-4,0), label=parse(text=paste("10^", seq(-4,0), sep="")), las=1, cex.axis=1.1, mgp=c(3,.7,0))
+#
+par(mai=c(.67,.51,.25,.10))
+site <- 'Balboa'
+plot(c(0,sf.rl100[[site]]$bma[[year]]), c(0,log10(esf.vals)), type='l', xlim=c(2.8,4.2), ylim=c(-2.5, 0.2),
+     lwd=2.5, lty=1, xlab='', ylab='', xaxs='i', yaxs='i', yaxt='n', axes=FALSE, col='black')
+lines(sf.rl100[[site]]$gpd4[[year]], log10(esf.vals), col='darkorange3', lwd=2, lty=2)
+lines(sf.rl100[[site]]$gpd5[[year]], log10(esf.vals), col='mediumslateblue', lwd=2, lty=2)
+lines(sf.rl100[[site]]$gpd6[[year]], log10(esf.vals), col='mediumvioletred', lwd=2, lty=2)
+lines(sf.rl100[[site]]$gpd3[[year]], log10(esf.vals), col='seagreen', lwd=2, lty=4)
+mtext(side=3, text=expression(bold(' k.')), line=.1, cex=0.75, adj=0)
+mtext('100-year return level in 2065 [m]', side=1, line=3.4, cex=0.75);
+axis(1, at=seq(2, 5.5, .5), labels=c('2','','3','','4','','5',''), cex.axis=1.1)
+axis(2, at=seq(-4,0), label=parse(text=paste("10^", seq(-4,0), sep="")), las=1, cex.axis=1.1, mgp=c(3,.7,0))
+#
+par(mai=c(.67,.42,.25,.19))
+site <- 'Norfolk'
+plot(c(0,sf.rl100[[site]]$bma[[year]]), c(0,log10(esf.vals)), type='l', xlim=c(0.8,7.2), ylim=c(-2.5, 0.2),
+     lwd=2.5, lty=1, xlab='', ylab='', xaxs='i', yaxs='i', yaxt='n', axes=FALSE, col='black')
+lines(sf.rl100[[site]]$gpd4[[year]], log10(esf.vals), col='darkorange3', lwd=2, lty=2)
+lines(sf.rl100[[site]]$gpd5[[year]], log10(esf.vals), col='mediumslateblue', lwd=2, lty=2)
+lines(sf.rl100[[site]]$gpd6[[year]], log10(esf.vals), col='mediumvioletred', lwd=2, lty=2)
+lines(sf.rl100[[site]]$gpd3[[year]], log10(esf.vals), col='seagreen', lwd=2, lty=4)
+mtext(side=3, text=expression(bold(' l.')), line=.1, cex=0.75, adj=0)
+mtext('100-year return level in 2065 [m]', side=1, line=3.4, cex=0.75);
+axis(1, at=seq(0, 10, 1), labels=c('','1','','3','','5','','7','','9',''), cex.axis=1.1)
+axis(2, at=seq(-4,0), label=parse(text=paste("10^", seq(-4,0), sep="")), las=1, cex.axis=1.1, mgp=c(3,.7,0))
+
+dev.off()
+
 #===============================================================================
 #
 
@@ -731,6 +1208,23 @@ dev.off()
 #===============================================================================
 # Further analysis:
 #==================
+
+# By how much do the distribution medians differ between BMA and the ST model?
+
+print('BMA - ST medians in 2016:')
+print(paste('  Delfzijl: ',median(rl100.bma$Delfzijl$y130$y2016)-median(rl100$Delfzijl$y130$gpd3$y2016), sep=''))
+print(paste('  Balboa: ',median(rl100.bma$Balboa$y110$y2016)-median(rl100$Balboa$y110$gpd3$y2016), sep=''))
+print(paste('  Norfolk: ',median(rl100.bma$Norfolk$y90$y2016)-median(rl100$Norfolk$y90$gpd3$y2016), sep=''))
+
+print('BMA - ST medians in 2065:')
+print(paste('  Delfzijl:',median(rl100.bma$Delfzijl$y130$y2065)-median(rl100$Delfzijl$y130$gpd3$y2065), sep=''))
+print(paste('  Balboa:',median(rl100.bma$Balboa$y110$y2065)-median(rl100$Balboa$y110$gpd3$y2065), sep=''))
+print(paste('  Norfolk:',median(rl100.bma$Norfolk$y90$y2065)-median(rl100$Norfolk$y90$gpd3$y2065), sep=''))
+
+
+
+
+
 # Take the ensemble of 100-year return levels in year 2016 and see what the
 # return period is for these heights in year 2065.
 
@@ -781,8 +1275,18 @@ for (site in site.names) {
   }
 }
 
+print('')
 print('(GPD4) 2016 100-year return heights for Delfzijl are in 2065 return periods of:')
 print(quantile(1/rl100_reduced$Delfzijl$gpd4, c(.05,.5,.95)))
+print('')
+
+print('(GPD4) 2016 100-year return heights for Balboa are in 2065 return periods of:')
+print(quantile(1/rl100_reduced$Balboa$gpd4, c(.05,.5,.95)))
+print('')
+
+print('(GPD4) 2016 100-year return heights for Norfolk are in 2065 return periods of:')
+print(quantile(1/rl100_reduced$Norfolk$gpd4, c(.05,.5,.95)))
+print('')
 
 #===============================================================================
 #
