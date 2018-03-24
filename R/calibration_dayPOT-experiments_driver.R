@@ -30,11 +30,11 @@ rm(list=ls())
 station <- 'delfzijl'             # can be 'delfzijl', 'balboa', or 'norfolk'
 type.of.priors <- 'normalgamma'      # can be either 'uniform' or 'normalgamma'
 pot.threshold <- 0.99            # GPD threshold (percentile, 0-1)
-dt.decluster <- 1                # declustering time-scale (days)
+dt.decluster <- 3                # declustering time-scale (days)
 
 niter_mcmc_prelim000 <- 5e3      # number of MCMC iterations (PRELIMINARY chains)
 nnode_mcmc_prelim000 <- 1        # number of CPUs to use (PRELIMINARY chains)
-niter_mcmc_prod000 <- 5e5        # number of MCMC iterations (PRODUCTION chains)
+niter_mcmc_prod000 <- 5e3        # number of MCMC iterations (PRODUCTION chains)
 #nnode_mcmc_prod000 <- 10          # number of CPUs to use (PRODUCTION chains)
 gamma_mcmc000 <- 0.5             # speed of adaptation (0.5=faster, 1=slowest)
 
@@ -148,6 +148,32 @@ print('reading processed tide gauge data...')
 data_calib <- readRDS(filename.datacalib)
 gpd.experiments <- names(data_calib)[intersect(which(nchar(names(data_calib))>3) , grep('gpd', names(data_calib)))]
 
+# trim to match the forcing
+for (gpd.exp in gpd.experiments) {
+    # if tide gauge record starts before auxiliary forcing, clip it
+    if(data_calib[[gpd.exp]]$year[1] < time_forc[1]) {
+      irem <- which(data_calib[[gpd.exp]]$year < time_forc[1])
+      data_calib[[gpd.exp]]$year <- data_calib[[gpd.exp]]$year[-irem]
+      data_calib[[gpd.exp]]$counts <- data_calib[[gpd.exp]]$counts[-irem]
+      data_calib[[gpd.exp]]$excesses <- data_calib[[gpd.exp]]$excesses[-irem]
+      data_calib[[gpd.exp]]$time_length <- data_calib[[gpd.exp]]$time_length[-irem]
+      data_calib[[gpd.exp]]$time_length_all <- sum(data_calib[[gpd.exp]]$time_length)
+      data_calib[[gpd.exp]]$counts_all <- sum(unlist(data_calib[[gpd.exp]]$counts), na.rm=TRUE)
+      data_calib[[gpd.exp]]$excesses_all <- unlist(data_calib[[gpd.exp]]$excesses)[!is.na(unlist(data_calib[[gpd.exp]]$excesses))]
+    }
+    # if tide gauge record ends after auxiliary forcing, clip it
+    if(max(data_calib[[gpd.exp]]$year) > max(time_forc)) {
+      irem <- which(data_calib[[gpd.exp]]$year > max(time_forc))
+      data_calib[[gpd.exp]]$year <- data_calib[[gpd.exp]]$year[-irem]
+      data_calib[[gpd.exp]]$counts <- data_calib[[gpd.exp]]$counts[-irem]
+      data_calib[[gpd.exp]]$excesses <- data_calib[[gpd.exp]]$excesses[-irem]
+      data_calib[[gpd.exp]]$time_length <- data_calib[[gpd.exp]]$time_length[-irem]
+      data_calib[[gpd.exp]]$time_length_all <- sum(data_calib[[gpd.exp]]$time_length)
+      data_calib[[gpd.exp]]$counts_all <- sum(unlist(data_calib[[gpd.exp]]$counts), na.rm=TRUE)
+      data_calib[[gpd.exp]]$excesses_all <- unlist(data_calib[[gpd.exp]]$excesses)[!is.na(unlist(data_calib[[gpd.exp]]$excesses))]
+    }
+}
+
 print('...done.')
 
 #
@@ -192,8 +218,10 @@ for (gpd.exp in gpd.experiments) {
   print(paste('Starting preliminary calibration for experiment ',gpd.exp,'...', sep=''))
   for (model in types.of.gpd) {
     print(paste('Starting preliminary calibration for model ',model,' (',nnode_mcmc,' cores x ',niter_mcmc,' iterations)...', sep=''))
+
     if(model=='gpd3') {auxiliary <- NULL
     } else {auxiliary <- trimmed_forcing(data_calib[[gpd.exp]]$year, time_forc, nao_forc)$forcing}
+
     accept_mcmc <- accept_mcmc_many + (accept_mcmc_few - accept_mcmc_many)/length(parnames_all[[model]])
     step_mcmc <- as.numeric(0.05*apply(X=mle.fits[[model]], MARGIN=2, FUN=sd))
     tbeg=proc.time()
