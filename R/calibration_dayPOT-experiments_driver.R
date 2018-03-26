@@ -629,7 +629,7 @@ dim.ensemble   <- vector('list', nmodel); names(dim.ensemble)   <- types.of.mode
 dim.name <- ncdim_def('name.len', '', 1:lmax, unlim=FALSE)
 dim.time <- ncdim_def('ntime', '', (time_forc), unlim=FALSE)
 var.time <- ncvar_def('time', '', dim.time, -999)
-var.temperature <- ncvar_def('temperature', 'Global mean temperature relative to 1901-2000', dim.time, -999)
+var.nao <- ncvar_def('nao', 'nao index', dim.time, -999)
 for (model in types.of.model) {
   dim.parameters[[model]] <- ncdim_def(paste('n.parameters.',model,sep=''), '', 1:length(parnames_all[[model]]), unlim=FALSE)
   dim.ensemble[[model]]   <- ncdim_def(paste('n.ensemble.',model,sep=''), 'ensemble member', 1:nrow(parameters.posterior[[gpd.exp]][[model]]), unlim=FALSE)
@@ -642,7 +642,7 @@ for (model in types.of.model) {
 # length(gpd.experiments) * nmodel * 2 accounts for sizes of var.parmaeters and var.covjump
 output.to.file <- vector('list', (length(gpd.experiments)*nmodel*2) + length(var.parnames) + 2)
 output.to.file[[1]] <- var.time
-output.to.file[[2]] <- var.temperature
+output.to.file[[2]] <- var.nao
 # this counter will keep track of how many items are on the output.to.file list so far
 cnt <- 3
 for (model in types.of.model) {
@@ -657,7 +657,8 @@ for (model in types.of.model) {
 #outnc <- nc_create(filename.parameters, list(var.parameters, var.parnames, var.covjump))
 outnc <- nc_create(filename.parameters, output.to.file)
 ncvar_put(outnc, var.time, time_forc)
-ncvar_put(outnc, var.temperature, temperature_forc)
+ncvar_put(outnc, var.nao, nao_forc)
+#ncvar_put(outnc, var.temperature, temperature_forc)
 for (model in types.of.model) {
   ncvar_put(outnc, var.parnames[[model]], parnames_all[[model]])
   for (gpd.exp in gpd.experiments) {
