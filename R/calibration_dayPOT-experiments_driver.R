@@ -150,6 +150,7 @@ gpd.experiments <- names(data_calib)[intersect(which(nchar(names(data_calib))>3)
 
 # trim to match the forcing
 for (gpd.exp in gpd.experiments) {
+<<<<<<< HEAD
     # if tide gauge record starts before auxiliary forcing, clip it
     if(data_calib[[gpd.exp]]$year[1] < time_forc[1]) {
       irem <- which(data_calib[[gpd.exp]]$year < time_forc[1])
@@ -172,6 +173,30 @@ for (gpd.exp in gpd.experiments) {
       data_calib[[gpd.exp]]$counts_all <- sum(unlist(data_calib[[gpd.exp]]$counts), na.rm=TRUE)
       data_calib[[gpd.exp]]$excesses_all <- unlist(data_calib[[gpd.exp]]$excesses)[!is.na(unlist(data_calib[[gpd.exp]]$excesses))]
     }
+=======
+  # if tide gauge record starts before auxiliary forcing, clip it
+  if(data_calib[[gpd.exp]]$year[1] < time_forc[1]) {
+    irem <- which(data_calib[[gpd.exp]]$year < time_forc[1])
+    data_calib[[gpd.exp]]$year <- data_calib[[gpd.exp]]$year[-irem]
+    data_calib[[gpd.exp]]$counts <- data_calib[[gpd.exp]]$counts[-irem]
+    data_calib[[gpd.exp]]$excesses <- data_calib[[gpd.exp]]$excesses[-irem]
+    data_calib[[gpd.exp]]$time_length <- data_calib[[gpd.exp]]$time_length[-irem]
+    data_calib[[gpd.exp]]$time_length_all <- sum(data_calib[[gpd.exp]]$time_length)
+    data_calib[[gpd.exp]]$counts_all <- sum(unlist(data_calib[[gpd.exp]]$counts), na.rm=TRUE)
+    data_calib[[gpd.exp]]$excesses_all <- unlist(data_calib[[gpd.exp]]$excesses)[!is.na(unlist(data_calib[[gpd.exp]]$excesses))]
+  }
+  # if tide gauge record ends after auxiliary forcing, clip it
+  if(max(data_calib[[gpd.exp]]$year) > max(time_forc)) {
+    irem <- which(data_calib[[gpd.exp]]$year > max(time_forc))
+    data_calib[[gpd.exp]]$year <- data_calib[[gpd.exp]]$year[-irem]
+    data_calib[[gpd.exp]]$counts <- data_calib[[gpd.exp]]$counts[-irem]
+    data_calib[[gpd.exp]]$excesses <- data_calib[[gpd.exp]]$excesses[-irem]
+    data_calib[[gpd.exp]]$time_length <- data_calib[[gpd.exp]]$time_length[-irem]
+    data_calib[[gpd.exp]]$time_length_all <- sum(data_calib[[gpd.exp]]$time_length)
+    data_calib[[gpd.exp]]$counts_all <- sum(unlist(data_calib[[gpd.exp]]$counts), na.rm=TRUE)
+    data_calib[[gpd.exp]]$excesses_all <- unlist(data_calib[[gpd.exp]]$excesses)[!is.na(unlist(data_calib[[gpd.exp]]$excesses))]
+  }
+>>>>>>> c41156f463ef5b80832e7006cd030c903e3ae8d7
 }
 
 print('...done.')
@@ -631,7 +656,7 @@ dim.ensemble   <- vector('list', nmodel); names(dim.ensemble)   <- types.of.mode
 dim.name <- ncdim_def('name.len', '', 1:lmax, unlim=FALSE)
 dim.time <- ncdim_def('ntime', '', (time_forc), unlim=FALSE)
 var.time <- ncvar_def('time', '', dim.time, -999)
-var.temperature <- ncvar_def('temperature', 'Global mean temperature relative to 1901-2000', dim.time, -999)
+var.nao <- ncvar_def('nao', 'nao index', dim.time, -999)
 for (model in types.of.model) {
   dim.parameters[[model]] <- ncdim_def(paste('n.parameters.',model,sep=''), '', 1:length(parnames_all[[model]]), unlim=FALSE)
   dim.ensemble[[model]]   <- ncdim_def(paste('n.ensemble.',model,sep=''), 'ensemble member', 1:nrow(parameters.posterior[[gpd.exp]][[model]]), unlim=FALSE)
@@ -644,7 +669,7 @@ for (model in types.of.model) {
 # length(gpd.experiments) * nmodel * 2 accounts for sizes of var.parmaeters and var.covjump
 output.to.file <- vector('list', (length(gpd.experiments)*nmodel*2) + length(var.parnames) + 2)
 output.to.file[[1]] <- var.time
-output.to.file[[2]] <- var.temperature
+output.to.file[[2]] <- var.nao
 # this counter will keep track of how many items are on the output.to.file list so far
 cnt <- 3
 for (model in types.of.model) {
@@ -659,7 +684,8 @@ for (model in types.of.model) {
 #outnc <- nc_create(filename.parameters, list(var.parameters, var.parnames, var.covjump))
 outnc <- nc_create(filename.parameters, output.to.file)
 ncvar_put(outnc, var.time, time_forc)
-ncvar_put(outnc, var.temperature, temperature_forc)
+ncvar_put(outnc, var.nao, nao_forc)
+#ncvar_put(outnc, var.temperature, temperature_forc)
 for (model in types.of.model) {
   ncvar_put(outnc, var.parnames[[model]], parnames_all[[model]])
   for (gpd.exp in gpd.experiments) {

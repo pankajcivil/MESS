@@ -203,7 +203,6 @@ for (dd in 1:length(data_all)) {
     # if tide gauge record starts before auxiliary forcing, clip it
     if(data_all[[dd]]$gpd$year[1] < time_forc[1]) {
       irem <- which(data_all[[dd]]$gpd$year < time_forc[1])
-      auxiliary <- auxiliary[-irem]
       data_all[[dd]]$gev_year$year <- data_all[[dd]]$gev_year$year[-irem]
       data_all[[dd]]$gev_year$lsl_max <- data_all[[dd]]$gev_year$lsl_max[-irem]
       data_all[[dd]]$gpd$year <- data_all[[dd]]$gpd$year[-irem]
@@ -217,7 +216,6 @@ for (dd in 1:length(data_all)) {
     # if tide gauge record ends after auxiliary forcing, clip it
     if(max(data_all[[dd]]$gpd$year) > max(time_forc)) {
       irem <- which(data_all[[dd]]$gpd$year > max(time_forc))
-      auxiliary <- auxiliary[-irem]
       data_all[[dd]]$gev_year$year <- data_all[[dd]]$gev_year$year[-irem]
       data_all[[dd]]$gev_year$lsl_max <- data_all[[dd]]$gev_year$lsl_max[-irem]
       data_all[[dd]]$gpd$year <- data_all[[dd]]$gpd$year[-irem]
