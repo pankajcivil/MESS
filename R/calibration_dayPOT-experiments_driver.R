@@ -30,11 +30,11 @@ rm(list=ls())
 station <- 'delfzijl'             # can be 'delfzijl', 'balboa', or 'norfolk'
 type.of.priors <- 'normalgamma'      # can be either 'uniform' or 'normalgamma'
 pot.threshold <- 0.99            # GPD threshold (percentile, 0-1)
-dt.decluster <- 1                # declustering time-scale (days)
+dt.decluster <- 3                # declustering time-scale (days)
 
 niter_mcmc_prelim000 <- 5e3      # number of MCMC iterations (PRELIMINARY chains)
 nnode_mcmc_prelim000 <- 1        # number of CPUs to use (PRELIMINARY chains)
-niter_mcmc_prod000 <- 5e5        # number of MCMC iterations (PRODUCTION chains)
+niter_mcmc_prod000 <- 5e3        # number of MCMC iterations (PRODUCTION chains)
 #nnode_mcmc_prod000 <- 10          # number of CPUs to use (PRODUCTION chains)
 gamma_mcmc000 <- 0.5             # speed of adaptation (0.5=faster, 1=slowest)
 
@@ -148,6 +148,8 @@ print('reading processed tide gauge data...')
 data_calib <- readRDS(filename.datacalib)
 gpd.experiments <- names(data_calib)[intersect(which(nchar(names(data_calib))>3) , grep('gpd', names(data_calib)))]
 
+# not necessary if the forcing combines historical and projections?
+if(FALSE) {
 # trim to match the forcing
 for (gpd.exp in gpd.experiments) {
   # if tide gauge record starts before auxiliary forcing, clip it
@@ -172,6 +174,7 @@ for (gpd.exp in gpd.experiments) {
     data_calib[[gpd.exp]]$counts_all <- sum(unlist(data_calib[[gpd.exp]]$counts), na.rm=TRUE)
     data_calib[[gpd.exp]]$excesses_all <- unlist(data_calib[[gpd.exp]]$excesses)[!is.na(unlist(data_calib[[gpd.exp]]$excesses))]
   }
+}
 }
 
 print('...done.')

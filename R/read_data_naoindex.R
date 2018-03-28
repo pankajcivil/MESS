@@ -8,6 +8,8 @@
 # future projections from... TODO
 #
 #
+# Use Winter (DJFM) index.
+#
 # Questions? Tony Wong (twong@psu.edu)
 #===============================================================================
 # Copyright 2017 Tony Wong
@@ -81,6 +83,8 @@ lon <- ncvar_get(ncdata, 'lon')
 lat <- ncvar_get(ncdata, 'lat')
 time <- ncvar_get(ncdata, 'time')  # hours after 2001-01-31 (2001-2100 data)
 nc_close(ncdata)
+
+n_month <- length(time)
 
 # As in Li and Wang, 2003 (http://www.lasg.ac.cn/staff/ljp/paperE/ljp_2003NAO.pdf)
 # use proxy for station-based, since there is disagreement over how exactly

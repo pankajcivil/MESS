@@ -22,6 +22,8 @@ lat <- ncvar_get(ncdata, 'lat')
 time <- ncvar_get(ncdata, 'time')
 nc_close(ncdata)
 
+n_month <- length(time)
+
 ##==============================================================================
 if(TRUE){
 # As in Li and Wang, 2003 (http://www.lasg.ac.cn/staff/ljp/paperE/ljp_2003NAO.pdf)
@@ -103,7 +105,6 @@ ilat_atlantic <- which(lat>=20 & lat<=70)
 ilon_atlantic <- which(lon>=270 | lon<=40)
 
 # subtract off long-term mean for each month
-n_months <- length(time)
 psl_norm <- psl
 for (ilon in 1:dim(lon)) {
   for (ilat in 1:dim(lat)) {
