@@ -63,11 +63,11 @@ time <- ncvar_get(ncdata, 'time')  # hours after 2001-01-31 (2001-2100 data)
 nc_close(ncdata)
 
 n_month <- length(time)
+n_year <- n_month/12 -1
 
 # As in Stephenson et al, 2006 (doi:  10.1007/s00382-006-0140-x)
-# use regional, since there is disagreement over how exactly
-# to do the PCA (which EOFs to rotate...) and a physical interpretation is
-# much more tangible this way
+# use regional, since there is disagreement over how exactly to do the PCA
+# (which EOFs to rotate, e.g.) and a physical interpretation is direct this way
 ilat_azores <- which(lat >= 20 & lat <= 55)
 ilon_azores <- which(lon >=(360-90) | lon <= 60)
 
@@ -77,8 +77,8 @@ ilon_iceland <- which(lon >=(360-90) | lon <= 60)
 psl_azores <- psl[ilon_azores, ilat_azores, ]
 psl_iceland <- psl[ilon_iceland, ilat_iceland, ]
 
-# don't do area-weighting as per explanation from Jesse Nusbaumer 27 March 2018 email:
-# Jesse says:
+# Don't do area-weighting as per explanation from Jesse Nusbaumer 27 March 2018
+# email. Jesse says:
 #   Don't area-weight the results.  Instead, just take the average of the SLP
 #   over the specified region, treating every grid box the same.  The reason is
 #   because in GCM papers they will usually specifically state "area-weighted"
@@ -89,28 +89,29 @@ psl_iceland <- psl[ilon_iceland, ilat_iceland, ]
 #   they are just using the values to produce a strong statistical relationship.
 
 # take the bulk average over each area, for each month
-psl_azores_mean <- apply(psl_azores, 3, mean)
-psl_iceland_mean <- apply(psl_iceland, 3, mean)
+psl_azores_spavg <- apply(psl_azores, 3, mean)
+psl_iceland_spavg <- apply(psl_iceland, 3, mean)
 
-# normalize each site separately (as discussed in Jones et al 1997), but
-# realtive to 2001-2016 mean/stdev, so consistent with the historical record
-psl_azores_norm <- rep(-999, n_month)
-psl_iceland_norm <- rep(-999, n_month)
+# Standardize each site separately (as discussed in Jones et al 1997). Do relative
+# to 2001-2016 mean/stdev so we can be consistent between projections and the
+# historical record
+psl_azores_std <- rep(-999, n_month)
+psl_iceland_std <- rep(-999, n_month)
 for (m in 1:12) {
   ind_this_month <- seq(from=m, to=n_month, by=12)
   # first 16 are 2001-2016
-  psl_tmp <- psl_azores_mean[ind_this_month]
-  psl_azores_norm[ind_this_month] <- (psl_tmp - mean(psl_tmp[1:16]))/sd(psl_tmp[1:16])
-  psl_tmp <- psl_iceland_mean[ind_this_month]
-  psl_iceland_norm[ind_this_month] <- (psl_tmp - mean(psl_tmp[1:16]))/sd(psl_tmp[1:16])
+  psl_tmp <- psl_azores_spavg[ind_this_month]
+  psl_azores_std[ind_this_month] <- (psl_tmp - mean(psl_tmp[1:16]))/sd(psl_tmp[1:16])
+  psl_tmp <- psl_iceland_spavg[ind_this_month]
+  psl_iceland_std[ind_this_month] <- (psl_tmp - mean(psl_tmp[1:16]))/sd(psl_tmp[1:16])
 }
 
 # get SLP difference
-nao_monthly <- psl_azores_norm - psl_iceland_norm
+nao_monthly <- psl_azores_std - psl_iceland_std
 
 # get winter mean
-nao_proj <- rep(-999, 99)
-for (y in 1:99) {
+nao_proj <- rep(-999, n_year)
+for (y in 1:n_year) {
   nao_proj[y] <- mean(nao_monthly[(y-1)*12 + 12:14])  # DJF
 #  nao_proj[y] <- mean(nao_monthly[(y-1)*12 + 12:15])  # DJFM
 #  nao_proj[y] <- mean(nao_monthly[(y-1)*12 + 1:12])   # annual

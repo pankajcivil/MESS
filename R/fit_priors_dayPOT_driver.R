@@ -51,7 +51,7 @@ if(Sys.info()['user']=='tony') {
 }
 
 pot.threshold <- 0.99   # POT threshold (percentile)
-dt.decluster <- 3       # declustering time-scale (days)
+dt.decluster <- 1       # declustering time-scale (days)
 
 .NP.deoptim <- 100      # number of DE population members (at least 10*[# parameters])
 .niter.deoptim <- 100   # number of DE iterations

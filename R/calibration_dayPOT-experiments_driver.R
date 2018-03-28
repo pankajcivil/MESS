@@ -152,30 +152,6 @@ gpd.experiments <- names(data_calib)[intersect(which(nchar(names(data_calib))>3)
 if(FALSE) {
 # trim to match the forcing
 for (gpd.exp in gpd.experiments) {
-<<<<<<< HEAD
-    # if tide gauge record starts before auxiliary forcing, clip it
-    if(data_calib[[gpd.exp]]$year[1] < time_forc[1]) {
-      irem <- which(data_calib[[gpd.exp]]$year < time_forc[1])
-      data_calib[[gpd.exp]]$year <- data_calib[[gpd.exp]]$year[-irem]
-      data_calib[[gpd.exp]]$counts <- data_calib[[gpd.exp]]$counts[-irem]
-      data_calib[[gpd.exp]]$excesses <- data_calib[[gpd.exp]]$excesses[-irem]
-      data_calib[[gpd.exp]]$time_length <- data_calib[[gpd.exp]]$time_length[-irem]
-      data_calib[[gpd.exp]]$time_length_all <- sum(data_calib[[gpd.exp]]$time_length)
-      data_calib[[gpd.exp]]$counts_all <- sum(unlist(data_calib[[gpd.exp]]$counts), na.rm=TRUE)
-      data_calib[[gpd.exp]]$excesses_all <- unlist(data_calib[[gpd.exp]]$excesses)[!is.na(unlist(data_calib[[gpd.exp]]$excesses))]
-    }
-    # if tide gauge record ends after auxiliary forcing, clip it
-    if(max(data_calib[[gpd.exp]]$year) > max(time_forc)) {
-      irem <- which(data_calib[[gpd.exp]]$year > max(time_forc))
-      data_calib[[gpd.exp]]$year <- data_calib[[gpd.exp]]$year[-irem]
-      data_calib[[gpd.exp]]$counts <- data_calib[[gpd.exp]]$counts[-irem]
-      data_calib[[gpd.exp]]$excesses <- data_calib[[gpd.exp]]$excesses[-irem]
-      data_calib[[gpd.exp]]$time_length <- data_calib[[gpd.exp]]$time_length[-irem]
-      data_calib[[gpd.exp]]$time_length_all <- sum(data_calib[[gpd.exp]]$time_length)
-      data_calib[[gpd.exp]]$counts_all <- sum(unlist(data_calib[[gpd.exp]]$counts), na.rm=TRUE)
-      data_calib[[gpd.exp]]$excesses_all <- unlist(data_calib[[gpd.exp]]$excesses)[!is.na(unlist(data_calib[[gpd.exp]]$excesses))]
-    }
-=======
   # if tide gauge record starts before auxiliary forcing, clip it
   if(data_calib[[gpd.exp]]$year[1] < time_forc[1]) {
     irem <- which(data_calib[[gpd.exp]]$year < time_forc[1])
@@ -198,7 +174,6 @@ for (gpd.exp in gpd.experiments) {
     data_calib[[gpd.exp]]$counts_all <- sum(unlist(data_calib[[gpd.exp]]$counts), na.rm=TRUE)
     data_calib[[gpd.exp]]$excesses_all <- unlist(data_calib[[gpd.exp]]$excesses)[!is.na(unlist(data_calib[[gpd.exp]]$excesses))]
   }
->>>>>>> c41156f463ef5b80832e7006cd030c903e3ae8d7
 }
 }
 
