@@ -36,39 +36,17 @@ ibeg <- which(nao_dat['year']==1850)
 iend <- max(which(nao_dat[,'ann']!=-99.99))
 time_hist <- nao_dat[ibeg:iend, 'year']
 
-# get DJFM means
+# get DJF means
 nao_hist <- rep(-999, length(time_hist))
 for (y in 1:length(time_hist)) {
-  nao_hist[y] <- mean( c(nao_dat$dec[ibeg+y-1], nao_dat$jan[ibeg+y], nao_dat$feb[ibeg+y], nao_dat$mar[ibeg+y]) )
+  nao_hist[y] <- mean( c(nao_dat$dec[ibeg+y-1], nao_dat$jan[ibeg+y], nao_dat$feb[ibeg+y]) )
 }
 time_hist <- nao_dat[ibeg:iend, 'year']
 
-# get DJFM means
-nao_hist <- rep(-999, length(time_hist))
-for (y in 1:length(time_hist)) {
-  nao_hist[y] <- mean( c(nao_dat$dec[ibeg+y-1], nao_dat$jan[ibeg+y], nao_dat$feb[ibeg+y], nao_dat$mar[ibeg+y]) )
-}
-#===============================================================================
-
-
-#===============================================================================
-# get SLP for historical period (1958-2000) to normalize
-slp_ice <- read.table('../data/nao_ice.dat')
-slp_azo <- read.table('../data/nao_azo.dat', skip=1)
-colnames(slp_ice) <- c('year','jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec')
-colnames(slp_azo) <- c('year','jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec')
-
-ibeg_ice <- which(slp_ice$year==1958)
-iend_ice <- which(slp_ice$year==2000)
-ibeg_azo <- which(slp_azo$year==1958)
-iend_azo <- which(slp_azo$year==2000)
-
-slp_ice_norm <- rep(-999, 12)
-slp_azo_norm <- rep(-999, 12)
-for (m in 1:12) {
-  slp_ice_norm[m] <- mean(as.matrix(slp_ice)[ibeg_ice:iend_ice, 1+m])
-  slp_azo_norm[m] <- mean(as.matrix(slp_azo)[ibeg_azo:iend_azo, 1+m])
-}
+# re-normalize (mean and stdev) relative to 2001-2016 mean/stdev, so it is
+# consistent with the projections
+ind_norm <- which(time_hist==2001):which(time_hist==2016)
+nao_hist <- (nao_hist - mean(nao_hist[ind_norm]))/sd(nao_hist[ind_norm])
 #===============================================================================
 
 
@@ -86,40 +64,58 @@ nc_close(ncdata)
 
 n_month <- length(time)
 
-# As in Li and Wang, 2003 (http://www.lasg.ac.cn/staff/ljp/paperE/ljp_2003NAO.pdf)
-# use proxy for station-based, since there is disagreement over how exactly
-# to do the PCA (which EOFs to rotate...) and loss of direct physical interpretation
-# of the results
-ilat_azores <- which.min(abs(lat - 35))
-ilon_azores <- which(lon >=(360-80) | lon <= 30)
+# As in Stephenson et al, 2006 (doi:  10.1007/s00382-006-0140-x)
+# use regional, since there is disagreement over how exactly
+# to do the PCA (which EOFs to rotate...) and a physical interpretation is
+# much more tangible this way
+ilat_azores <- which(lat >= 20 & lat <= 55)
+ilon_azores <- which(lon >=(360-90) | lon <= 60)
 
-ilat_iceland <- which.min(abs(lat - 65))
-ilon_iceland <- which(lon >=(360-80) | lon <= 30)
+ilat_iceland <- which(lat >= 55 & lat <= 90)
+ilon_iceland <- which(lon >=(360-90) | lon <= 60)
 
-psl_azores <- apply(X=psl[ilon_azores, ilat_azores, ], MARGIN=2, FUN=mean)
-psl_iceland <- apply(X=psl[ilon_iceland, ilat_iceland, ], MARGIN=2, FUN=mean)
+psl_azores <- psl[ilon_azores, ilat_azores, ]
+psl_iceland <- psl[ilon_iceland, ilat_iceland, ]
 
-# normalize relative to long-term mean
-for (m in 1:dim(time)) {
-#  mon <- m%%12
-#  if (mon==0) {mon <- 12}
-#  psl_azores[m] <- psl_azores[m] - slp_azo_norm[mon]*10
-#  psl_iceland[m] <- psl_iceland[m] - slp_ice_norm[mon]*10
-  psl_azores[m] <- psl_azores[m] - mean(psl[ilon_azores, ilat_azores, seq(from=m%%12, to=n_month, by=12)])
-  psl_iceland[m] <- psl_iceland[m] - mean(psl[ilon_iceland, ilat_iceland, seq(from=m%%12, to=n_month, by=12)])
+# don't do area-weighting as per explanation from Jesse Nusbaumer 27 March 2018 email:
+# Jesse says:
+#   Don't area-weight the results.  Instead, just take the average of the SLP
+#   over the specified region, treating every grid box the same.  The reason is
+#   because in GCM papers they will usually specifically state "area-weighted"
+#   if the actual meters-squared area is being taken into account, otherwise it
+#   is assumed to just be a non-weighted average.  Also when it comes to a lot
+#   of these indices the actual physical values (e.g. the total amount of
+#   atmospheric mass producing the surface pressure) isn't really important,
+#   they are just using the values to produce a strong statistical relationship.
+
+# take the bulk average over each area, for each month
+psl_azores_mean <- apply(psl_azores, 3, mean)
+psl_iceland_mean <- apply(psl_iceland, 3, mean)
+
+# normalize each site separately (as discussed in Jones et al 1997), but
+# realtive to 2001-2016 mean/stdev, so consistent with the historical record
+psl_azores_norm <- rep(-999, n_month)
+psl_iceland_norm <- rep(-999, n_month)
+for (m in 1:12) {
+  ind_this_month <- seq(from=m, to=n_month, by=12)
+  # first 16 are 2001-2016
+  psl_tmp <- psl_azores_mean[ind_this_month]
+  psl_azores_norm[ind_this_month] <- (psl_tmp - mean(psl_tmp[1:16]))/sd(psl_tmp[1:16])
+  psl_tmp <- psl_iceland_mean[ind_this_month]
+  psl_iceland_norm[ind_this_month] <- (psl_tmp - mean(psl_tmp[1:16]))/sd(psl_tmp[1:16])
 }
 
-# standardize relative to standard deviations
-psl_azores <- psl_azores / sd(psl_azores)
-psl_iceland <- psl_iceland / sd(psl_iceland)
+# get SLP difference
+nao_monthly <- psl_azores_norm - psl_iceland_norm
 
-# take winter (DJFM mean)
-nao_monthly <- psl_azores - psl_iceland
+# get winter mean
 nao_proj <- rep(-999, 99)
 for (y in 1:99) {
-  nao_proj[y] <- mean(nao_monthly[(y-1)*12 + 12:15])
-#  nao_proj[y] <- mean(nao_monthly[(y-1)*12 + 1:12])
+  nao_proj[y] <- mean(nao_monthly[(y-1)*12 + 12:14])  # DJF
+#  nao_proj[y] <- mean(nao_monthly[(y-1)*12 + 12:15])  # DJFM
+#  nao_proj[y] <- mean(nao_monthly[(y-1)*12 + 1:12])   # annual
 }
+
 time_proj <- 2001:2099
 #===============================================================================
 

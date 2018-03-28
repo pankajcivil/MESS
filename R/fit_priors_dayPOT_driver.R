@@ -21,7 +21,7 @@
 #
 # Updated 11 Dec 2017 // revised processing // tony wong
 #
-# Questions? Tony Wong (twong@psu.edu)
+# Questions? Tony Wong (anthony.e.wong@colorado.edu)
 #===============================================================================
 # Copyright 2017 Tony Wong
 #
@@ -51,7 +51,7 @@ if(Sys.info()['user']=='tony') {
 }
 
 pot.threshold <- 0.99   # POT threshold (percentile)
-dt.decluster <- 1       # declustering time-scale (days)
+dt.decluster <- 3       # declustering time-scale (days)
 
 .NP.deoptim <- 100      # number of DE population members (at least 10*[# parameters])
 .niter.deoptim <- 100   # number of DE iterations
