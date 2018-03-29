@@ -28,13 +28,13 @@ rm(list=ls())
 # vvv IMPORTANT SETTINGS YOU SHOULD MODIFY, DEPENDING ON THE EXPERIMENT vvv
 
 station <- 'delfzijl'             # can be 'delfzijl', 'balboa', or 'norfolk'
-type.of.priors <- 'normalgamma'      # can be either 'uniform' or 'normalgamma'
+type.of.priors <- 'uniform'      # can be either 'uniform' or 'normalgamma'
 pot.threshold <- 0.99            # GPD threshold (percentile, 0-1)
 dt.decluster <- 3                # declustering time-scale (days)
 
 niter_mcmc_prelim000 <- 5e3      # number of MCMC iterations (PRELIMINARY chains)
 nnode_mcmc_prelim000 <- 1        # number of CPUs to use (PRELIMINARY chains)
-niter_mcmc_prod000 <- 5e5        # number of MCMC iterations (PRODUCTION chains)
+niter_mcmc_prod000 <- 5e3        # number of MCMC iterations (PRODUCTION chains)
 #nnode_mcmc_prod000 <- 10          # number of CPUs to use (PRODUCTION chains)
 gamma_mcmc000 <- 0.5             # speed of adaptation (0.5=faster, 1=slowest)
 

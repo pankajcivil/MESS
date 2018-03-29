@@ -5,4 +5,4 @@
 #PBS -m abe
 #PBS -M twong@psu.edu
 
-R --vanilla < /home/scrim/axw322/codes/EVT/R/timeblock_motivating_experiment_fig1.R > /home/scrim/axw322/codes/EVT/R/calib_supp_mcmc.log
+R --vanilla < /home/scrim/axw322/codes/EVT/R/timeblock_motivating_experiment_fig1.R > /home/scrim/axw322/codes/EVT/R/logs/calib_supp_mcmc.log

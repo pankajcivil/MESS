@@ -23,7 +23,7 @@
 
 library(Hmisc)
 
-appen <- '_decl1'
+appen <- '_threshold99'
 path.ml <- paste('/home/scrim/axw322/codes/EVT/output/bma',appen,sep='')
 path.out <- '/home/scrim/axw322/codes/EVT/output'
 
@@ -32,11 +32,12 @@ filename.weights <- paste('bma_weights',appen,'.rds',sep='')
 
 types.of.priors <- 'normalgamma'
 
-bma.weights <- vector('list', 3)
-names(bma.weights) <- site.names <- c('Delfzijl', 'Balboa', 'Norfolk')
+site.names <- c('Delfzijl', 'Norfolk')
 n_sites <- length(site.names)
+bma.weights <- vector('list', n_sites)
+names(bma.weights) <- site.names
 
-log.marg.lik <- vector('list', 3)
+log.marg.lik <- vector('list', n_sites)
 names(log.marg.lik) <- site.names
 
 
@@ -46,7 +47,6 @@ n_model <- length(gpd.models)
 
 data.lengths <- vector('list', n_sites); names(data.lengths) <- site.names
 data.lengths$Norfolk <- c('30','50','70','89')
-data.lengths$Balboa <- c('30','50','70','90','107')
 data.lengths$Delfzijl <- c('30','50','70','90','110','137')
 
 for (site in site.names) {
@@ -71,7 +71,9 @@ files <- list.files(path=path.ml, full.names=TRUE, recursive=FALSE)
 
 for (file in files) {
   load(file)
-  site <- capitalize(toString(station))
+  ##site <- capitalize(toString(station))
+  station_name <- toString(station)
+  site <- paste(toupper(substr(station_name, 1, 1)), substr(station_name, 2, nchar(station_name)), sep="")
   year <- unlist(strsplit(file, split="[_. ]"))[5]
 #  data.case <- which.min(abs(as.numeric(levels(data.length)[data.length])-exp.years))]
   log.marg.lik[[site]][[year]][[gpd.model]] <- ml[length(ml)]

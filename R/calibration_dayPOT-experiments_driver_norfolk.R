@@ -27,7 +27,7 @@ rm(list=ls())
 
 # vvv IMPORTANT SETTINGS YOU SHOULD MODIFY, DEPENDING ON THE EXPERIMENT vvv
 
-station <- 'delfzijl'             # can be 'delfzijl', 'balboa', or 'norfolk'
+station <- 'norfolk'             # can be 'delfzijl', 'balboa', or 'norfolk'
 type.of.priors <- 'normalgamma'      # can be either 'uniform' or 'normalgamma'
 pot.threshold <- 0.99            # GPD threshold (percentile, 0-1)
 dt.decluster <- 3                # declustering time-scale (days)

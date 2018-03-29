@@ -1,3 +1,4 @@
+*.tar
 *.rds
 output/old/
 ../data/id1-DELFZL-187901010000-201701012359.txt

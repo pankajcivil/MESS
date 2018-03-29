@@ -5,4 +5,4 @@
 #PBS -m abe
 #PBS -M twong@psu.edu
 
-R --vanilla < /home/scrim/axw322/codes/EVT/R/processing_script.R > /home/scrim/axw322/codes/EVT/R/processing_parallel.log
+R --vanilla < /home/scrim/axw322/codes/EVT/R/processing_script.R > /home/scrim/axw322/codes/EVT/R/logs/processing_parallel.log

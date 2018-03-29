@@ -29,7 +29,7 @@ rm(list=ls())
 
 station <- 'delfzijl'             # can be 'delfzijl', 'balboa', or 'norfolk'
 type.of.priors <- 'normalgamma'      # can be either 'uniform' or 'normalgamma'
-pot.threshold <- 0.99            # GPD threshold (percentile, 0-1)
+pot.threshold <- 0.997            # GPD threshold (percentile, 0-1)
 dt.decluster <- 3                # declustering time-scale (days)
 
 niter_mcmc_prelim000 <- 5e3      # number of MCMC iterations (PRELIMINARY chains)
@@ -147,6 +147,35 @@ print('reading processed tide gauge data...')
 
 data_calib <- readRDS(filename.datacalib)
 gpd.experiments <- names(data_calib)[intersect(which(nchar(names(data_calib))>3) , grep('gpd', names(data_calib)))]
+
+# not necessary if the forcing combines historical and projections?
+if(FALSE) {
+# trim to match the forcing
+for (gpd.exp in gpd.experiments) {
+  # if tide gauge record starts before auxiliary forcing, clip it
+  if(data_calib[[gpd.exp]]$year[1] < time_forc[1]) {
+    irem <- which(data_calib[[gpd.exp]]$year < time_forc[1])
+    data_calib[[gpd.exp]]$year <- data_calib[[gpd.exp]]$year[-irem]
+    data_calib[[gpd.exp]]$counts <- data_calib[[gpd.exp]]$counts[-irem]
+    data_calib[[gpd.exp]]$excesses <- data_calib[[gpd.exp]]$excesses[-irem]
+    data_calib[[gpd.exp]]$time_length <- data_calib[[gpd.exp]]$time_length[-irem]
+    data_calib[[gpd.exp]]$time_length_all <- sum(data_calib[[gpd.exp]]$time_length)
+    data_calib[[gpd.exp]]$counts_all <- sum(unlist(data_calib[[gpd.exp]]$counts), na.rm=TRUE)
+    data_calib[[gpd.exp]]$excesses_all <- unlist(data_calib[[gpd.exp]]$excesses)[!is.na(unlist(data_calib[[gpd.exp]]$excesses))]
+  }
+  # if tide gauge record ends after auxiliary forcing, clip it
+  if(max(data_calib[[gpd.exp]]$year) > max(time_forc)) {
+    irem <- which(data_calib[[gpd.exp]]$year > max(time_forc))
+    data_calib[[gpd.exp]]$year <- data_calib[[gpd.exp]]$year[-irem]
+    data_calib[[gpd.exp]]$counts <- data_calib[[gpd.exp]]$counts[-irem]
+    data_calib[[gpd.exp]]$excesses <- data_calib[[gpd.exp]]$excesses[-irem]
+    data_calib[[gpd.exp]]$time_length <- data_calib[[gpd.exp]]$time_length[-irem]
+    data_calib[[gpd.exp]]$time_length_all <- sum(data_calib[[gpd.exp]]$time_length)
+    data_calib[[gpd.exp]]$counts_all <- sum(unlist(data_calib[[gpd.exp]]$counts), na.rm=TRUE)
+    data_calib[[gpd.exp]]$excesses_all <- unlist(data_calib[[gpd.exp]]$excesses)[!is.na(unlist(data_calib[[gpd.exp]]$excesses))]
+  }
+}
+}
 
 print('...done.')
 

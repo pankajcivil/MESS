@@ -29,9 +29,9 @@ library(foreach)
 library(doParallel)
 library(ncdf4)
 
-appen <- '_decl1'
-calib_date <- '07Jan2018'
-dt.decluster <- 1
+appen <- '_threshold99'
+calib_date <- '28Mar2018'
+dt.decluster <- 3
 pot.threshold <- 0.99
 type.of.priors <- 'normalgamma'     # can be 'uniform' or 'normalgamma'
 
@@ -58,21 +58,21 @@ if(Sys.info()['user']=='tony') {
 # import file containing the log likelihood calculations
 source(paste(path.R,'likelihood_ppgpd.R',sep='/'))
 
-source(paste(path.R,'read_data_temperature.R',sep='/'))
+source(paste(path.R,'read_data_naoindex.R',sep='/'))
+##source(paste(path.R,'read_data_temperature.R',sep='/'))
 
 # set up table of experiment parameters
 # some of these combinations (in terms of the data length and sites) don't exist, but they
 # just throw errors anyway. There is probably a better way to construct this data frame.
 # could include the type of prior in this as well
 
-sites <- c('delfzijl','balboa','norfolk')
+sites <- c('delfzijl','norfolk')
 n_sites <- length(sites)
 gpd.models <- c('gpd3','gpd4','gpd5','gpd6')
 n_model <- length(gpd.models)
 
 data.lengths <- vector('list', n_sites); names(data.lengths) <- sites
 data.lengths$norfolk <- c('30','50','70','89')
-data.lengths$balboa <- c('30','50','70','90','107')
 data.lengths$delfzijl <- c('30','50','70','90','110','137')
 
 # list to store the actual output
@@ -87,13 +87,13 @@ for (site in sites) {
 }
 
 # data frame to store the experimental details
-experiments <- expand.grid(station = c('delfzijl','balboa','norfolk'),
+experiments <- expand.grid(station = c('delfzijl','norfolk'),
                            gpd.model=c('gpd3','gpd4','gpd5','gpd6'),
-                           data.length=c('30','50','70','89','90','107','110','137'))
+                           data.length=c('30','50','70','89','90','110','137'))
 irem <- NULL
-irem <- c(irem, which((experiments[,'data.length']==89 | experiments[,'data.length']==107) & experiments[,'station']=='delfzijl'))
-irem <- c(irem, which((experiments[,'data.length']==89 | experiments[,'data.length']==137) & experiments[,'station']=='balboa'))
-irem <- c(irem, which((experiments[,'data.length']==107 | experiments[,'data.length']==137) & experiments[,'station']=='norfolk'))
+irem <- c(irem, which((experiments[,'data.length']==89) & experiments[,'station']=='delfzijl'))
+irem <- c(irem, which((experiments[,'data.length']==137 | experiments[,'data.length']==110 | experiments[,'data.length']==90) & experiments[,'station']=='norfolk'))
+experiments <- experiments[-irem,]
 n_experiments <- nrow(experiments)
 output <- vector('list', n_experiments)
 
@@ -104,7 +104,7 @@ print(paste('Starting cluster with ',nnode,' cores', sep=''))
 registerDoParallel(cl)
 
 source('bridge_sample_functions.R')
-export.names <- c('bridge.samp.rel.err','bridge.samp.iter','recip.imp.samp','experiments','trimmed_forcing','log_post_ppgpd','log_like_ppgpd','log_prior_ppgpd','path.R','Tmax','calib_date','dt.decluster','pot.threshold','type.of.priors')
+export.names <- c('bridge.samp.rel.err','bridge.samp.iter','recip.imp.samp','experiments','trimmed_forcing','log_post_ppgpd','log_like_ppgpd','log_prior_ppgpd','path.R','forc_max','calib_date','dt.decluster','pot.threshold','type.of.priors')
 
 finalOutput <- foreach(ee=1:n_experiments,
                             .packages=c('mvtnorm','extRemes','ncdf4'),
@@ -113,7 +113,7 @@ finalOutput <- foreach(ee=1:n_experiments,
 
   setwd(path.R)
   source(paste(path.R,'likelihood_ppgpd.R',sep='/'))
-  source(paste(path.R,'read_data_temperature.R',sep='/'))
+  source(paste(path.R,'read_data_naoindex.R',sep='/'))
   # get parameters for this particular experiment
   print(experiments[ee,])
   station <- experiments[ee,'station']
@@ -198,7 +198,7 @@ finalOutput <- foreach(ee=1:n_experiments,
 
   # set auxiliary parameters as trimmed_forcing for the relevant model
   if (gpd.model == 'gpd3') {aux <- NULL
-  } else {aux <-  trimmed_forcing(data_calib[[gpd.exp]]$year, time_forc, temperature_forc)$forcing}
+  } else {aux <-  trimmed_forcing(data_calib[[gpd.exp]]$year, time_forc, nao_forc)$forcing}
 
   imp.samp$log.p <- apply(imp.samp$samples, 1, log_post_ppgpd,
                           parnames=colnames(post.samp$samples),
