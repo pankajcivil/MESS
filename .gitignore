@@ -1,5 +1,8 @@
-*.Rapp.history
-*.Rhistory
+R/.DS_Store
+data/.DS_Store
+output/.DS_Store
+R/.Rapp.history
+R/.Rhistory
 *.tar
 *.rds
 output/old/
@@ -7,7 +10,7 @@ output/old/
 ../data/tidegauge_processed_*.rds
 returnlevels.csv
 surgelevels.rds
-*.DS_Store
+.DS_Store
 *.log
 *.pbs.*
 figures
